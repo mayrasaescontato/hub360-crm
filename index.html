@@ -1123,24 +1123,28 @@ const STAGES = {
   ]
 };
 
-// Sample local data (replace with Supabase table when ready)
-let oppsData = [
-  { id:1, contact:'João Smith',     initials:'JO', stage:'followup',     value:199, status:'open',   created:'25 de mai de 2026, 21:08', msgs:0, notes:0, tasks:1, docs:0 },
-  { id:2, contact:'Annie Bravo',    initials:'AN', stage:'followup',     value:199, status:'open',   created:'20 de mai de 2026, 10:00', msgs:0, notes:0, tasks:0, docs:0 },
-  { id:3, contact:'Anthony Traniello', initials:'UM', stage:'trial',     value:199, status:'open',   created:'26 de mai de 2026, 13:02', msgs:1, notes:0, tasks:0, docs:0 },
-  { id:4, contact:'Milena Coelho',  initials:'MI', stage:'trial',        value:199, status:'open',   created:'22 de mai de 2026, 09:15', msgs:0, notes:0, tasks:0, docs:0 },
-  { id:5, contact:'Andriel Guillen-Perez', initials:'UM', stage:'waiting', value:199, status:'open', created:'23 de abr de 2026, 09:00', msgs:1, notes:0, tasks:0, docs:0 },
-  { id:6, contact:'Ali Hussain',    initials:'AL', stage:'waiting',      value:199, status:'open',   created:'20 de mai de 2026, 14:30', msgs:0, notes:0, tasks:0, docs:0 },
-  { id:7, contact:'Scarlett Ostos Gallardo', initials:'SC', stage:'won', value:199, status:'open',   created:'12 de mai de 2026, 13:34', msgs:1, notes:0, tasks:1, docs:0 },
-  { id:8, contact:'Alejandro Gallardo', initials:'AL', stage:'won',      value:199, status:'won',    created:'10 de mai de 2026, 10:00', msgs:1, notes:0, tasks:0, docs:0 },
-  { id:9, contact:'Graziele Lima',  initials:'GR', stage:'lost',         value:199, status:'lost',   created:'14 de mai de 2026, 22:27', msgs:1, notes:4, tasks:0, docs:0 },
-  { id:10, contact:'Francisco Rodriguez', initials:'FR', stage:'lost',   value:199, status:'open',   created:'11 de mai de 2026, 08:00', msgs:0, notes:0, tasks:0, docs:0 },
-];
-
-function loadOpps() {
-  state.opps = [...oppsData];
-  state.oppsFiltered = [...oppsData];
-  renderKanban();
+async function loadOpps() {
+  try {
+    const data = await supaFetch('opportunities?select=*&order=created_at.desc');
+    state.opps = (data||[]).map(o => ({
+      id: o.id,
+      contact: o.contact,
+      initials: o.initials || o.contact.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(),
+      stage: o.stage,
+      value: o.value || 199,
+      status: o.status || 'open',
+      msgs: o.msgs_count || 0,
+      notes: o.notes_count || 0,
+      tasks: o.tasks_count || 0,
+      created: new Date(o.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+    }));
+    state.oppsFiltered = [...state.opps];
+    renderKanban();
+  } catch(e) {
+    state.opps = []; state.oppsFiltered = [];
+    renderKanban();
+    toast('Erro ao carregar oportunidades: ' + e.message, 'error');
+  }
 }
 
 function changePipeline() { renderKanban(); }
@@ -1226,24 +1230,25 @@ function openNewOpp() {
   document.getElementById('oppModal').classList.add('open');
 }
 function closeOppModal() { document.getElementById('oppModal').classList.remove('open'); }
-function saveOpp() {
+async function saveOpp() {
   const name = document.getElementById('oppContactName').value.trim();
   if (!name) { toast('Nome é obrigatório','error'); return; }
-  const newOpp = {
-    id: Date.now(),
+  const data = {
     contact: name,
     initials: name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(),
     stage: document.getElementById('oppStage').value,
     value: parseFloat(document.getElementById('oppValue').value)||0,
     status: document.getElementById('oppStatus').value,
-    created: new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),
-    msgs:0, notes:0, tasks:0, docs:0
+    msgs_count: 0, notes_count: 0, tasks_count: 0
   };
-  oppsData.push(newOpp);
-  state.opps = [...oppsData]; state.oppsFiltered = [...oppsData];
-  renderKanban();
-  closeOppModal();
-  toast('Oportunidade criada!');
+  try {
+    await supaFetch('opportunities', { method:'POST', body:JSON.stringify(data) });
+    closeOppModal();
+    toast('Oportunidade criada!');
+    loadOpps();
+  } catch(e) {
+    toast('Erro ao salvar: ' + e.message, 'error');
+  }
 }
 document.getElementById('oppModal').addEventListener('click', function(e){ if(e.target===this) closeOppModal(); });
 </script>
