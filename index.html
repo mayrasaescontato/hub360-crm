@@ -340,17 +340,27 @@
       <nav class="sb-nav">
         <div class="sb-section">Principal</div>
         <div class="sb-item active" onclick="showPage('dashboard',this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
+        <div class="sb-item" onclick="showPage('conversations',this)"><i class="fas fa-comments"></i> Conversas</div>
+        <div class="sb-item" onclick="showPage('calendar',this)"><i class="fas fa-calendar-alt"></i> Calendário</div>
         <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
-        <div class="sb-item" onclick="showPage('pipeline',this)"><i class="fas fa-columns"></i> Pipeline</div>
+        <div class="sb-item" onclick="showPage('pipeline',this)"><i class="fas fa-columns"></i> Oportunidades</div>
 
         <div class="sb-section">Marketing</div>
         <div class="sb-item" onclick="showPage('campaigns',this)"><i class="fas fa-bullhorn"></i> Campanhas</div>
-        <div class="sb-item" onclick="showPage('conversations',this)"><i class="fas fa-comments"></i> Conversas</div>
+        <div class="sb-item" onclick="showPage('email',this)"><i class="fas fa-envelope"></i> Email Marketing</div>
+        <div class="sb-item" onclick="showPage('sms',this)"><i class="fas fa-sms"></i> SMS</div>
+        <div class="sb-item" onclick="showPage('automations',this)"><i class="fas fa-robot"></i> Automações</div>
+
+        <div class="sb-section">Vendas</div>
+        <div class="sb-item" onclick="showPage('payments',this)"><i class="fas fa-dollar-sign"></i> Pagamentos</div>
+        <div class="sb-item" onclick="showPage('tasks',this)"><i class="fas fa-tasks"></i> Tarefas</div>
 
         <div class="sb-section">Relatórios</div>
         <div class="sb-item" onclick="showPage('reports',this)"><i class="fas fa-chart-bar"></i> Relatórios</div>
+        <div class="sb-item" onclick="showPage('reports-ads',this)"><i class="fab fa-google"></i> Google Ads</div>
+        <div class="sb-item" onclick="showPage('reports-fb',this)"><i class="fab fa-facebook"></i> Facebook Ads</div>
 
-        <div class="sb-section">Configurações</div>
+        <div class="sb-section">Sistema</div>
         <div class="sb-item" onclick="showPage('settings',this)"><i class="fas fa-cog"></i> Configurações</div>
       </nav>
 
@@ -484,8 +494,146 @@
           </div>
         </div>
 
-        <!-- CAMPAIGNS -->
-        <div class="page" id="page-campaigns">
+        <!-- CALENDAR -->
+        <div class="page" id="page-calendar">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header">
+              <div class="card-title">📅 Calendário</div>
+              <button class="btn btn-primary"><i class="fas fa-plus"></i> Novo Agendamento</button>
+            </div>
+            <div class="card-body">
+              <div id="calendarGrid"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EMAIL -->
+        <div class="page" id="page-email">
+          <div class="empty-state">
+            <i class="fas fa-envelope"></i>
+            <p style="font-weight:700;font-size:16px;margin-bottom:8px">Email Marketing</p>
+            <p>Crie e envie campanhas de email para seus contatos.</p>
+            <button class="btn btn-primary" style="margin-top:16px"><i class="fas fa-plus"></i> Nova Campanha de Email</button>
+          </div>
+        </div>
+
+        <!-- SMS -->
+        <div class="page" id="page-sms">
+          <div class="empty-state">
+            <i class="fas fa-sms"></i>
+            <p style="font-weight:700;font-size:16px;margin-bottom:8px">SMS</p>
+            <p>Envie mensagens SMS para seus alunos e leads.</p>
+            <button class="btn btn-primary" style="margin-top:16px"><i class="fas fa-plus"></i> Novo SMS</button>
+          </div>
+        </div>
+
+        <!-- AUTOMATIONS -->
+        <div class="page" id="page-automations">
+          <div class="empty-state">
+            <i class="fas fa-robot"></i>
+            <p style="font-weight:700;font-size:16px;margin-bottom:8px">Automações</p>
+            <p>Configure fluxos automáticos de follow-up e comunicação.</p>
+            <button class="btn btn-primary" style="margin-top:16px"><i class="fas fa-plus"></i> Nova Automação</button>
+          </div>
+        </div>
+
+        <!-- PAYMENTS -->
+        <div class="page" id="page-payments">
+          <div class="stats-grid" style="margin-bottom:16px">
+            <div class="stat-card">
+              <div class="stat-label">Receita Mensal</div>
+              <div class="stat-value" style="color:var(--green)">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Pagamentos Pendentes</div>
+              <div class="stat-value" style="color:#f59e0b">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Inadimplentes</div>
+              <div class="stat-value" style="color:var(--red)">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Alunos Ativos</div>
+              <div class="stat-value">—</div>
+            </div>
+          </div>
+          <div class="empty-state">
+            <i class="fas fa-dollar-sign"></i>
+            <p>Integração com pagamentos em breve.</p>
+          </div>
+        </div>
+
+        <!-- TASKS -->
+        <div class="page" id="page-tasks">
+          <div class="contacts-toolbar">
+            <input class="search-input" type="text" placeholder="🔍  Buscar tarefas...">
+            <button class="btn btn-primary"><i class="fas fa-plus"></i> Nova Tarefa</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Tarefa</th><th>Contato</th><th>Prazo</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody>
+                <tr><td colspan="5"><div class="empty-state"><i class="fas fa-tasks"></i><p>Nenhuma tarefa ainda. Crie a primeira!</p></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- REPORTS ADS - Google -->
+        <div class="page" id="page-reports-ads">
+          <div class="stats-grid" style="margin-bottom:16px">
+            <div class="stat-card">
+              <div class="stat-label"><i class="fab fa-google" style="color:#4285f4"></i> Impressões</div>
+              <div class="stat-value">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Cliques</div>
+              <div class="stat-value">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Conversões</div>
+              <div class="stat-value">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Custo Total</div>
+              <div class="stat-value">—</div>
+            </div>
+          </div>
+          <div class="empty-state">
+            <i class="fab fa-google" style="color:#4285f4"></i>
+            <p style="font-weight:700;font-size:16px;margin-bottom:8px">Google Ads</p>
+            <p>Conecte sua conta do Google Ads para ver os relatórios aqui.</p>
+            <button class="btn btn-primary" style="margin-top:16px"><i class="fab fa-google"></i> Conectar Google Ads</button>
+          </div>
+        </div>
+
+        <!-- REPORTS FB - Facebook -->
+        <div class="page" id="page-reports-fb">
+          <div class="stats-grid" style="margin-bottom:16px">
+            <div class="stat-card">
+              <div class="stat-label"><i class="fab fa-facebook" style="color:#1877f2"></i> Alcance</div>
+              <div class="stat-value">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Engajamento</div>
+              <div class="stat-value">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Leads</div>
+              <div class="stat-value">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Custo por Lead</div>
+              <div class="stat-value">—</div>
+            </div>
+          </div>
+          <div class="empty-state">
+            <i class="fab fa-facebook" style="color:#1877f2"></i>
+            <p style="font-weight:700;font-size:16px;margin-bottom:8px">Facebook Ads</p>
+            <p>Conecte sua conta do Facebook Ads para ver os relatórios aqui.</p>
+            <button class="btn btn-primary" style="margin-top:16px"><i class="fab fa-facebook"></i> Conectar Facebook Ads</button>
+          </div>
+        </div>
           <div class="empty-state">
             <i class="fas fa-bullhorn"></i>
             <p style="font-weight:700;font-size:16px;margin-bottom:8px">Campanhas</p>
@@ -740,8 +888,11 @@ function showPage(name, el) {
   if (el) el.classList.add('active');
 
   const titles = {
-    dashboard:'Dashboard', contacts:'Contatos', pipeline:'Pipeline',
-    campaigns:'Campanhas', conversations:'Conversas', reports:'Relatórios', settings:'Configurações'
+    dashboard:'Dashboard', contacts:'Contatos', pipeline:'Oportunidades',
+    campaigns:'Campanhas', conversations:'Conversas', reports:'Relatórios',
+    settings:'Configurações', calendar:'Calendário', email:'Email Marketing',
+    sms:'SMS', automations:'Automações', payments:'Pagamentos', tasks:'Tarefas',
+    'reports-ads':'Google Ads', 'reports-fb':'Facebook Ads'
   };
   document.getElementById('topbarTitle').textContent = titles[name] || name;
 
@@ -751,7 +902,8 @@ function showPage(name, el) {
     actions.innerHTML = `<button class="btn btn-primary" onclick="openNewContact()"><i class="fas fa-plus"></i> Novo Contato</button>`;
     loadContacts();
   }
-  if (name === 'reports') loadReports();
+  if (name === 'calendar') initCalendar();
+  if (name === 'reports' || name === 'reports-ads' || name === 'reports-fb') loadReports();
 }
 
 // ===== COMPANY SWITCHER =====
@@ -973,6 +1125,45 @@ async function deleteContact(id) {
   } catch(e) {
     toast('Erro ao excluir: ' + e.message, 'error');
   }
+}
+
+// ===== CALENDAR =====
+function initCalendar() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const dayNames = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <h3 style="font-size:16px;font-weight:700">${monthNames[month]} ${year}</h3>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline" style="font-size:12px">← Anterior</button>
+      <button class="btn btn-outline" style="font-size:12px">Hoje</button>
+      <button class="btn btn-outline" style="font-size:12px">Próximo →</button>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--gray-200);border-radius:8px;overflow:hidden">`;
+
+  dayNames.forEach(d => {
+    html += `<div style="background:var(--gray-50);padding:8px;text-align:center;font-size:11px;font-weight:700;color:var(--gray-500)">${d}</div>`;
+  });
+
+  for (let i = 0; i < firstDay; i++) {
+    html += `<div style="background:#fff;padding:8px;min-height:70px"></div>`;
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isToday = d === now.getDate();
+    html += `<div style="background:#fff;padding:8px;min-height:70px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='#fff'">
+      <div style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;${isToday?'background:var(--green);color:#fff':'color:var(--gray-700)'}">${d}</div>
+    </div>`;
+  }
+
+  html += `</div>`;
+  document.getElementById('calendarGrid').innerHTML = html;
 }
 
 // ===== PIPELINE =====
