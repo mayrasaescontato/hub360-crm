@@ -40,7 +40,6 @@
     box-shadow: 0 32px 80px rgba(0,0,0,0.4);
   }
   .login-logo-wrap { text-align:center; margin-bottom:32px; }
-  .login-logo-wrap img { height:64px; object-fit:contain; }
   .login-logo-text {
     font-size:28px; font-weight:800; color:var(--gold); letter-spacing:2px;
     text-shadow:0 0 20px rgba(196,169,125,0.4);
@@ -193,6 +192,7 @@
   .badge-blue { background:#dbeafe; color:#1d4ed8; }
   .badge-yellow { background:#fef9c3; color:#854d0e; }
   .badge-gray { background:var(--gray-100); color:var(--gray-700); }
+  .badge-red { background:#fee2e2; color:#991b1b; }
 
   .pagination { display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid var(--gray-100); }
   .pagination-info { font-size:13px; color:var(--gray-500); flex:1; }
@@ -204,22 +204,101 @@
   .page-btn.active { background:var(--green); color:#fff; border-color:var(--green); }
   .page-btn:disabled { opacity:.4; cursor:default; }
 
-  /* ===== PIPELINE ===== */
-  .pipeline-wrap { overflow-x:auto; padding-bottom:12px; }
-  .pipeline { display:flex; gap:12px; min-width:max-content; }
-  .pipeline-col { width:240px; flex-shrink:0; }
-  .pipeline-col-header {
-    padding:10px 12px; border-radius:8px 8px 0 0; font-size:12px; font-weight:700;
+  /* ===== PIPELINE (NovoDash style) ===== */
+  .pipeline-page { display:flex; flex-direction:column; height:100%; }
+
+  .pipeline-topbar {
+    display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;
+  }
+  .pipeline-select {
+    padding:8px 32px 8px 12px; border:1px solid var(--gray-200); border-radius:8px;
+    font-size:13px; font-weight:600; color:var(--gray-900); background:#fff;
+    appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 8px center; background-size:16px;
+    cursor:pointer;
+  }
+  .pipeline-count { font-size:13px; color:var(--blue); font-weight:600; }
+
+  .pipeline-tabs {
+    display:flex; gap:0; border-bottom:1px solid var(--gray-200); margin-bottom:16px;
+  }
+  .pipeline-tab {
+    padding:8px 16px; font-size:13px; font-weight:500; color:var(--gray-500);
+    cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+    display:flex; align-items:center; gap:6px; transition:color .15s;
+  }
+  .pipeline-tab:hover { color:var(--gray-900); }
+  .pipeline-tab.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+
+  .pipeline-filters {
+    display:flex; align-items:center; gap:8px; margin-bottom:16px;
+  }
+  .pipeline-filters .btn { font-size:12px; padding:6px 12px; }
+  .filter-search {
+    flex:1; max-width:300px; padding:7px 12px; border:1px solid var(--gray-200);
+    border-radius:7px; font-size:13px; outline:none;
+  }
+  .filter-search:focus { border-color:var(--green); }
+
+  .kanban-wrap { overflow-x:auto; flex:1; padding-bottom:16px; }
+  .kanban { display:flex; gap:12px; min-width:max-content; align-items:flex-start; }
+
+  .kanban-col { width:260px; flex-shrink:0; }
+  .kanban-col-header {
+    padding:10px 12px; background:#fff; border-radius:8px 8px 0 0;
+    border:1px solid var(--gray-200); border-bottom:none;
     display:flex; align-items:center; justify-content:space-between;
   }
-  .pipeline-col-body { background:var(--gray-100); border-radius:0 0 8px 8px; padding:8px; min-height:200px; }
-  .pipeline-card {
-    background:#fff; border-radius:8px; padding:12px; margin-bottom:8px;
-    border:1px solid var(--gray-200); cursor:pointer; transition:box-shadow .15s;
+  .kanban-col-title { font-size:13px; font-weight:700; color:var(--gray-900); display:flex; align-items:center; gap:6px; }
+  .kanban-col-meta { font-size:11px; color:var(--gray-500); margin-top:2px; }
+  .kanban-col-body {
+    background:#f3f4f6; border:1px solid var(--gray-200); border-top:none;
+    border-radius:0 0 8px 8px; padding:8px; min-height:120px;
   }
-  .pipeline-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); }
-  .pipeline-card-name { font-size:13px; font-weight:600; margin-bottom:4px; }
-  .pipeline-card-sub { font-size:11px; color:var(--gray-500); }
+
+  /* Oportunidade card */
+  .opp-card {
+    background:#fff; border-radius:8px; padding:12px; margin-bottom:8px;
+    border:1px solid var(--gray-200); cursor:pointer;
+    transition:box-shadow .15s, border-color .15s;
+    position:relative;
+  }
+  .opp-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); border-color:var(--gray-300); }
+  .opp-card-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:8px; }
+  .opp-card-name { font-size:13px; font-weight:700; color:var(--gray-900); }
+  .opp-card-avatar {
+    width:28px; height:28px; border-radius:50%; background:var(--green);
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:700; color:#fff; flex-shrink:0;
+  }
+  .opp-card-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:12px; color:var(--gray-500); }
+  .opp-card-row strong { color:var(--gray-700); }
+  .opp-card-label { font-size:11px; color:var(--gray-400); min-width:54px; }
+  .opp-status-badge {
+    display:inline-flex; align-items:center; padding:2px 8px; border-radius:4px;
+    font-size:11px; font-weight:600; border:1px solid;
+  }
+  .opp-status-open { background:#f0fdf4; color:#166534; border-color:#bbf7d0; }
+  .opp-status-lost { background:#fff1f2; color:#be123c; border-color:#fecdd3; }
+  .opp-status-won { background:#f0fdf4; color:#166534; border-color:#bbf7d0; }
+  .opp-card-actions {
+    display:flex; align-items:center; gap:6px; margin-top:10px;
+    padding-top:8px; border-top:1px solid var(--gray-100);
+  }
+  .opp-action-btn {
+    width:26px; height:26px; border-radius:6px; border:1px solid var(--gray-200);
+    background:#fff; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:12px; color:var(--gray-500);
+    transition:background .15s, color .15s;
+  }
+  .opp-action-btn:hover { background:var(--gray-50); color:var(--gray-900); }
+  .opp-action-btn.has-badge { position:relative; }
+  .opp-action-btn .mini-badge {
+    position:absolute; top:-4px; right:-4px; width:14px; height:14px;
+    background:var(--blue); border-radius:50%; font-size:9px; font-weight:700;
+    color:#fff; display:flex; align-items:center; justify-content:center;
+  }
 
   /* ===== MODAL ===== */
   .modal-overlay {
@@ -271,8 +350,6 @@
   .empty-state i { font-size:40px; margin-bottom:12px; opacity:.3; }
   .empty-state p { font-size:14px; }
   select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; background-size:16px; padding-right:32px !important; }
-
-  /* scrollbar */
   ::-webkit-scrollbar { width:6px; height:6px; }
   ::-webkit-scrollbar-track { background:transparent; }
   ::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.15); border-radius:3px; }
@@ -341,7 +418,7 @@
         <div class="sb-section">Principal</div>
         <div class="sb-item active" onclick="showPage('dashboard',this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
         <div class="sb-item" onclick="showPage('conversations',this)"><i class="fas fa-comments"></i> Conversas</div>
-        <div class="sb-item" onclick="showPage('calendar',this)"><i class="fas fa-calendar-alt"></i> Calendário</div>
+        <div class="sb-item" onclick="showPage('calendar',this)"><i class="fas fa-calendar-alt"></i> Calendários</div>
         <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
         <div class="sb-item" onclick="showPage('pipeline',this)"><i class="fas fa-columns"></i> Oportunidades</div>
 
@@ -413,7 +490,6 @@
               <div class="stat-sub">Contatos com telefone</div>
             </div>
           </div>
-
           <div class="dash-grid">
             <div class="card">
               <div class="card-header">
@@ -425,9 +501,7 @@
               </div>
             </div>
             <div class="card">
-              <div class="card-header">
-                <div class="card-title">Empresas</div>
-              </div>
+              <div class="card-header"><div class="card-title">Empresas</div></div>
               <div class="card-body">
                 <div style="display:flex;flex-direction:column;gap:10px">
                   <div style="padding:12px;background:#f0faf5;border-radius:8px;border-left:3px solid var(--green)">
@@ -467,11 +541,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>Nome</th>
-                  <th>Telefone</th>
-                  <th>E-mail</th>
-                  <th>Empresa</th>
-                  <th>Ações</th>
+                  <th>Nome</th><th>Telefone</th><th>E-mail</th><th>Empresa</th><th>Ações</th>
                 </tr>
               </thead>
               <tbody id="contactsBody">
@@ -487,10 +557,51 @@
           </div>
         </div>
 
-        <!-- PIPELINE -->
+        <!-- PIPELINE / OPORTUNIDADES (NovoDash style) -->
         <div class="page" id="page-pipeline">
-          <div class="pipeline-wrap">
-            <div class="pipeline" id="pipelineBoard"></div>
+          <div class="pipeline-page">
+
+            <!-- top bar -->
+            <div class="pipeline-topbar">
+              <select class="pipeline-select" id="pipelineSelect" onchange="changePipeline()">
+                <option value="leads">Novo Dash Leads</option>
+                <option value="members">Membros</option>
+              </select>
+              <span class="pipeline-count" id="pipelineCountLabel">0 oportunidades</span>
+              <div style="flex:1"></div>
+              <button class="btn btn-primary" onclick="openNewOpp()"><i class="fas fa-plus"></i> Adicionar oportunidade</button>
+            </div>
+
+            <!-- tabs -->
+            <div class="pipeline-tabs">
+              <div class="pipeline-tab active" onclick="setPipelineTab('board',this)">
+                <i class="fas fa-th-large"></i> Oportunidades a...
+              </div>
+              <div class="pipeline-tab" onclick="setPipelineTab('smart',this)">
+                <i class="fas fa-star"></i> Nova lista intelig...
+              </div>
+              <div class="pipeline-tab" onclick="setPipelineTab('add',this)">
+                <i class="fas fa-plus"></i> lista
+              </div>
+              <div style="flex:1"></div>
+              <div style="display:flex;align-items:center;gap:8px;padding-bottom:2px">
+                <button class="btn btn-outline" style="font-size:12px;padding:5px 10px"><i class="fas fa-sliders-h"></i> Personalizar lista</button>
+              </div>
+            </div>
+
+            <!-- filters -->
+            <div class="pipeline-filters">
+              <button class="btn btn-outline"><i class="fas fa-filter"></i> Filtros Avançados</button>
+              <button class="btn btn-outline"><i class="fas fa-sort"></i> Ordenar (1)</button>
+              <input class="filter-search" type="text" placeholder="Oportunidades de Pesquisa" oninput="filterOpps(this.value)">
+              <div style="flex:1"></div>
+              <button class="btn btn-outline" style="font-size:12px;padding:5px 10px"><i class="fas fa-cog"></i> Gerenciar Campos</button>
+            </div>
+
+            <!-- kanban -->
+            <div class="kanban-wrap">
+              <div class="kanban" id="kanbanBoard"></div>
+            </div>
           </div>
         </div>
 
@@ -501,9 +612,7 @@
               <div class="card-title">📅 Calendário</div>
               <button class="btn btn-primary"><i class="fas fa-plus"></i> Novo Agendamento</button>
             </div>
-            <div class="card-body">
-              <div id="calendarGrid"></div>
-            </div>
+            <div class="card-body"><div id="calendarGrid"></div></div>
           </div>
         </div>
 
@@ -540,27 +649,12 @@
         <!-- PAYMENTS -->
         <div class="page" id="page-payments">
           <div class="stats-grid" style="margin-bottom:16px">
-            <div class="stat-card">
-              <div class="stat-label">Receita Mensal</div>
-              <div class="stat-value" style="color:var(--green)">—</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Pagamentos Pendentes</div>
-              <div class="stat-value" style="color:#f59e0b">—</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Inadimplentes</div>
-              <div class="stat-value" style="color:var(--red)">—</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Alunos Ativos</div>
-              <div class="stat-value">—</div>
-            </div>
+            <div class="stat-card"><div class="stat-label">Receita Mensal</div><div class="stat-value" style="color:var(--green)">—</div></div>
+            <div class="stat-card"><div class="stat-label">Pagamentos Pendentes</div><div class="stat-value" style="color:#f59e0b">—</div></div>
+            <div class="stat-card"><div class="stat-label">Inadimplentes</div><div class="stat-value" style="color:var(--red)">—</div></div>
+            <div class="stat-card"><div class="stat-label">Alunos Ativos</div><div class="stat-value">—</div></div>
           </div>
-          <div class="empty-state">
-            <i class="fas fa-dollar-sign"></i>
-            <p>Integração com pagamentos em breve.</p>
-          </div>
+          <div class="empty-state"><i class="fas fa-dollar-sign"></i><p>Integração com pagamentos em breve.</p></div>
         </div>
 
         <!-- TASKS -->
@@ -572,32 +666,18 @@
           <div class="table-wrap">
             <table>
               <thead><tr><th>Tarefa</th><th>Contato</th><th>Prazo</th><th>Status</th><th>Ações</th></tr></thead>
-              <tbody>
-                <tr><td colspan="5"><div class="empty-state"><i class="fas fa-tasks"></i><p>Nenhuma tarefa ainda. Crie a primeira!</p></div></td></tr>
-              </tbody>
+              <tbody><tr><td colspan="5"><div class="empty-state"><i class="fas fa-tasks"></i><p>Nenhuma tarefa ainda. Crie a primeira!</p></div></td></tr></tbody>
             </table>
           </div>
         </div>
 
-        <!-- REPORTS ADS - Google -->
+        <!-- GOOGLE ADS -->
         <div class="page" id="page-reports-ads">
           <div class="stats-grid" style="margin-bottom:16px">
-            <div class="stat-card">
-              <div class="stat-label"><i class="fab fa-google" style="color:#4285f4"></i> Impressões</div>
-              <div class="stat-value">—</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Cliques</div>
-              <div class="stat-value">—</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Conversões</div>
-              <div class="stat-value">—</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Custo Total</div>
-              <div class="stat-value">—</div>
-            </div>
+            <div class="stat-card"><div class="stat-label"><i class="fab fa-google" style="color:#4285f4"></i> Impressões</div><div class="stat-value">—</div></div>
+            <div class="stat-card"><div class="stat-label">Cliques</div><div class="stat-value">—</div></div>
+            <div class="stat-card"><div class="stat-label">Conversões</div><div class="stat-value">—</div></div>
+            <div class="stat-card"><div class="stat-label">Custo Total</div><div class="stat-value">—</div></div>
           </div>
           <div class="empty-state">
             <i class="fab fa-google" style="color:#4285f4"></i>
@@ -607,25 +687,13 @@
           </div>
         </div>
 
-        <!-- REPORTS FB - Facebook -->
+        <!-- FACEBOOK ADS -->
         <div class="page" id="page-reports-fb">
           <div class="stats-grid" style="margin-bottom:16px">
-            <div class="stat-card">
-              <div class="stat-label"><i class="fab fa-facebook" style="color:#1877f2"></i> Alcance</div>
-              <div class="stat-value">—</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Engajamento</div>
-              <div class="stat-value">—</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Leads</div>
-              <div class="stat-value">—</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Custo por Lead</div>
-              <div class="stat-value">—</div>
-            </div>
+            <div class="stat-card"><div class="stat-label"><i class="fab fa-facebook" style="color:#1877f2"></i> Alcance</div><div class="stat-value">—</div></div>
+            <div class="stat-card"><div class="stat-label">Engajamento</div><div class="stat-value">—</div></div>
+            <div class="stat-card"><div class="stat-label">Leads</div><div class="stat-value">—</div></div>
+            <div class="stat-card"><div class="stat-label">Custo por Lead</div><div class="stat-value">—</div></div>
           </div>
           <div class="empty-state">
             <i class="fab fa-facebook" style="color:#1877f2"></i>
@@ -634,6 +702,9 @@
             <button class="btn btn-primary" style="margin-top:16px"><i class="fab fa-facebook"></i> Conectar Facebook Ads</button>
           </div>
         </div>
+
+        <!-- CAMPAIGNS -->
+        <div class="page" id="page-campaigns">
           <div class="empty-state">
             <i class="fas fa-bullhorn"></i>
             <p style="font-weight:700;font-size:16px;margin-bottom:8px">Campanhas</p>
@@ -653,27 +724,12 @@
         <!-- REPORTS -->
         <div class="page" id="page-reports">
           <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-label">Total de Alunos</div>
-              <div class="stat-value" id="repTotal">—</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Com Email</div>
-              <div class="stat-value" id="repEmail">—</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Com Telefone</div>
-              <div class="stat-value" id="repPhone">—</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Completos</div>
-              <div class="stat-value" id="repComplete">—</div>
-            </div>
+            <div class="stat-card"><div class="stat-label">Total de Alunos</div><div class="stat-value" id="repTotal">—</div></div>
+            <div class="stat-card"><div class="stat-label">Com Email</div><div class="stat-value" id="repEmail">—</div></div>
+            <div class="stat-card"><div class="stat-label">Com Telefone</div><div class="stat-value" id="repPhone">—</div></div>
+            <div class="stat-card"><div class="stat-label">Completos</div><div class="stat-value" id="repComplete">—</div></div>
           </div>
-          <div class="empty-state">
-            <i class="fas fa-chart-bar"></i>
-            <p>Mais relatórios detalhados em breve.</p>
-          </div>
+          <div class="empty-state"><i class="fas fa-chart-bar"></i><p>Mais relatórios detalhados em breve.</p></div>
         </div>
 
         <!-- SETTINGS -->
@@ -698,12 +754,12 @@
           </div>
         </div>
 
-      </div>
-    </div>
-  </div>
-</div>
+      </div><!-- /content -->
+    </div><!-- /main -->
+  </div><!-- /layout -->
+</div><!-- /appScreen -->
 
-<!-- MODAL NOVO/EDITAR CONTATO -->
+<!-- MODAL CONTATO -->
 <div class="modal-overlay" id="contactModal">
   <div class="modal">
     <div class="modal-header">
@@ -713,40 +769,22 @@
     <div class="modal-body">
       <input type="hidden" id="editContactId">
       <div class="form-row">
-        <div class="form-group">
-          <label>Nome *</label>
-          <input type="text" id="cfFirstName" placeholder="Nome">
-        </div>
-        <div class="form-group">
-          <label>Sobrenome</label>
-          <input type="text" id="cfLastName" placeholder="Sobrenome">
-        </div>
+        <div class="form-group"><label>Nome *</label><input type="text" id="cfFirstName" placeholder="Nome"></div>
+        <div class="form-group"><label>Sobrenome</label><input type="text" id="cfLastName" placeholder="Sobrenome"></div>
       </div>
-      <div class="form-group">
-        <label>Telefone</label>
-        <input type="text" id="cfPhone" placeholder="+1 (508) 000-0000">
-      </div>
-      <div class="form-group">
-        <label>E-mail</label>
-        <input type="email" id="cfEmail" placeholder="email@exemplo.com">
-      </div>
+      <div class="form-group"><label>Telefone</label><input type="text" id="cfPhone" placeholder="+1 (508) 000-0000"></div>
+      <div class="form-group"><label>E-mail</label><input type="email" id="cfEmail" placeholder="email@exemplo.com"></div>
       <div class="form-group">
         <label>Empresa</label>
         <select id="cfCompany">
-          <option value="Alliance BJJ Framingham">Alliance BJJ Framingham</option>
-          <option value="Sam Sushi Art Music">Sam Sushi Art Music</option>
-          <option value="Real Print USA">Real Print USA</option>
-          <option value="Ez Money USA">Ez Money USA</option>
+          <option>Alliance BJJ Framingham</option>
+          <option>Sam Sushi Art Music</option>
+          <option>Real Print USA</option>
+          <option>Ez Money USA</option>
         </select>
       </div>
-      <div class="form-group">
-        <label>Tags</label>
-        <input type="text" id="cfTags" placeholder="aluno, lead, vip...">
-      </div>
-      <div class="form-group">
-        <label>Observações</label>
-        <textarea id="cfNotes" placeholder="Anotações sobre este contato..."></textarea>
-      </div>
+      <div class="form-group"><label>Tags</label><input type="text" id="cfTags" placeholder="aluno, lead, vip..."></div>
+      <div class="form-group"><label>Observações</label><textarea id="cfNotes" placeholder="Anotações..."></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeContactModal()">Cancelar</button>
@@ -755,29 +793,62 @@
   </div>
 </div>
 
-<!-- TOAST -->
+<!-- MODAL OPORTUNIDADE -->
+<div class="modal-overlay" id="oppModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="oppModalTitle">Adicionar Oportunidade</div>
+      <div class="modal-close" onclick="closeOppModal()"><i class="fas fa-times"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>Nome do Contato *</label><input type="text" id="oppContactName" placeholder="Nome completo"></div>
+      <div class="form-group">
+        <label>Estágio</label>
+        <select id="oppStage">
+          <option value="new_lead">Novo Líder</option>
+          <option value="followup">Acompanhamento</option>
+          <option value="trial">Aula de Teste</option>
+          <option value="waiting">Espera</option>
+          <option value="recovery">Recuperação</option>
+          <option value="reactivation">Acompanhamento da reativação</option>
+          <option value="won">Fechado Ganhou 💰</option>
+          <option value="lost">Fechado Perdido ❌</option>
+          <option value="member">Membro</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Valor (US$)</label><input type="number" id="oppValue" placeholder="199.00" step="0.01"></div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="oppStatus">
+          <option value="open">Aberto</option>
+          <option value="won">Ganhou</option>
+          <option value="lost">Perdido</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeOppModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveOpp()"><i class="fas fa-save"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
 const SUPA_URL = 'https://mvktoymgeapkpsvfmbfl.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12a3RveW1nZWFwa3BzdmZtYmZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMjA4NTEsImV4cCI6MjA5NDc5Njg1MX0._RQsWc2jR4kSuALw5jHl7T2Q-bgjvDrSQdmjwCD8dWA';
 
-// ===== SUPABASE HELPERS =====
 async function supaFetch(path, opts={}) {
   const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
     ...opts,
     headers: {
-      'apikey': SUPA_KEY,
-      'Authorization': `Bearer ${SUPA_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation',
+      'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`,
+      'Content-Type': 'application/json', 'Prefer': 'return=representation',
       ...(opts.headers||{})
     }
   });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err);
-  }
+  if (!res.ok) { const err = await res.text(); throw new Error(err); }
   if (res.status === 204) return null;
   return res.json();
 }
@@ -795,26 +866,17 @@ async function supaAuth(email, password) {
 
 async function supaSignOut(token) {
   await fetch(`${SUPA_URL}/auth/v1/logout`, {
-    method:'POST',
-    headers:{ 'apikey': SUPA_KEY, 'Authorization':`Bearer ${token}` }
+    method:'POST', headers:{ 'apikey': SUPA_KEY, 'Authorization':`Bearer ${token}` }
   });
 }
 
-// ===== STATE =====
 let state = {
-  user: null,
-  token: null,
-  contacts: [],
-  allContacts: [],
-  page: 1,
-  perPage: 25,
-  total: 0,
-  searchQ: '',
-  currentCompany: 'alliance',
-  currentCompanyName: 'Alliance BJJ'
+  user: null, token: null, contacts: [], page: 1, perPage: 25,
+  total: 0, searchQ: '', currentCompany: 'alliance',
+  currentCompanyName: 'Alliance BJJ',
+  opps: [], oppsFiltered: [], currentPipeline: 'leads'
 };
 
-// ===== TOAST =====
 function toast(msg, type='success') {
   const wrap = document.getElementById('toastWrap');
   const el = document.createElement('div');
@@ -824,78 +886,55 @@ function toast(msg, type='success') {
   setTimeout(() => el.remove(), 3500);
 }
 
-// ===== LOGIN =====
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const pass = document.getElementById('loginPass').value;
   const err = document.getElementById('loginError');
   err.style.display = 'none';
-
   const btn = document.querySelector('.login-btn');
-  btn.textContent = 'Entrando...';
-  btn.disabled = true;
-
+  btn.textContent = 'Entrando...'; btn.disabled = true;
   try {
     const data = await supaAuth(email, pass);
-    state.user = data.user;
-    state.token = data.access_token;
-
-    // Store session
+    state.user = data.user; state.token = data.access_token;
     sessionStorage.setItem('hub360_token', data.access_token);
     sessionStorage.setItem('hub360_user', JSON.stringify(data.user));
-
     document.getElementById('sbUserName').textContent = email.split('@')[0];
     document.getElementById('sbAvatar').textContent = email[0].toUpperCase();
-
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display = 'block';
-
     initApp();
   } catch(e) {
     err.textContent = e.message || 'E-mail ou senha incorretos.';
     err.style.display = 'block';
-  } finally {
-    btn.textContent = 'Entrar';
-    btn.disabled = false;
-  }
+  } finally { btn.textContent = 'Entrar'; btn.disabled = false; }
 }
 
-document.getElementById('loginPass').addEventListener('keypress', e => {
-  if (e.key === 'Enter') doLogin();
-});
+document.getElementById('loginPass').addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
 
 async function doLogout() {
   try { await supaSignOut(state.token); } catch(e){}
-  sessionStorage.clear();
-  state.user = null; state.token = null;
+  sessionStorage.clear(); state.user = null; state.token = null;
   document.getElementById('appScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginPass').value = '';
-  toast('Você saiu da conta.', 'success');
+  toast('Você saiu da conta.');
 }
 
-// ===== APP INIT =====
-function initApp() {
-  loadDashboard();
-  buildPipeline();
-}
+function initApp() { loadDashboard(); loadOpps(); }
 
-// ===== NAVIGATION =====
 function showPage(name, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(`page-${name}`).classList.add('active');
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
   if (el) el.classList.add('active');
-
   const titles = {
     dashboard:'Dashboard', contacts:'Contatos', pipeline:'Oportunidades',
     campaigns:'Campanhas', conversations:'Conversas', reports:'Relatórios',
-    settings:'Configurações', calendar:'Calendário', email:'Email Marketing',
+    settings:'Configurações', calendar:'Calendários', email:'Email Marketing',
     sms:'SMS', automations:'Automações', payments:'Pagamentos', tasks:'Tarefas',
     'reports-ads':'Google Ads', 'reports-fb':'Facebook Ads'
   };
   document.getElementById('topbarTitle').textContent = titles[name] || name;
-
   const actions = document.getElementById('topbarActions');
   actions.innerHTML = '';
   if (name === 'contacts') {
@@ -906,19 +945,11 @@ function showPage(name, el) {
   if (name === 'reports' || name === 'reports-ads' || name === 'reports-fb') loadReports();
 }
 
-// ===== COMPANY SWITCHER =====
-function toggleCompanyDropdown() {
-  document.getElementById('companyDropdown').classList.toggle('open');
-}
-document.addEventListener('click', e => {
-  if (!e.target.closest('.sb-company')) {
-    document.getElementById('companyDropdown').classList.remove('open');
-  }
-});
+function toggleCompanyDropdown() { document.getElementById('companyDropdown').classList.toggle('open'); }
+document.addEventListener('click', e => { if (!e.target.closest('.sb-company')) document.getElementById('companyDropdown').classList.remove('open'); });
 function selectCompany(id, name, e) {
   e.stopPropagation();
-  state.currentCompany = id;
-  state.currentCompanyName = name.split(' ').slice(0,2).join(' ');
+  state.currentCompany = id; state.currentCompanyName = name.split(' ').slice(0,2).join(' ');
   document.getElementById('sbCompanyName').innerHTML = `${state.currentCompanyName} <i class="fas fa-chevron-down" style="font-size:10px"></i>`;
   document.querySelectorAll('.cd-item').forEach(i => i.classList.remove('active'));
   e.currentTarget.classList.add('active');
@@ -929,34 +960,21 @@ function selectCompany(id, name, e) {
 // ===== DASHBOARD =====
 async function loadDashboard() {
   try {
-    // Count all
-    const countRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id`, {
-      headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':'0-0' }
-    });
+    const countRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':'0-0' } });
     const total = parseInt(countRes.headers.get('Content-Range')?.split('/')[1] || 0);
     state.total = total;
     document.getElementById('statTotal').textContent = total.toLocaleString();
     document.getElementById('repTotal').textContent = total.toLocaleString();
-
-    // Email count
-    const emailRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&email=not.is.null`, {
-      headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':'0-0' }
-    });
+    const emailRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&email=not.is.null`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':'0-0' } });
     const emailCount = parseInt(emailRes.headers.get('Content-Range')?.split('/')[1] || 0);
     document.getElementById('statEmail').textContent = emailCount.toLocaleString();
     document.getElementById('repEmail').textContent = emailCount.toLocaleString();
-
-    // Phone count
-    const phoneRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&phone=not.is.null`, {
-      headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':'0-0' }
-    });
+    const phoneRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&phone=not.is.null`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':'0-0' } });
     const phoneCount = parseInt(phoneRes.headers.get('Content-Range')?.split('/')[1] || 0);
     document.getElementById('statPhone').textContent = phoneCount.toLocaleString();
     document.getElementById('repPhone').textContent = phoneCount.toLocaleString();
     document.getElementById('repComplete').textContent = Math.min(emailCount, phoneCount).toLocaleString();
     document.getElementById('statNew').textContent = '—';
-
-    // Recent contacts
     const recent = await supaFetch('contacts?select=id,first_name,last_name,email,phone&order=id.desc&limit=8');
     const wrap = document.getElementById('dashRecentContacts');
     if (!recent || !recent.length) { wrap.innerHTML = '<div class="empty-state"><p>Nenhum contato ainda.</p></div>'; return; }
@@ -967,83 +985,45 @@ async function loadDashboard() {
           <div style="font-size:13px;font-weight:600">${c.first_name||''} ${c.last_name||''}</div>
           <div style="font-size:11px;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.email||c.phone||'—'}</div>
         </div>
-      </div>
-    `).join('');
-  } catch(e) {
-    console.error(e);
-    toast('Erro ao carregar dashboard: ' + e.message, 'error');
-  }
+      </div>`).join('');
+  } catch(e) { toast('Erro ao carregar dashboard: ' + e.message, 'error'); }
 }
 
 // ===== CONTACTS =====
 let searchTimeout;
 function searchContacts() {
   clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => {
-    state.page = 1;
-    state.searchQ = document.getElementById('contactSearch').value.trim();
-    loadContacts();
-  }, 350);
+  searchTimeout = setTimeout(() => { state.page = 1; state.searchQ = document.getElementById('contactSearch').value.trim(); loadContacts(); }, 350);
 }
 
 async function loadContacts() {
   const tbody = document.getElementById('contactsBody');
   tbody.innerHTML = '<tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr>';
-
   const from = (state.page - 1) * state.perPage;
   const to = from + state.perPage - 1;
   const q = state.searchQ;
-
   let path = 'contacts?select=id,first_name,last_name,email,phone,tags';
-  if (q) {
-    path += `&or=(first_name.ilike.*${encodeURIComponent(q)}*,last_name.ilike.*${encodeURIComponent(q)}*,email.ilike.*${encodeURIComponent(q)}*,phone.ilike.*${encodeURIComponent(q)}*)`;
-  }
+  if (q) path += `&or=(first_name.ilike.*${encodeURIComponent(q)}*,last_name.ilike.*${encodeURIComponent(q)}*,email.ilike.*${encodeURIComponent(q)}*,phone.ilike.*${encodeURIComponent(q)}*)`;
   path += `&order=first_name.asc`;
-
   try {
-    const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
-      headers:{
-        'apikey': SUPA_KEY,
-        'Authorization': `Bearer ${state.token}`,
-        'Prefer': 'count=exact',
-        'Range': `${from}-${to}`
-      }
-    });
+    const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':`${from}-${to}` } });
     const total = parseInt(res.headers.get('Content-Range')?.split('/')[1] || 0);
     const contacts = await res.json();
     state.contacts = contacts;
-
-    if (!contacts.length) {
-      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="fas fa-users"></i><p>Nenhum contato encontrado.</p></div></td></tr>';
-      renderPagination(0, 0);
-      return;
-    }
-
+    if (!contacts.length) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="fas fa-users"></i><p>Nenhum contato encontrado.</p></div></td></tr>'; renderPagination(0,0); return; }
     tbody.innerHTML = contacts.map(c => `
       <tr>
-        <td>
-          <div class="contact-name">${c.first_name||''} ${c.last_name||''}</div>
-          ${c.tags ? `<span class="badge badge-green" style="margin-top:3px">${c.tags}</span>` : ''}
-        </td>
-        <td>${c.phone || '<span style="color:var(--gray-300)">—</span>'}</td>
-        <td class="contact-email">${c.email || '<span style="color:var(--gray-300)">—</span>'}</td>
+        <td><div class="contact-name">${c.first_name||''} ${c.last_name||''}</div>${c.tags?`<span class="badge badge-green" style="margin-top:3px">${c.tags}</span>`:''}</td>
+        <td>${c.phone||'<span style="color:var(--gray-300)">—</span>'}</td>
+        <td class="contact-email">${c.email||'<span style="color:var(--gray-300)">—</span>'}</td>
         <td><span class="badge badge-blue">Alliance BJJ</span></td>
         <td>
-          <button class="btn btn-outline" style="padding:5px 10px;font-size:11px" onclick="editContact(${JSON.stringify(c).replace(/"/g,'&quot;')})">
-            <i class="fas fa-pencil"></i>
-          </button>
-          <button class="btn btn-outline" style="padding:5px 10px;font-size:11px;color:var(--red)" onclick="deleteContact('${c.id}')">
-            <i class="fas fa-trash"></i>
-          </button>
+          <button class="btn btn-outline" style="padding:5px 10px;font-size:11px" onclick="editContact(${JSON.stringify(c).replace(/"/g,'&quot;')})"><i class="fas fa-pencil"></i></button>
+          <button class="btn btn-outline" style="padding:5px 10px;font-size:11px;color:var(--red)" onclick="deleteContact('${c.id}')"><i class="fas fa-trash"></i></button>
         </td>
-      </tr>
-    `).join('');
-
+      </tr>`).join('');
     renderPagination(total, from);
-  } catch(e) {
-    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>Erro ao carregar contatos.</p></div></td></tr>';
-    toast('Erro: ' + e.message, 'error');
-  }
+  } catch(e) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>Erro ao carregar contatos.</p></div></td></tr>'; toast('Erro: '+e.message,'error'); }
 }
 
 function renderPagination(total, from) {
@@ -1051,176 +1031,221 @@ function renderPagination(total, from) {
   document.getElementById('paginationInfo').textContent = `${total.toLocaleString()} contatos | Página ${state.page} de ${totalPages||1}`;
   document.getElementById('prevBtn').disabled = state.page <= 1;
   document.getElementById('nextBtn').disabled = state.page >= totalPages;
-
   let btns = '';
-  const start = Math.max(1, state.page-2);
-  const end = Math.min(totalPages, start+4);
-  for (let i=start; i<=end; i++) {
-    btns += `<button class="page-btn ${i===state.page?'active':''}" onclick="goPage(${i})">${i}</button> `;
-  }
+  const start = Math.max(1, state.page-2); const end = Math.min(totalPages, start+4);
+  for (let i=start; i<=end; i++) btns += `<button class="page-btn ${i===state.page?'active':''}" onclick="goPage(${i})">${i}</button> `;
   document.getElementById('pageButtons').innerHTML = btns;
 }
-
 function goPage(n) { state.page = n; loadContacts(); }
 function prevPage() { if(state.page>1){ state.page--; loadContacts(); } }
 function nextPage() { state.page++; loadContacts(); }
 
-// ===== CONTACT MODAL =====
 function openNewContact() {
   document.getElementById('contactModalTitle').textContent = 'Novo Contato';
   document.getElementById('editContactId').value = '';
   ['cfFirstName','cfLastName','cfPhone','cfEmail','cfTags','cfNotes'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('contactModal').classList.add('open');
 }
-
 function editContact(c) {
   document.getElementById('contactModalTitle').textContent = 'Editar Contato';
   document.getElementById('editContactId').value = c.id;
-  document.getElementById('cfFirstName').value = c.first_name || '';
-  document.getElementById('cfLastName').value = c.last_name || '';
-  document.getElementById('cfPhone').value = c.phone || '';
-  document.getElementById('cfEmail').value = c.email || '';
-  document.getElementById('cfTags').value = c.tags || '';
-  document.getElementById('cfNotes').value = c.notes || '';
+  document.getElementById('cfFirstName').value = c.first_name||'';
+  document.getElementById('cfLastName').value = c.last_name||'';
+  document.getElementById('cfPhone').value = c.phone||'';
+  document.getElementById('cfEmail').value = c.email||'';
+  document.getElementById('cfTags').value = c.tags||'';
+  document.getElementById('cfNotes').value = c.notes||'';
   document.getElementById('contactModal').classList.add('open');
 }
-
-function closeContactModal() {
-  document.getElementById('contactModal').classList.remove('open');
-}
-
+function closeContactModal() { document.getElementById('contactModal').classList.remove('open'); }
 async function saveContact() {
   const id = document.getElementById('editContactId').value;
-  const data = {
-    first_name: document.getElementById('cfFirstName').value.trim(),
-    last_name: document.getElementById('cfLastName').value.trim(),
-    phone: document.getElementById('cfPhone').value.trim() || null,
-    email: document.getElementById('cfEmail').value.trim() || null,
-    tags: document.getElementById('cfTags').value.trim() || null,
-  };
-  if (!data.first_name) { toast('Nome é obrigatório', 'error'); return; }
-
+  const data = { first_name:document.getElementById('cfFirstName').value.trim(), last_name:document.getElementById('cfLastName').value.trim(), phone:document.getElementById('cfPhone').value.trim()||null, email:document.getElementById('cfEmail').value.trim()||null, tags:document.getElementById('cfTags').value.trim()||null };
+  if (!data.first_name) { toast('Nome é obrigatório','error'); return; }
   try {
-    if (id) {
-      await supaFetch(`contacts?id=eq.${id}`, { method:'PATCH', body:JSON.stringify(data) });
-      toast('Contato atualizado!');
-    } else {
-      await supaFetch('contacts', { method:'POST', body:JSON.stringify(data) });
-      toast('Contato criado!');
-    }
-    closeContactModal();
-    loadContacts();
-    loadDashboard();
-  } catch(e) {
-    toast('Erro ao salvar: ' + e.message, 'error');
-  }
+    if (id) { await supaFetch(`contacts?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(data)}); toast('Contato atualizado!'); }
+    else { await supaFetch('contacts',{method:'POST',body:JSON.stringify(data)}); toast('Contato criado!'); }
+    closeContactModal(); loadContacts(); loadDashboard();
+  } catch(e) { toast('Erro ao salvar: '+e.message,'error'); }
 }
-
 async function deleteContact(id) {
   if (!confirm('Excluir este contato?')) return;
-  try {
-    await supaFetch(`contacts?id=eq.${id}`, { method:'DELETE' });
-    toast('Contato excluído');
-    loadContacts();
-  } catch(e) {
-    toast('Erro ao excluir: ' + e.message, 'error');
-  }
+  try { await supaFetch(`contacts?id=eq.${id}`,{method:'DELETE'}); toast('Contato excluído'); loadContacts(); }
+  catch(e) { toast('Erro ao excluir: '+e.message,'error'); }
 }
+document.getElementById('contactModal').addEventListener('click', function(e){ if(e.target===this) closeContactModal(); });
 
 // ===== CALENDAR =====
 function initCalendar() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const now = new Date(); const year = now.getFullYear(); const month = now.getMonth();
+  const firstDay = new Date(year,month,1).getDay(); const daysInMonth = new Date(year,month+1,0).getDate();
   const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const dayNames = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-
-  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-    <h3 style="font-size:16px;font-weight:700">${monthNames[month]} ${year}</h3>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-outline" style="font-size:12px">← Anterior</button>
-      <button class="btn btn-outline" style="font-size:12px">Hoje</button>
-      <button class="btn btn-outline" style="font-size:12px">Próximo →</button>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--gray-200);border-radius:8px;overflow:hidden">`;
-
-  dayNames.forEach(d => {
-    html += `<div style="background:var(--gray-50);padding:8px;text-align:center;font-size:11px;font-weight:700;color:var(--gray-500)">${d}</div>`;
-  });
-
-  for (let i = 0; i < firstDay; i++) {
-    html += `<div style="background:#fff;padding:8px;min-height:70px"></div>`;
+  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><h3 style="font-size:16px;font-weight:700">${monthNames[month]} ${year}</h3><div style="display:flex;gap:8px"><button class="btn btn-outline" style="font-size:12px">← Anterior</button><button class="btn btn-outline" style="font-size:12px">Hoje</button><button class="btn btn-outline" style="font-size:12px">Próximo →</button></div></div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--gray-200);border-radius:8px;overflow:hidden">`;
+  dayNames.forEach(d => { html += `<div style="background:var(--gray-50);padding:8px;text-align:center;font-size:11px;font-weight:700;color:var(--gray-500)">${d}</div>`; });
+  for (let i=0;i<firstDay;i++) html += `<div style="background:#fff;padding:8px;min-height:70px"></div>`;
+  for (let d=1;d<=daysInMonth;d++) {
+    const isToday = d===now.getDate();
+    html += `<div style="background:#fff;padding:8px;min-height:70px;cursor:pointer" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='#fff'"><div style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;${isToday?'background:var(--green);color:#fff':'color:var(--gray-700)'}">${d}</div></div>`;
   }
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const isToday = d === now.getDate();
-    html += `<div style="background:#fff;padding:8px;min-height:70px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='#fff'">
-      <div style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;${isToday?'background:var(--green);color:#fff':'color:var(--gray-700)'}">${d}</div>
-    </div>`;
-  }
-
   html += `</div>`;
   document.getElementById('calendarGrid').innerHTML = html;
-}
-
-// ===== PIPELINE =====
-const pipelineStages = [
-  { id:'new', label:'Novo Lead', color:'#3b82f6', bg:'#dbeafe' },
-  { id:'contacted', label:'Contactado', color:'#8b5cf6', bg:'#ede9fe' },
-  { id:'interested', label:'Interessado', color:'#f59e0b', bg:'#fef3c7' },
-  { id:'trial', label:'Aula Trial', color:'#10b981', bg:'#d1fae5' },
-  { id:'enrolled', label:'Matriculado', color:'#1a2e27', bg:'#d1fae5' },
-  { id:'active', label:'Ativo', color:'#059669', bg:'#a7f3d0' },
-  { id:'inactive', label:'Inativo', color:'#6b7280', bg:'#f3f4f6' },
-  { id:'paused', label:'Pausado', color:'#d97706', bg:'#fde68a' },
-  { id:'churned', label:'Cancelado', color:'#ef4444', bg:'#fee2e2' },
-  { id:'won', label:'Ganho', color:'#C4A97D', bg:'#fef9c3' },
-];
-
-function buildPipeline() {
-  const board = document.getElementById('pipelineBoard');
-  board.innerHTML = pipelineStages.map(s => `
-    <div class="pipeline-col">
-      <div class="pipeline-col-header" style="background:${s.bg};color:${s.color}">
-        <span>${s.label}</span>
-        <span style="background:${s.color};color:#fff;border-radius:12px;padding:1px 8px;font-size:11px">0</span>
-      </div>
-      <div class="pipeline-col-body" id="col-${s.id}">
-        <div style="font-size:11px;color:var(--gray-400);text-align:center;padding:20px 0">Vazio</div>
-      </div>
-    </div>
-  `).join('');
 }
 
 // ===== REPORTS =====
 async function loadReports() {
   try {
-    const countRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id`, {
-      headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':'0-0' }
-    });
-    const total = parseInt(countRes.headers.get('Content-Range')?.split('/')[1] || 0);
-    const emailRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&email=not.is.null`, {
-      headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':'0-0' }
-    });
-    const emailCount = parseInt(emailRes.headers.get('Content-Range')?.split('/')[1] || 0);
-    const phoneRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&phone=not.is.null`, {
-      headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':'0-0' }
-    });
-    const phoneCount = parseInt(phoneRes.headers.get('Content-Range')?.split('/')[1] || 0);
+    const countRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id`,{headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${state.token}`,'Prefer':'count=exact','Range':'0-0'}});
+    const total = parseInt(countRes.headers.get('Content-Range')?.split('/')[1]||0);
+    const emailRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&email=not.is.null`,{headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${state.token}`,'Prefer':'count=exact','Range':'0-0'}});
+    const emailCount = parseInt(emailRes.headers.get('Content-Range')?.split('/')[1]||0);
+    const phoneRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&phone=not.is.null`,{headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${state.token}`,'Prefer':'count=exact','Range':'0-0'}});
+    const phoneCount = parseInt(phoneRes.headers.get('Content-Range')?.split('/')[1]||0);
     document.getElementById('repTotal').textContent = total.toLocaleString();
     document.getElementById('repEmail').textContent = emailCount.toLocaleString();
     document.getElementById('repPhone').textContent = phoneCount.toLocaleString();
-    document.getElementById('repComplete').textContent = Math.min(emailCount, phoneCount).toLocaleString();
-  } catch(e) {}
+    document.getElementById('repComplete').textContent = Math.min(emailCount,phoneCount).toLocaleString();
+  } catch(e){}
 }
 
-// Close modal on overlay click
-document.getElementById('contactModal').addEventListener('click', function(e) {
-  if (e.target === this) closeContactModal();
-});
+// ===== PIPELINE / OPORTUNIDADES =====
+const STAGES = {
+  leads: [
+    { id:'new_lead',    label:'Novo Líder',                     emoji:'' },
+    { id:'followup',    label:'Acompanhamento',                 emoji:'' },
+    { id:'trial',       label:'Aula de Teste 📅',               emoji:'' },
+    { id:'waiting',     label:'Espera',                         emoji:'' },
+    { id:'recovery',    label:'Recuperação',                    emoji:'' },
+    { id:'reactivation',label:'Acompanhamento da reativação de lea', emoji:'' },
+    { id:'won',         label:'Fechado Ganhou 💰',              emoji:'' },
+    { id:'lost',        label:'Fechado Perdido ❌',             emoji:'' },
+    { id:'member',      label:'Membro',                         emoji:'' },
+  ]
+};
+
+// Sample local data (replace with Supabase table when ready)
+let oppsData = [
+  { id:1, contact:'João Smith',     initials:'JO', stage:'followup',     value:199, status:'open',   created:'25 de mai de 2026, 21:08', msgs:0, notes:0, tasks:1, docs:0 },
+  { id:2, contact:'Annie Bravo',    initials:'AN', stage:'followup',     value:199, status:'open',   created:'20 de mai de 2026, 10:00', msgs:0, notes:0, tasks:0, docs:0 },
+  { id:3, contact:'Anthony Traniello', initials:'UM', stage:'trial',     value:199, status:'open',   created:'26 de mai de 2026, 13:02', msgs:1, notes:0, tasks:0, docs:0 },
+  { id:4, contact:'Milena Coelho',  initials:'MI', stage:'trial',        value:199, status:'open',   created:'22 de mai de 2026, 09:15', msgs:0, notes:0, tasks:0, docs:0 },
+  { id:5, contact:'Andriel Guillen-Perez', initials:'UM', stage:'waiting', value:199, status:'open', created:'23 de abr de 2026, 09:00', msgs:1, notes:0, tasks:0, docs:0 },
+  { id:6, contact:'Ali Hussain',    initials:'AL', stage:'waiting',      value:199, status:'open',   created:'20 de mai de 2026, 14:30', msgs:0, notes:0, tasks:0, docs:0 },
+  { id:7, contact:'Scarlett Ostos Gallardo', initials:'SC', stage:'won', value:199, status:'open',   created:'12 de mai de 2026, 13:34', msgs:1, notes:0, tasks:1, docs:0 },
+  { id:8, contact:'Alejandro Gallardo', initials:'AL', stage:'won',      value:199, status:'won',    created:'10 de mai de 2026, 10:00', msgs:1, notes:0, tasks:0, docs:0 },
+  { id:9, contact:'Graziele Lima',  initials:'GR', stage:'lost',         value:199, status:'lost',   created:'14 de mai de 2026, 22:27', msgs:1, notes:4, tasks:0, docs:0 },
+  { id:10, contact:'Francisco Rodriguez', initials:'FR', stage:'lost',   value:199, status:'open',   created:'11 de mai de 2026, 08:00', msgs:0, notes:0, tasks:0, docs:0 },
+];
+
+function loadOpps() {
+  state.opps = [...oppsData];
+  state.oppsFiltered = [...oppsData];
+  renderKanban();
+}
+
+function changePipeline() { renderKanban(); }
+function setPipelineTab(tab, el) {
+  document.querySelectorAll('.pipeline-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+function filterOpps(q) {
+  const lq = q.toLowerCase();
+  state.oppsFiltered = lq ? state.opps.filter(o => o.contact.toLowerCase().includes(lq)) : [...state.opps];
+  renderKanban();
+}
+
+function renderKanban() {
+  const board = document.getElementById('kanbanBoard');
+  const stages = STAGES['leads'];
+  const total = state.oppsFiltered.length;
+  document.getElementById('pipelineCountLabel').textContent = `${total} oportunidade${total!==1?'s':''}`;
+
+  board.innerHTML = stages.map(s => {
+    const cards = state.oppsFiltered.filter(o => o.stage === s.id);
+    const colValue = cards.reduce((sum,c) => sum + (c.value||0), 0);
+    const cardsHTML = cards.length
+      ? cards.map(c => renderOppCard(c)).join('')
+      : `<div style="font-size:11px;color:var(--gray-400);text-align:center;padding:16px 0">Sem oportunidades</div>`;
+
+    return `
+      <div class="kanban-col">
+        <div class="kanban-col-header">
+          <div>
+            <div class="kanban-col-title">${s.label}</div>
+            <div class="kanban-col-meta">${cards.length} Oportunidade${cards.length!==1?'s':''} &nbsp; US$${colValue.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+          </div>
+          <i class="fas fa-chevron-left" style="color:var(--gray-300);font-size:11px;cursor:pointer"></i>
+        </div>
+        <div class="kanban-col-body">${cardsHTML}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderOppCard(c) {
+  const initBg = c.status==='lost' ? '#9ca3af' : 'var(--green)';
+  let statusBadge = '';
+  if (c.status==='won') statusBadge = `<span class="badge badge-green" style="font-size:10px;padding:1px 7px">GANHOU</span>`;
+  if (c.status==='lost') statusBadge = `<span style="background:#fff1f2;color:#be123c;border:1px solid #fecdd3;border-radius:4px;font-size:10px;font-weight:700;padding:1px 7px">PERDIDO</span>`;
+
+  const statusRow = c.status==='open'
+    ? `<div class="opp-card-row"><span class="opp-card-label">Status:</span> <span style="border:1px solid var(--gray-200);border-radius:4px;padding:1px 8px;font-size:11px;font-weight:600;color:var(--gray-700)">abrir</span></div>`
+    : `<div class="opp-card-row"><span class="opp-card-label">Status:</span> ${statusBadge}</div>`;
+
+  const b1 = c.msgs ? `<div class="opp-action-btn has-badge"><i class="fas fa-phone"></i><span class="mini-badge">${c.msgs}</span></div>` : `<div class="opp-action-btn"><i class="fas fa-phone"></i></div>`;
+  const b2 = `<div class="opp-action-btn"><i class="fas fa-comment-dots"></i></div>`;
+  const b3 = c.notes ? `<div class="opp-action-btn has-badge"><i class="fas fa-tag"></i><span class="mini-badge">${c.notes}</span></div>` : `<div class="opp-action-btn"><i class="fas fa-tag"></i></div>`;
+  const b4 = `<div class="opp-action-btn"><i class="fas fa-file-alt"></i></div>`;
+  const b5 = c.tasks ? `<div class="opp-action-btn has-badge"><i class="fas fa-check-square"></i><span class="mini-badge">${c.tasks}</span></div>` : `<div class="opp-action-btn"><i class="fas fa-check-square"></i></div>`;
+  const b6 = `<div class="opp-action-btn"><i class="fas fa-calendar"></i></div>`;
+
+  return `
+    <div class="opp-card">
+      <div class="opp-card-top">
+        <div>
+          <div class="opp-card-name">${c.contact}</div>
+          ${statusBadge && c.status!=='open' ? '' : ''}
+        </div>
+        <div class="opp-card-avatar" style="background:${initBg}">${c.initials}</div>
+      </div>
+      <div class="opp-card-row"><span class="opp-card-label">Contato:</span> <strong style="font-size:11px">${c.initials}&nbsp; ${c.contact}</strong></div>
+      <div class="opp-card-row"><span class="opp-card-label">Estágio:</span> <span style="font-size:11px">${STAGES.leads.find(s=>s.id===c.stage)?.label||c.stage}</span></div>
+      <div class="opp-card-row"><span class="opp-card-label">Valor:</span> <span style="font-size:11px">US$ ${(c.value||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span></div>
+      ${statusRow}
+      <div class="opp-card-row"><span class="opp-card-label">Criado em:</span> <span style="font-size:11px">${c.created}</span></div>
+      <div class="opp-card-actions">${b1}${b2}${b3}${b4}${b5}${b6}</div>
+    </div>`;
+}
+
+// Opp modal
+function openNewOpp() {
+  document.getElementById('oppModalTitle').textContent = 'Adicionar Oportunidade';
+  ['oppContactName'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('oppStage').value = 'new_lead';
+  document.getElementById('oppValue').value = '199';
+  document.getElementById('oppStatus').value = 'open';
+  document.getElementById('oppModal').classList.add('open');
+}
+function closeOppModal() { document.getElementById('oppModal').classList.remove('open'); }
+function saveOpp() {
+  const name = document.getElementById('oppContactName').value.trim();
+  if (!name) { toast('Nome é obrigatório','error'); return; }
+  const newOpp = {
+    id: Date.now(),
+    contact: name,
+    initials: name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(),
+    stage: document.getElementById('oppStage').value,
+    value: parseFloat(document.getElementById('oppValue').value)||0,
+    status: document.getElementById('oppStatus').value,
+    created: new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+    msgs:0, notes:0, tasks:0, docs:0
+  };
+  oppsData.push(newOpp);
+  state.opps = [...oppsData]; state.oppsFiltered = [...oppsData];
+  renderKanban();
+  closeOppModal();
+  toast('Oportunidade criada!');
+}
+document.getElementById('oppModal').addEventListener('click', function(e){ if(e.target===this) closeOppModal(); });
 </script>
 </body>
 </html>
