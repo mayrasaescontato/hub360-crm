@@ -540,15 +540,12 @@
 
             <!-- top bar -->
             <div class="pipeline-topbar">
-              <select class="pipeline-select" id="pipelineSelect" onchange="changePipeline()">
-                <option value="leads">Alliance BJJ — Leads</option>
-                <option value="ezmoney_sales">Ez Money USA — Vendas</option>
-                <option value="ezmoney_postsale">Ez Money USA — Pós-Venda</option>
-              </select>
+              <div style="font-size:14px;font-weight:700;color:var(--gray-900)" id="pipelineTitle">Alliance BJJ — Leads</div>
               <span class="pipeline-count" id="pipelineCountLabel">0 oportunidades</span>
               <div style="flex:1"></div>
               <button class="btn btn-primary" onclick="openNewOpp()"><i class="fas fa-plus"></i> Adicionar oportunidade</button>
             </div>
+            <input type="hidden" id="pipelineSelect" value="leads">
 
             <!-- tabs -->
             <div class="pipeline-tabs">
@@ -1050,7 +1047,7 @@ function renderNav() {
     <div class="sb-item" onclick="showPage('conversations',this)"><i class="fas fa-comments"></i> Conversas</div>
     <div class="sb-item" onclick="showPage('calendar',this)"><i class="fas fa-calendar-alt"></i> Calendários</div>
     <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
-    <div class="sb-item" onclick="showPage('pipeline',this);document.getElementById('pipelineSelect').value='leads';changePipeline()"><i class="fas fa-columns"></i> Oportunidades</div>
+    <div class="sb-item" onclick="showPage('pipeline',this);changePipeline('leads')"><i class="fas fa-columns"></i> Oportunidades</div>
     <div class="sb-section">Marketing</div>
     <div class="sb-item" onclick="showPage('campaigns',this)"><i class="fas fa-bullhorn"></i> Campanhas</div>
     <div class="sb-item" onclick="showPage('email',this)"><i class="fas fa-envelope"></i> Email Marketing</div>
@@ -1074,8 +1071,8 @@ function renderNav() {
     <div class="sb-item" onclick="showPage('calendar',this)"><i class="fas fa-calendar-alt"></i> Calendários</div>
     <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
     <div class="sb-section">Vendas</div>
-    <div class="sb-item" onclick="showPage('pipeline',this);document.getElementById('pipelineSelect').value='ezmoney_sales';changePipeline()"><i class="fas fa-funnel-dollar"></i> Funil de Vendas</div>
-    <div class="sb-item" onclick="showPage('pipeline',this);document.getElementById('pipelineSelect').value='ezmoney_postsale';changePipeline()"><i class="fas fa-heart"></i> Pós-Venda</div>
+    <div class="sb-item" onclick="showPage('pipeline',this);changePipeline('ezmoney_sales')"><i class="fas fa-funnel-dollar"></i> Funil de Vendas</div>
+    <div class="sb-item" onclick="showPage('pipeline',this);changePipeline('ezmoney_postsale')"><i class="fas fa-heart"></i> Pós-Venda</div>
     <div class="sb-item" onclick="showPage('tasks',this)"><i class="fas fa-tasks"></i> Tarefas</div>
     <div class="sb-section">Comunicação</div>
     <div class="sb-item" onclick="showPage('conversations',this)"><i class="fas fa-comments"></i> Conversas</div>
@@ -1100,12 +1097,10 @@ function renderNav() {
 
   if (co === 'alliance') {
     nav.innerHTML = navAlliance;
-    const ps = document.getElementById('pipelineSelect');
-    if (ps) ps.value = 'leads';
+    setTimeout(() => { changePipeline('leads'); }, 50);
   } else if (co === 'ezmoney') {
     nav.innerHTML = navEzMoney;
-    const ps = document.getElementById('pipelineSelect');
-    if (ps) ps.value = 'ezmoney_sales';
+    setTimeout(() => { changePipeline('ezmoney_sales'); }, 50);
   } else {
     nav.innerHTML = navGeneric;
   }
@@ -1325,7 +1320,11 @@ async function loadOpps() {
   }
 }
 
-function changePipeline() { renderKanban(); }
+function changePipeline(val) { 
+  const ps = document.getElementById('pipelineSelect');
+  if (ps && val) ps.value = val;
+  renderKanban(); 
+}
 function setPipelineTab(tab, el) {
   document.querySelectorAll('.pipeline-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
@@ -1340,6 +1339,16 @@ function renderKanban() {
   const board = document.getElementById('kanbanBoard');
   const pipeline = document.getElementById('pipelineSelect')?.value || 'leads';
   const stages = STAGES[pipeline] || STAGES['leads'];
+  // update title
+  const titleEl = document.getElementById('pipelineTitle');
+  if (titleEl) {
+    const titles = {
+      leads: 'Alliance BJJ — Leads',
+      ezmoney_sales: 'Ez Money USA — Funil de Vendas',
+      ezmoney_postsale: 'Ez Money USA — Pós-Venda'
+    };
+    titleEl.textContent = titles[pipeline] || pipeline;
+  }
   const total = state.oppsFiltered.length;
   document.getElementById('pipelineCountLabel').textContent = `${total} oportunidade${total!==1?'s':''}`;
 
