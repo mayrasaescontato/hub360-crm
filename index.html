@@ -353,6 +353,19 @@
   ::-webkit-scrollbar { width:6px; height:6px; }
   ::-webkit-scrollbar-track { background:transparent; }
   ::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.15); border-radius:3px; }
+
+  /* Pipeline Manager */
+  .stage-row {
+    display:flex; align-items:center; gap:8px; padding:8px 12px;
+    background:#fff; border:1px solid var(--gray-200); border-radius:8px;
+    margin-bottom:6px;
+  }
+  .stage-row:hover { border-color:var(--gold); }
+  .stage-row-drag { cursor:grab; color:var(--gray-300); font-size:14px; }
+  .stage-row-name { flex:1; padding:5px 8px; border:1px solid var(--gray-200); border-radius:6px; font-size:13px; outline:none; }
+  .stage-row-name:focus { border-color:var(--green); }
+  .stage-row-del { cursor:pointer; color:var(--gray-300); font-size:14px; transition:color .15s; }
+  .stage-row-del:hover { color:var(--red); }
 </style>
 </head>
 <body>
@@ -570,7 +583,7 @@
               <button class="btn btn-outline"><i class="fas fa-sort"></i> Ordenar (1)</button>
               <input class="filter-search" type="text" placeholder="Oportunidades de Pesquisa" oninput="filterOpps(this.value)">
               <div style="flex:1"></div>
-              <button class="btn btn-outline" style="font-size:12px;padding:5px 10px"><i class="fas fa-cog"></i> Gerenciar Campos</button>
+              <button class="btn btn-outline" style="font-size:12px;padding:5px 10px" onclick="openPipelineManager()"><i class="fas fa-cog"></i> Gerenciar Campos</button>
             </div>
 
             <!-- kanban -->
@@ -905,6 +918,27 @@
 
 <div class="toast-wrap" id="toastWrap"></div>
 
+<!-- PIPELINE MANAGER MODAL -->
+<div class="modal-overlay" id="pipelineManagerModal">
+  <div class="modal" style="width:540px">
+    <div class="modal-header">
+      <div class="modal-title" id="pmTitle">Gerenciar Colunas do Funil</div>
+      <div class="modal-close" onclick="closePipelineManager()"><i class="fas fa-times"></i></div>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">Arraste para reordenar, edite os nomes ou adicione novas colunas. As mudanças são salvas automaticamente.</p>
+      <div id="pmStageList"></div>
+      <button class="btn btn-outline" style="width:100%;margin-top:8px;justify-content:center" onclick="pmAddStage()">
+        <i class="fas fa-plus"></i> Adicionar coluna
+      </button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closePipelineManager()">Cancelar</button>
+      <button class="btn btn-primary" onclick="pmSave()"><i class="fas fa-save"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPA_URL = 'https://mvktoymgeapkpsvfmbfl.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12a3RveW1nZWFwa3BzdmZtYmZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMjA4NTEsImV4cCI6MjA5NDc5Njg1MX0._RQsWc2jR4kSuALw5jHl7T2Q-bgjvDrSQdmjwCD8dWA';
@@ -990,7 +1024,7 @@ async function doLogout() {
   toast('Você saiu da conta.');
 }
 
-function initApp() { renderNav(); loadDashboard(); loadOpps(); }
+function initApp() { renderNav(); loadDashboard(); loadOpps(); loadCustomStages(); }
 
 function showPage(name, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1459,6 +1493,101 @@ async function saveOpp() {
   }
 }
 document.getElementById('oppModal').addEventListener('click', function(e){ if(e.target===this) closeOppModal(); });
+document.getElementById('pipelineManagerModal').addEventListener('click', function(e){ if(e.target===this) closePipelineManager(); });
+
+// ===== PIPELINE MANAGER =====
+let pmStages = []; // working copy
+
+function openPipelineManager() {
+  const pipeline = document.getElementById('pipelineSelect')?.value || 'leads';
+  const titles = {
+    leads: 'Alliance BJJ — Gerenciar Colunas',
+    ezmoney_sales: 'Ez Money — Funil de Vendas — Colunas',
+    ezmoney_postsale: 'Ez Money — Pós-Venda — Colunas'
+  };
+  document.getElementById('pmTitle').textContent = titles[pipeline] || 'Gerenciar Colunas';
+  // copy current stages
+  pmStages = (STAGES[pipeline] || []).map((s,i) => ({ ...s, position: i }));
+  renderPmList();
+  document.getElementById('pipelineManagerModal').classList.add('open');
+}
+
+function closePipelineManager() {
+  document.getElementById('pipelineManagerModal').classList.remove('open');
+}
+
+function renderPmList() {
+  const list = document.getElementById('pmStageList');
+  list.innerHTML = pmStages.map((s,i) => `
+    <div class="stage-row" draggable="true" data-idx="${i}">
+      <i class="fas fa-grip-vertical stage-row-drag"></i>
+      <input class="stage-row-name" value="${s.label}" onchange="pmStages[${i}].label=this.value" placeholder="Nome da coluna">
+      <i class="fas fa-trash stage-row-del" onclick="pmDeleteStage(${i})"></i>
+    </div>
+  `).join('');
+}
+
+function pmAddStage() {
+  const newId = 'custom_' + Date.now();
+  pmStages.push({ id: newId, label: 'Nova Coluna', position: pmStages.length });
+  renderPmList();
+  // focus last input
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.stage-row-name');
+    if (inputs.length) { inputs[inputs.length-1].focus(); inputs[inputs.length-1].select(); }
+  }, 50);
+}
+
+function pmDeleteStage(idx) {
+  if (pmStages.length <= 1) { toast('Precisa ter pelo menos 1 coluna','error'); return; }
+  if (!confirm('Excluir esta coluna?')) return;
+  pmStages.splice(idx,1);
+  renderPmList();
+}
+
+async function pmSave() {
+  const pipeline = document.getElementById('pipelineSelect')?.value || 'leads';
+  const co = state.currentCompany === 'ezmoney' ? 'ezmoney' : 'alliance';
+  
+  // Update local STAGES immediately
+  STAGES[pipeline] = pmStages.map(s => ({ id: s.id, label: s.label }));
+  
+  // Save to Supabase
+  try {
+    // Delete existing stages for this pipeline+company
+    await supaFetch(`pipeline_stages?company=eq.${co}&pipeline=eq.${pipeline}`, { method:'DELETE' });
+    // Insert new ones
+    const rows = pmStages.map((s,i) => ({
+      company: co, pipeline, stage_id: s.id, label: s.label, position: i
+    }));
+    await supaFetch('pipeline_stages', { method:'POST', body: JSON.stringify(rows) });
+    toast('Colunas salvas!');
+  } catch(e) {
+    toast('Salvo localmente (erro no banco: ' + e.message + ')', 'error');
+  }
+  
+  closePipelineManager();
+  renderKanban();
+}
+
+// Load custom stages from Supabase on init
+async function loadCustomStages() {
+  try {
+    const data = await supaFetch('pipeline_stages?select=*&order=position.asc');
+    if (!data || !data.length) return;
+    // Group by company+pipeline
+    const grouped = {};
+    data.forEach(row => {
+      const key = row.company + '_' + row.pipeline;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push({ id: row.stage_id, label: row.label });
+    });
+    // Apply to STAGES
+    if (grouped['alliance_leads']?.length) STAGES['leads'] = grouped['alliance_leads'];
+    if (grouped['ezmoney_ezmoney_sales']?.length) STAGES['ezmoney_sales'] = grouped['ezmoney_ezmoney_sales'];
+    if (grouped['ezmoney_ezmoney_postsale']?.length) STAGES['ezmoney_postsale'] = grouped['ezmoney_ezmoney_postsale'];
+  } catch(e) {}
+}
 
 // ===== EZ MONEY =====
 function openNewEzLead() {
