@@ -1029,8 +1029,14 @@ function selectCompany(id, name, e) {
   e.currentTarget.classList.add('active');
   document.getElementById('companyDropdown').classList.remove('open');
   renderNav();
-  showPage('dashboard', document.querySelector('#sidebarNav .sb-item'));
-  loadDashboard();
+  const firstItem = document.querySelector('#sidebarNav .sb-item');
+  if (co === 'ezmoney') {
+    showPage('ezmoney', firstItem);
+  } else {
+    showPage('dashboard', firstItem);
+    loadDashboard();
+  }
+  loadOpps();
   toast(`Empresa: ${name}`);
 }
 
@@ -1092,9 +1098,17 @@ function renderNav() {
     <div class="sb-item" style="opacity:.4;cursor:default"><i class="fas fa-columns"></i> Módulos em configuração</div>
   `;
 
-  if (co === 'alliance') nav.innerHTML = navAlliance;
-  else if (co === 'ezmoney') nav.innerHTML = navEzMoney;
-  else nav.innerHTML = navGeneric;
+  if (co === 'alliance') {
+    nav.innerHTML = navAlliance;
+    const ps = document.getElementById('pipelineSelect');
+    if (ps) ps.value = 'leads';
+  } else if (co === 'ezmoney') {
+    nav.innerHTML = navEzMoney;
+    const ps = document.getElementById('pipelineSelect');
+    if (ps) ps.value = 'ezmoney_sales';
+  } else {
+    nav.innerHTML = navGeneric;
+  }
 }
 
 // ===== DASHBOARD =====
@@ -1115,7 +1129,8 @@ async function loadDashboard() {
     document.getElementById('repPhone').textContent = phoneCount.toLocaleString();
     document.getElementById('repComplete').textContent = Math.min(emailCount, phoneCount).toLocaleString();
     document.getElementById('statNew').textContent = '—';
-    const recent = await supaFetch('contacts?select=id,first_name,last_name,email,phone&order=id.desc&limit=8');
+    const recentFilter = state.currentCompany === 'ezmoney' ? '&tags=ilike.*ezmoney*' : '';
+    const recent = await supaFetch(`contacts?select=id,first_name,last_name,email,phone&order=id.desc${recentFilter}&limit=8`);
     const wrap = document.getElementById('dashRecentContacts');
     if (!recent || !recent.length) { wrap.innerHTML = '<div class="empty-state"><p>Nenhum contato ainda.</p></div>'; return; }
     wrap.innerHTML = recent.map(c => `
@@ -1144,6 +1159,10 @@ async function loadContacts() {
   const q = state.searchQ;
   let path = 'contacts?select=id,first_name,last_name,email,phone,tags';
   if (q) path += `&or=(first_name.ilike.*${encodeURIComponent(q)}*,last_name.ilike.*${encodeURIComponent(q)}*,email.ilike.*${encodeURIComponent(q)}*,phone.ilike.*${encodeURIComponent(q)}*)`;
+  // filter by company if ezmoney selected
+  if (state.currentCompany === 'ezmoney') {
+    path += '&tags=ilike.*ezmoney*';
+  }
   path += `&order=first_name.asc`;
   try {
     const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':`${from}-${to}` } });
@@ -1282,7 +1301,8 @@ const STAGES = {
 
 async function loadOpps() {
   try {
-    const data = await supaFetch('opportunities?select=*&order=created_at.desc');
+    const companyFilter = state.currentCompany === 'ezmoney' ? '&company=eq.ezmoney' : '&company=eq.alliance';
+    const data = await supaFetch(`opportunities?select=*${companyFilter}&order=created_at.desc`);
     state.opps = (data||[]).map(o => ({
       id: o.id,
       contact: o.contact,
@@ -1417,6 +1437,7 @@ async function saveOpp() {
     value: parseFloat(document.getElementById('oppValue').value)||0,
     status: document.getElementById('oppStatus').value,
     lang: langEl ? langEl.value || null : null,
+    company: state.currentCompany === 'ezmoney' ? 'ezmoney' : 'alliance',
     msgs_count: 0, notes_count: 0, tasks_count: 0
   };
   try {
