@@ -170,20 +170,71 @@
   .card-body { padding:16px 20px; }
 
   /* ===== CONTACTS ===== */
-  .contacts-toolbar { display:flex; gap:10px; margin-bottom:16px; align-items:center; }
+  /* ===== CONTACTS PRO ===== */
+  .contacts-page { display:flex; flex-direction:column; height:100%; }
+  .contacts-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .contacts-header-title { font-size:18px; font-weight:800; color:var(--gray-900); }
+  .contacts-count { font-size:13px; color:var(--blue); font-weight:600; }
+
+  .contacts-tabs { display:flex; gap:0; border-bottom:1px solid var(--gray-200); margin-bottom:14px; }
+  .contacts-tab {
+    padding:8px 16px; font-size:13px; font-weight:500; color:var(--gray-500);
+    cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;
+    display:flex; align-items:center; gap:6px; transition:color .15s;
+    white-space:nowrap;
+  }
+  .contacts-tab:hover { color:var(--gray-900); }
+  .contacts-tab.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+
+  .contacts-toolbar { display:flex; gap:8px; margin-bottom:12px; align-items:center; flex-wrap:wrap; }
   .search-input {
-    flex:1; padding:9px 14px; border:1px solid var(--gray-200); border-radius:8px;
-    font-size:13px; outline:none; transition:border-color .2s;
+    flex:1; min-width:200px; padding:8px 14px 8px 36px; border:1px solid var(--gray-200); border-radius:8px;
+    font-size:13px; outline:none; transition:border-color .2s; background:#fff;
   }
   .search-input:focus { border-color:var(--green); }
+  .search-wrap { position:relative; flex:1; min-width:200px; }
+  .search-wrap i { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--gray-400); font-size:13px; }
 
-  .table-wrap { background:#fff; border-radius:12px; border:1px solid var(--gray-100); overflow:hidden; }
+  /* Bulk action bar */
+  .bulk-bar {
+    display:none; align-items:center; gap:10px; padding:10px 16px;
+    background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; margin-bottom:12px;
+  }
+  .bulk-bar.show { display:flex; }
+  .bulk-bar-count { font-size:13px; font-weight:700; color:#1d4ed8; }
+  .bulk-bar-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  .bulk-btn {
+    padding:5px 12px; border-radius:6px; border:1px solid #bfdbfe; background:#fff;
+    font-size:12px; font-weight:600; cursor:pointer; color:#1d4ed8; transition:all .15s;
+    display:flex; align-items:center; gap:5px;
+  }
+  .bulk-btn:hover { background:#dbeafe; }
+  .bulk-btn.danger { color:var(--red); border-color:#fecaca; }
+  .bulk-btn.danger:hover { background:#fee2e2; }
+
+  /* Table */
+  .table-wrap { background:#fff; border-radius:12px; border:1px solid var(--gray-100); overflow:hidden; flex:1; }
   table { width:100%; border-collapse:collapse; }
-  th { background:var(--gray-50); padding:10px 16px; font-size:11px; font-weight:700; color:var(--gray-500); text-transform:uppercase; letter-spacing:.5px; text-align:left; }
-  td { padding:12px 16px; font-size:13px; border-top:1px solid var(--gray-100); }
-  tr:hover td { background:var(--gray-50); }
-  .contact-name { font-weight:600; color:var(--gray-900); }
-  .contact-email { color:var(--gray-500); font-size:12px; }
+  th {
+    background:var(--gray-50); padding:10px 14px; font-size:11px; font-weight:700;
+    color:var(--gray-500); text-transform:uppercase; letter-spacing:.5px; text-align:left;
+    cursor:pointer; user-select:none; white-space:nowrap;
+  }
+  th:hover { color:var(--gray-900); }
+  th .sort-icon { margin-left:4px; opacity:.4; }
+  th.sorted .sort-icon { opacity:1; color:var(--green); }
+  td { padding:11px 14px; font-size:13px; border-top:1px solid var(--gray-100); vertical-align:middle; }
+  tr:hover td { background:#fafafa; }
+  tr.selected td { background:#eff6ff; }
+
+  .contact-avatar {
+    width:34px; height:34px; border-radius:50%; display:flex; align-items:center;
+    justify-content:center; font-size:12px; font-weight:700; color:#fff; flex-shrink:0;
+  }
+  .contact-name-wrap { display:flex; align-items:center; gap:10px; }
+  .contact-name { font-weight:600; color:var(--gray-900); font-size:13px; }
+  .contact-email-sub { font-size:11px; color:var(--gray-500); margin-top:1px; }
+
   .badge {
     display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px;
     font-size:11px; font-weight:600;
@@ -193,6 +244,21 @@
   .badge-yellow { background:#fef9c3; color:#854d0e; }
   .badge-gray { background:var(--gray-100); color:var(--gray-700); }
   .badge-red { background:#fee2e2; color:#991b1b; }
+  .badge-purple { background:#f3e8ff; color:#7e22ce; }
+  .badge-orange { background:#fff7ed; color:#c2410c; }
+
+  .contact-actions { display:flex; gap:4px; opacity:0; transition:opacity .15s; }
+  tr:hover .contact-actions { opacity:1; }
+  .contact-action-btn {
+    width:28px; height:28px; border-radius:6px; border:1px solid var(--gray-200);
+    background:#fff; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:12px; color:var(--gray-500); transition:all .15s;
+  }
+  .contact-action-btn:hover { background:var(--gray-50); color:var(--gray-900); border-color:var(--gray-300); }
+  .contact-action-btn.red:hover { background:#fee2e2; color:var(--red); border-color:#fecaca; }
+
+  /* Checkbox */
+  .cb { width:16px; height:16px; cursor:pointer; accent-color:var(--green); }
 
   .pagination { display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid var(--gray-100); }
   .pagination-info { font-size:13px; color:var(--gray-500); flex:1; }
@@ -522,27 +588,78 @@
 
         <!-- CONTACTS -->
         <div class="page" id="page-contacts">
-          <div class="contacts-toolbar">
-            <input class="search-input" type="text" id="contactSearch" placeholder="🔍  Buscar por nome, email, telefone..." oninput="searchContacts()">
-            <button class="btn btn-primary" onclick="openNewContact()"><i class="fas fa-plus"></i> Novo Contato</button>
-            <button class="btn btn-outline" onclick="loadContacts()"><i class="fas fa-sync"></i></button>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Nome</th><th>Telefone</th><th>E-mail</th><th>Empresa</th><th>Ações</th>
-                </tr>
-              </thead>
-              <tbody id="contactsBody">
-                <tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr>
-              </tbody>
-            </table>
-            <div class="pagination">
-              <div class="pagination-info" id="paginationInfo"></div>
-              <button class="page-btn" id="prevBtn" onclick="prevPage()">← Anterior</button>
-              <span id="pageButtons"></span>
-              <button class="page-btn" id="nextBtn" onclick="nextPage()">Próximo →</button>
+          <div class="contacts-page">
+            <!-- Header -->
+            <div class="contacts-header">
+              <div>
+                <div class="contacts-header-title">Contatos</div>
+              </div>
+              <span class="contacts-count" id="contactsTotalLabel">— Contatos</span>
+              <div style="flex:1"></div>
+              <button class="btn btn-outline" style="font-size:12px" onclick="exportContactsCSV()"><i class="fas fa-download"></i> Exportar CSV</button>
+              <button class="btn btn-primary" onclick="openNewContact()"><i class="fas fa-plus"></i> Novo Contato</button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="contacts-tabs">
+              <div class="contacts-tab active" onclick="setContactTab('all',this)"><i class="fas fa-list"></i> Todos</div>
+              <div class="contacts-tab" onclick="setContactTab('recent',this)"><i class="fas fa-clock"></i> Recentes</div>
+              <div class="contacts-tab" onclick="setContactTab('noemail',this)"><i class="fas fa-envelope-open"></i> Sem E-mail</div>
+              <div class="contacts-tab" onclick="setContactTab('nophone',this)"><i class="fas fa-phone-slash"></i> Sem Telefone</div>
+              <div style="flex:1"></div>
+              <button class="btn btn-outline" style="font-size:12px;padding:5px 10px;align-self:center" onclick="loadContacts()"><i class="fas fa-sync"></i> Atualizar</button>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="contacts-toolbar">
+              <div class="search-wrap">
+                <i class="fas fa-search"></i>
+                <input class="search-input" type="text" id="contactSearch" placeholder="Buscar por nome, email, telefone..." oninput="searchContacts()">
+              </div>
+              <button class="btn btn-outline" style="font-size:12px" onclick="toggleSortContacts()"><i class="fas fa-sort"></i> Ordenar</button>
+              <button class="btn btn-outline" style="font-size:12px" onclick="toggleFilterContacts()"><i class="fas fa-filter"></i> Filtros</button>
+            </div>
+
+            <!-- Bulk action bar -->
+            <div class="bulk-bar" id="bulkBar">
+              <span class="bulk-bar-count" id="bulkCount">0 selecionados</span>
+              <div style="flex:1"></div>
+              <div class="bulk-bar-actions">
+                <button class="bulk-btn" onclick="bulkAction('tag')"><i class="fas fa-tag"></i> Adicionar Tag</button>
+                <button class="bulk-btn" onclick="bulkAction('sms')"><i class="fas fa-sms"></i> Enviar SMS</button>
+                <button class="bulk-btn" onclick="bulkAction('whatsapp')"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+                <button class="bulk-btn" onclick="bulkAction('export')"><i class="fas fa-download"></i> Exportar</button>
+                <button class="bulk-btn danger" onclick="bulkAction('delete')"><i class="fas fa-trash"></i> Excluir</button>
+              </div>
+              <button class="bulk-btn" onclick="clearSelection()"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Table -->
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:36px;padding:10px 8px 10px 14px">
+                      <input type="checkbox" class="cb" id="checkAll" onchange="toggleSelectAll(this)">
+                    </th>
+                    <th onclick="sortContacts('name')">Nome <i class="fas fa-sort sort-icon"></i></th>
+                    <th onclick="sortContacts('phone')">Telefone <i class="fas fa-sort sort-icon"></i></th>
+                    <th onclick="sortContacts('email')">E-mail <i class="fas fa-sort sort-icon"></i></th>
+                    <th>Tags</th>
+                    <th onclick="sortContacts('created')">Criado em <i class="fas fa-sort sort-icon"></i></th>
+                    <th style="width:100px">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="contactsBody">
+                  <tr><td colspan="7"><div class="loading"><div class="spinner"></div></div></td></tr>
+                </tbody>
+              </table>
+              <div class="pagination">
+                <div class="pagination-info" id="paginationInfo"></div>
+                <button class="page-btn" id="prevBtn" onclick="prevPage()">← Anterior</button>
+                <span id="pageButtons"></span>
+                <button class="page-btn" id="nextBtn" onclick="nextPage()">Próximo →</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1180,38 +1297,172 @@ function searchContacts() {
   searchTimeout = setTimeout(() => { state.page = 1; state.searchQ = document.getElementById('contactSearch').value.trim(); loadContacts(); }, 350);
 }
 
+const AVATAR_COLORS = ['#1a2e27','#3b82f6','#8b5cf6','#f59e0b','#10b981','#ef4444','#ec4899','#06b6d4','#84cc16','#f97316'];
+function getAvatarColor(name) { let h=0; for(let i=0;i<name.length;i++) h=(h*31+name.charCodeAt(i))%AVATAR_COLORS.length; return AVATAR_COLORS[Math.abs(h)]; }
+
+let contactTab = 'all';
+let selectedContacts = new Set();
+let sortField = 'first_name';
+let sortDir = 'asc';
+
+function setContactTab(tab, el) {
+  contactTab = tab;
+  document.querySelectorAll('.contacts-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  state.page = 1;
+  loadContacts();
+}
+
+function sortContacts(field) {
+  if (sortField === field) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  else { sortField = field; sortDir = 'asc'; }
+  loadContacts();
+}
+
+function toggleSelectAll(cb) {
+  const rows = document.querySelectorAll('.contact-cb');
+  rows.forEach(r => {
+    r.checked = cb.checked;
+    const id = r.dataset.id;
+    if (cb.checked) selectedContacts.add(id);
+    else selectedContacts.delete(id);
+    r.closest('tr').classList.toggle('selected', cb.checked);
+  });
+  updateBulkBar();
+}
+
+function toggleContactSelect(cb, id) {
+  if (cb.checked) selectedContacts.add(id);
+  else selectedContacts.delete(id);
+  cb.closest('tr').classList.toggle('selected', cb.checked);
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulkBar');
+  const count = document.getElementById('bulkCount');
+  if (selectedContacts.size > 0) { bar.classList.add('show'); count.textContent = `${selectedContacts.size} selecionado${selectedContacts.size>1?'s':''}`; }
+  else bar.classList.remove('show');
+}
+
+function clearSelection() {
+  selectedContacts.clear();
+  document.querySelectorAll('.contact-cb').forEach(cb => { cb.checked=false; cb.closest('tr').classList.remove('selected'); });
+  const ca = document.getElementById('checkAll'); if(ca) ca.checked=false;
+  updateBulkBar();
+}
+
+function bulkAction(action) {
+  const ids = [...selectedContacts];
+  if (!ids.length) { toast('Selecione contatos primeiro','error'); return; }
+  if (action==='delete') {
+    if (!confirm(`Excluir ${ids.length} contato(s)?`)) return;
+    Promise.all(ids.map(id => supaFetch(`contacts?id=eq.${id}`,{method:'DELETE'}))).then(() => { toast(`${ids.length} contato(s) excluído(s)`); clearSelection(); loadContacts(); });
+  } else if (action==='export') {
+    exportSelectedCSV(ids);
+  } else {
+    toast(`Função "${action}" disponível em breve com integração WhatsApp/SMS`);
+  }
+}
+
+function exportContactsCSV() {
+  if (!state.contacts || !state.contacts.length) { toast('Carregue os contatos primeiro','error'); return; }
+  exportToCSV(state.contacts);
+}
+
+function exportSelectedCSV(ids) {
+  const selected = state.contacts.filter(c => ids.includes(c.id));
+  exportToCSV(selected);
+}
+
+function exportToCSV(contacts) {
+  const header = ['Nome','Sobrenome','Telefone','Email','Tags'];
+  const rows = contacts.map(c => [c.first_name||'',c.last_name||'',c.phone||'',c.email||'',c.tags||'']);
+  const csv = [header,...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='contatos_hub360.csv'; a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV exportado!');
+}
+
+function toggleSortContacts() { toast('Clique no cabeçalho da coluna para ordenar'); }
+function toggleFilterContacts() { toast('Filtros avançados em breve'); }
+
 async function loadContacts() {
   const tbody = document.getElementById('contactsBody');
-  tbody.innerHTML = '<tr><td colspan="5"><div class="loading"><div class="spinner"></div></div></td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7"><div class="loading"><div class="spinner"></div></div></td></tr>';
+  selectedContacts.clear();
+  updateBulkBar();
+
   const from = (state.page - 1) * state.perPage;
   const to = from + state.perPage - 1;
   const q = state.searchQ;
-  let path = 'contacts?select=id,first_name,last_name,email,phone,tags';
+
+  const sortMap = { name:'first_name', phone:'phone', email:'email', created:'id' };
+  const orderCol = sortMap[sortField] || sortField;
+
+  let path = 'contacts?select=id,first_name,last_name,email,phone,tags,created_at';
   if (q) path += `&or=(first_name.ilike.*${encodeURIComponent(q)}*,last_name.ilike.*${encodeURIComponent(q)}*,email.ilike.*${encodeURIComponent(q)}*,phone.ilike.*${encodeURIComponent(q)}*)`;
-  // filter by company if ezmoney selected
-  if (state.currentCompany === 'ezmoney') {
-    path += '&tags=ilike.*ezmoney*';
-  }
-  path += `&order=first_name.asc`;
+  if (contactTab === 'noemail') path += '&email=is.null';
+  if (contactTab === 'nophone') path += '&phone=is.null';
+  path += `&order=${orderCol}.${sortDir}`;
+
   try {
-    const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':`${from}-${to}` } });
+    const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
+      headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':`${from}-${to}` }
+    });
     const total = parseInt(res.headers.get('Content-Range')?.split('/')[1] || 0);
     const contacts = await res.json();
     state.contacts = contacts;
-    if (!contacts.length) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><i class="fas fa-users"></i><p>Nenhum contato encontrado.</p></div></td></tr>'; renderPagination(0,0); return; }
-    tbody.innerHTML = contacts.map(c => `
-      <tr>
-        <td><div class="contact-name">${c.first_name||''} ${c.last_name||''}</div>${c.tags?`<span class="badge badge-green" style="margin-top:3px">${c.tags}</span>`:''}</td>
-        <td>${c.phone||'<span style="color:var(--gray-300)">—</span>'}</td>
-        <td class="contact-email">${c.email||'<span style="color:var(--gray-300)">—</span>'}</td>
-        <td><span class="badge badge-blue">Alliance BJJ</span></td>
-        <td>
-          <button class="btn btn-outline" style="padding:5px 10px;font-size:11px" onclick="editContact(${JSON.stringify(c).replace(/"/g,'&quot;')})"><i class="fas fa-pencil"></i></button>
-          <button class="btn btn-outline" style="padding:5px 10px;font-size:11px;color:var(--red)" onclick="deleteContact('${c.id}')"><i class="fas fa-trash"></i></button>
+
+    // update total label
+    const lbl = document.getElementById('contactsTotalLabel');
+    if (lbl) lbl.textContent = `${total.toLocaleString()} Contatos`;
+
+    if (!contacts.length) {
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><i class="fas fa-users"></i><p>Nenhum contato encontrado.</p></div></td></tr>`;
+      renderPagination(0,0); return;
+    }
+
+    const tagColors = ['badge-green','badge-blue','badge-purple','badge-yellow','badge-orange'];
+    tbody.innerHTML = contacts.map((c,idx) => {
+      const name = `${c.first_name||''} ${c.last_name||''}`.trim() || 'Sem nome';
+      const initials = [(c.first_name||'')[0],(c.last_name||'')[0]].filter(Boolean).join('').toUpperCase() || '?';
+      const color = getAvatarColor(name);
+      const tagList = c.tags ? c.tags.split(',').map((t,i) => `<span class="badge ${tagColors[i%tagColors.length]}" style="margin-right:3px">${t.trim()}</span>`).join('') : '<span style="color:var(--gray-300);font-size:12px">—</span>';
+      const createdDate = c.created_at ? new Date(c.created_at).toLocaleDateString('pt-BR') : '—';
+      return `<tr>
+        <td style="padding:11px 8px 11px 14px">
+          <input type="checkbox" class="cb contact-cb" data-id="${c.id}" onchange="toggleContactSelect(this,'${c.id}')">
         </td>
-      </tr>`).join('');
+        <td>
+          <div class="contact-name-wrap">
+            <div class="contact-avatar" style="background:${color}">${initials}</div>
+            <div>
+              <div class="contact-name">${name}</div>
+              <div class="contact-email-sub">${c.email||''}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-size:13px">${c.phone||'<span style="color:var(--gray-300)">—</span>'}</td>
+        <td style="font-size:12px;color:var(--gray-500)">${c.email||'<span style="color:var(--gray-300)">—</span>'}</td>
+        <td>${tagList}</td>
+        <td style="font-size:12px;color:var(--gray-500)">${createdDate}</td>
+        <td>
+          <div class="contact-actions">
+            <div class="contact-action-btn" onclick="editContact(${JSON.stringify(c).replace(/"/g,'&quot;')})" title="Editar"><i class="fas fa-pencil"></i></div>
+            <div class="contact-action-btn" title="WhatsApp" onclick="toast('WhatsApp em breve')"><i class="fab fa-whatsapp"></i></div>
+            <div class="contact-action-btn red" onclick="deleteContact('${c.id}')" title="Excluir"><i class="fas fa-trash"></i></div>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
     renderPagination(total, from);
-  } catch(e) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>Erro ao carregar contatos.</p></div></td></tr>'; toast('Erro: '+e.message,'error'); }
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><p>Erro ao carregar contatos.</p></div></td></tr>`;
+    toast('Erro: '+e.message,'error');
+  }
 }
 
 function renderPagination(total, from) {
