@@ -414,36 +414,8 @@
         </div>
       </div>
 
-      <nav class="sb-nav">
-        <div class="sb-section">Principal</div>
-        <div class="sb-item active" onclick="showPage('dashboard',this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
-        <div class="sb-item" onclick="showPage('conversations',this)"><i class="fas fa-comments"></i> Conversas</div>
-        <div class="sb-item" onclick="showPage('calendar',this)"><i class="fas fa-calendar-alt"></i> Calendários</div>
-        <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
-        <div class="sb-item" onclick="showPage('pipeline',this)"><i class="fas fa-columns"></i> Oportunidades</div>
-
-        <div class="sb-section" style="color:rgba(196,169,125,0.6)">Ez Money USA</div>
-        <div class="sb-item" onclick="showPage('ezmoney',this)"><i class="fas fa-dollar-sign"></i> Painel Ez Money</div>
-        <div class="sb-item" onclick="showPage('pipeline',this);document.getElementById('pipelineSelect').value='ezmoney_sales';changePipeline()"><i class="fas fa-funnel-dollar"></i> Funil de Vendas</div>
-        <div class="sb-item" onclick="showPage('pipeline',this);document.getElementById('pipelineSelect').value='ezmoney_postsale';changePipeline()"><i class="fas fa-heart"></i> Pós-Venda</div>
-
-        <div class="sb-section">Marketing</div>
-        <div class="sb-item" onclick="showPage('campaigns',this)"><i class="fas fa-bullhorn"></i> Campanhas</div>
-        <div class="sb-item" onclick="showPage('email',this)"><i class="fas fa-envelope"></i> Email Marketing</div>
-        <div class="sb-item" onclick="showPage('sms',this)"><i class="fas fa-sms"></i> SMS</div>
-        <div class="sb-item" onclick="showPage('automations',this)"><i class="fas fa-robot"></i> Automações</div>
-
-        <div class="sb-section">Vendas</div>
-        <div class="sb-item" onclick="showPage('payments',this)"><i class="fas fa-dollar-sign"></i> Pagamentos</div>
-        <div class="sb-item" onclick="showPage('tasks',this)"><i class="fas fa-tasks"></i> Tarefas</div>
-
-        <div class="sb-section">Relatórios</div>
-        <div class="sb-item" onclick="showPage('reports',this)"><i class="fas fa-chart-bar"></i> Relatórios</div>
-        <div class="sb-item" onclick="showPage('reports-ads',this)"><i class="fab fa-google"></i> Google Ads</div>
-        <div class="sb-item" onclick="showPage('reports-fb',this)"><i class="fab fa-facebook"></i> Facebook Ads</div>
-
-        <div class="sb-section">Sistema</div>
-        <div class="sb-item" onclick="showPage('settings',this)"><i class="fas fa-cog"></i> Configurações</div>
+      <nav class="sb-nav" id="sidebarNav">
+        <!-- preenchido por renderNav() -->
       </nav>
 
       <div class="sb-bottom">
@@ -1021,7 +993,7 @@ async function doLogout() {
   toast('Você saiu da conta.');
 }
 
-function initApp() { loadDashboard(); loadOpps(); }
+function initApp() { renderNav(); loadDashboard(); loadOpps(); }
 
 function showPage(name, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1056,7 +1028,73 @@ function selectCompany(id, name, e) {
   document.querySelectorAll('.cd-item').forEach(i => i.classList.remove('active'));
   e.currentTarget.classList.add('active');
   document.getElementById('companyDropdown').classList.remove('open');
+  renderNav();
+  showPage('dashboard', document.querySelector('#sidebarNav .sb-item'));
+  loadDashboard();
   toast(`Empresa: ${name}`);
+}
+
+function renderNav() {
+  const nav = document.getElementById('sidebarNav');
+  const co = state.currentCompany;
+
+  const navAlliance = `
+    <div class="sb-section">Principal</div>
+    <div class="sb-item active" onclick="showPage('dashboard',this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
+    <div class="sb-item" onclick="showPage('conversations',this)"><i class="fas fa-comments"></i> Conversas</div>
+    <div class="sb-item" onclick="showPage('calendar',this)"><i class="fas fa-calendar-alt"></i> Calendários</div>
+    <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
+    <div class="sb-item" onclick="showPage('pipeline',this);document.getElementById('pipelineSelect').value='leads';changePipeline()"><i class="fas fa-columns"></i> Oportunidades</div>
+    <div class="sb-section">Marketing</div>
+    <div class="sb-item" onclick="showPage('campaigns',this)"><i class="fas fa-bullhorn"></i> Campanhas</div>
+    <div class="sb-item" onclick="showPage('email',this)"><i class="fas fa-envelope"></i> Email Marketing</div>
+    <div class="sb-item" onclick="showPage('sms',this)"><i class="fas fa-sms"></i> SMS</div>
+    <div class="sb-item" onclick="showPage('automations',this)"><i class="fas fa-robot"></i> Automações</div>
+    <div class="sb-section">Vendas</div>
+    <div class="sb-item" onclick="showPage('payments',this)"><i class="fas fa-dollar-sign"></i> Pagamentos</div>
+    <div class="sb-item" onclick="showPage('tasks',this)"><i class="fas fa-tasks"></i> Tarefas</div>
+    <div class="sb-section">Relatórios</div>
+    <div class="sb-item" onclick="showPage('reports',this)"><i class="fas fa-chart-bar"></i> Relatórios</div>
+    <div class="sb-item" onclick="showPage('reports-ads',this)"><i class="fab fa-google"></i> Google Ads</div>
+    <div class="sb-item" onclick="showPage('reports-fb',this)"><i class="fab fa-facebook"></i> Facebook Ads</div>
+    <div class="sb-section">Sistema</div>
+    <div class="sb-item" onclick="showPage('settings',this)"><i class="fas fa-cog"></i> Configurações</div>
+  `;
+
+  const navEzMoney = `
+    <div class="sb-section">Principal</div>
+    <div class="sb-item active" onclick="showPage('ezmoney',this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
+    <div class="sb-item" onclick="showPage('conversations',this)"><i class="fas fa-comments"></i> Conversas</div>
+    <div class="sb-item" onclick="showPage('calendar',this)"><i class="fas fa-calendar-alt"></i> Calendários</div>
+    <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
+    <div class="sb-section">Vendas</div>
+    <div class="sb-item" onclick="showPage('pipeline',this);document.getElementById('pipelineSelect').value='ezmoney_sales';changePipeline()"><i class="fas fa-funnel-dollar"></i> Funil de Vendas</div>
+    <div class="sb-item" onclick="showPage('pipeline',this);document.getElementById('pipelineSelect').value='ezmoney_postsale';changePipeline()"><i class="fas fa-heart"></i> Pós-Venda</div>
+    <div class="sb-item" onclick="showPage('tasks',this)"><i class="fas fa-tasks"></i> Tarefas</div>
+    <div class="sb-section">Comunicação</div>
+    <div class="sb-item" onclick="showPage('conversations',this)"><i class="fas fa-comments"></i> Conversas</div>
+    <div class="sb-item" onclick="showPage('sms',this)"><i class="fas fa-sms"></i> SMS</div>
+    <div class="sb-item" onclick="showPage('automations',this)"><i class="fas fa-robot"></i> Automações</div>
+    <div class="sb-section">Relatórios</div>
+    <div class="sb-item" onclick="showPage('reports',this)"><i class="fas fa-chart-bar"></i> Relatórios</div>
+    <div class="sb-item" onclick="showPage('reports-ads',this)"><i class="fab fa-google"></i> Google Ads</div>
+    <div class="sb-item" onclick="showPage('reports-fb',this)"><i class="fab fa-facebook"></i> Facebook Ads</div>
+    <div class="sb-section">Sistema</div>
+    <div class="sb-item" onclick="showPage('settings',this)"><i class="fas fa-cog"></i> Configurações</div>
+  `;
+
+  const navGeneric = `
+    <div class="sb-section">Principal</div>
+    <div class="sb-item active" onclick="showPage('dashboard',this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
+    <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
+    <div class="sb-item" onclick="showPage('settings',this)"><i class="fas fa-cog"></i> Configurações</div>
+    <div class="sb-section">Em Breve</div>
+    <div class="sb-item" style="opacity:.4;cursor:default"><i class="fas fa-columns"></i> Módulos em configuração</div>
+  `;
+
+  if (co === 'alliance') nav.innerHTML = navAlliance;
+  else if (co === 'ezmoney') nav.innerHTML = navEzMoney;
+  else nav.innerHTML = navGeneric;
 }
 
 // ===== DASHBOARD =====
@@ -1280,7 +1318,8 @@ function filterOpps(q) {
 
 function renderKanban() {
   const board = document.getElementById('kanbanBoard');
-  const stages = STAGES['leads'];
+  const pipeline = document.getElementById('pipelineSelect')?.value || 'leads';
+  const stages = STAGES[pipeline] || STAGES['leads'];
   const total = state.oppsFiltered.length;
   document.getElementById('pipelineCountLabel').textContent = `${total} oportunidade${total!==1?'s':''}`;
 
@@ -1349,7 +1388,7 @@ function renderOppCard(c) {
         <div class="opp-card-avatar" style="background:${initBg}">${c.initials}</div>
       </div>
       <div class="opp-card-row"><span class="opp-card-label">Contato:</span> <strong style="font-size:11px">${c.initials}&nbsp; ${c.contact}</strong></div>
-      <div class="opp-card-row"><span class="opp-card-label">Estágio:</span> <span style="font-size:11px">${STAGES.leads.find(s=>s.id===c.stage)?.label||c.stage}</span></div>
+      <div class="opp-card-row"><span class="opp-card-label">Estágio:</span> <span style="font-size:11px">${Object.values(STAGES).flat().find(s=>s.id===c.stage)?.label||c.stage}</span></div>
       <div class="opp-card-row"><span class="opp-card-label">Valor:</span> <span style="font-size:11px">US$ ${(c.value||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span></div>
       ${statusRow}
       <div class="opp-card-row"><span class="opp-card-label">Criado em:</span> <span style="font-size:11px">${c.created}</span></div>
