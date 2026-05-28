@@ -422,6 +422,11 @@
         <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
         <div class="sb-item" onclick="showPage('pipeline',this)"><i class="fas fa-columns"></i> Oportunidades</div>
 
+        <div class="sb-section" style="color:rgba(196,169,125,0.6)">Ez Money USA</div>
+        <div class="sb-item" onclick="showPage('ezmoney',this)"><i class="fas fa-dollar-sign"></i> Painel Ez Money</div>
+        <div class="sb-item" onclick="showPage('pipeline',this);document.getElementById('pipelineSelect').value='ezmoney_sales';changePipeline()"><i class="fas fa-funnel-dollar"></i> Funil de Vendas</div>
+        <div class="sb-item" onclick="showPage('pipeline',this);document.getElementById('pipelineSelect').value='ezmoney_postsale';changePipeline()"><i class="fas fa-heart"></i> Pós-Venda</div>
+
         <div class="sb-section">Marketing</div>
         <div class="sb-item" onclick="showPage('campaigns',this)"><i class="fas fa-bullhorn"></i> Campanhas</div>
         <div class="sb-item" onclick="showPage('email',this)"><i class="fas fa-envelope"></i> Email Marketing</div>
@@ -564,8 +569,9 @@
             <!-- top bar -->
             <div class="pipeline-topbar">
               <select class="pipeline-select" id="pipelineSelect" onchange="changePipeline()">
-                <option value="leads">Novo Dash Leads</option>
-                <option value="members">Membros</option>
+                <option value="leads">Alliance BJJ — Leads</option>
+                <option value="ezmoney_sales">Ez Money USA — Vendas</option>
+                <option value="ezmoney_postsale">Ez Money USA — Pós-Venda</option>
               </select>
               <span class="pipeline-count" id="pipelineCountLabel">0 oportunidades</span>
               <div style="flex:1"></div>
@@ -601,6 +607,101 @@
             <!-- kanban -->
             <div class="kanban-wrap">
               <div class="kanban" id="kanbanBoard"></div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- EZ MONEY DASHBOARD -->
+        <div class="page" id="page-ezmoney">
+          <!-- Stats -->
+          <div class="stats-grid" style="margin-bottom:16px">
+            <div class="stat-card">
+              <div class="stat-icon" style="background:#dbeafe"><i class="fas fa-user-plus" style="color:#1d4ed8"></i></div>
+              <div class="stat-label">Total Leads</div>
+              <div class="stat-value" id="emStatTotal">—</div>
+              <div class="stat-sub">Ez Money USA</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:#dcfce7"><i class="fas fa-handshake" style="color:#166534"></i></div>
+              <div class="stat-label">Fechados Ganhou</div>
+              <div class="stat-value" id="emStatWon">—</div>
+              <div class="stat-sub">Este mês</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:#fef9c3"><i class="fas fa-dollar-sign" style="color:#854d0e"></i></div>
+              <div class="stat-label">Em Negociação</div>
+              <div class="stat-value" id="emStatNegoc">—</div>
+              <div class="stat-sub">Leads ativos</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background:#fce7f3"><i class="fas fa-chart-line" style="color:#9d174d"></i></div>
+              <div class="stat-label">Taxa Conversão</div>
+              <div class="stat-value" id="emStatRate">—</div>
+              <div class="stat-sub">Leads fechados</div>
+            </div>
+          </div>
+
+          <!-- Language breakdown + team -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+            <div class="card">
+              <div class="card-header"><div class="card-title">Leads por Idioma</div></div>
+              <div class="card-body">
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <span style="font-size:20px">🇺🇸</span>
+                    <div style="flex:1">
+                      <div style="font-size:13px;font-weight:600">Americanos (EN)</div>
+                      <div style="font-size:11px;color:var(--gray-500)">Ligação ou SMS recomendado</div>
+                    </div>
+                    <div style="font-size:16px;font-weight:800" id="emLangEN">—</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <span style="font-size:20px">🇧🇷</span>
+                    <div style="flex:1">
+                      <div style="font-size:13px;font-weight:600">Brasileiros (PT)</div>
+                      <div style="font-size:11px;color:var(--gray-500)">WhatsApp recomendado</div>
+                    </div>
+                    <div style="font-size:16px;font-weight:800" id="emLangPT">—</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <span style="font-size:20px">🇲🇽</span>
+                    <div style="flex:1">
+                      <div style="font-size:13px;font-weight:600">Hispânicos (ES)</div>
+                      <div style="font-size:11px;color:var(--gray-500)">WhatsApp ou SMS recomendado</div>
+                    </div>
+                    <div style="font-size:16px;font-weight:800" id="emLangES">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title">Resultado por Vendedor</div></div>
+              <div class="card-body">
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <div style="display:grid;grid-template-columns:1fr 60px 60px 60px;gap:4px;font-size:11px;font-weight:700;color:var(--gray-500);padding-bottom:4px;border-bottom:1px solid var(--gray-100)">
+                    <span>Vendedor</span><span style="text-align:center">Leads</span><span style="text-align:center">Ganhou</span><span style="text-align:center">Taxa</span>
+                  </div>
+                  <div id="emTeamBoard">
+                    <div style="text-align:center;padding:20px;color:var(--gray-400);font-size:13px">Aguardando leads</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick add lead -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Leads Recentes — Ez Money USA</div>
+              <button class="btn btn-primary" onclick="openNewEzLead()"><i class="fas fa-plus"></i> Novo Lead</button>
+            </div>
+            <div class="card-body" id="emRecentLeads">
+              <div style="text-align:center;padding:40px;color:var(--gray-400)">
+                <i class="fas fa-dollar-sign" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
+                <div style="font-size:14px;font-weight:600;margin-bottom:4px">Aguardando lista de leads</div>
+                <div style="font-size:13px">A lista será importada quando o Tiago fornecer a base</div>
+              </div>
             </div>
           </div>
         </div>
@@ -932,7 +1033,8 @@ function showPage(name, el) {
     campaigns:'Campanhas', conversations:'Conversas', reports:'Relatórios',
     settings:'Configurações', calendar:'Calendários', email:'Email Marketing',
     sms:'SMS', automations:'Automações', payments:'Pagamentos', tasks:'Tarefas',
-    'reports-ads':'Google Ads', 'reports-fb':'Facebook Ads'
+    'reports-ads':'Google Ads', 'reports-fb':'Facebook Ads',
+    ezmoney:'Ez Money USA — Painel'
   };
   document.getElementById('topbarTitle').textContent = titles[name] || name;
   const actions = document.getElementById('topbarActions');
@@ -1111,15 +1213,32 @@ async function loadReports() {
 // ===== PIPELINE / OPORTUNIDADES =====
 const STAGES = {
   leads: [
-    { id:'new_lead',    label:'Novo Líder',                     emoji:'' },
-    { id:'followup',    label:'Acompanhamento',                 emoji:'' },
-    { id:'trial',       label:'Aula de Teste 📅',               emoji:'' },
-    { id:'waiting',     label:'Espera',                         emoji:'' },
-    { id:'recovery',    label:'Recuperação',                    emoji:'' },
-    { id:'reactivation',label:'Acompanhamento da reativação de lea', emoji:'' },
-    { id:'won',         label:'Fechado Ganhou 💰',              emoji:'' },
-    { id:'lost',        label:'Fechado Perdido ❌',             emoji:'' },
-    { id:'member',      label:'Membro',                         emoji:'' },
+    { id:'new_lead',    label:'Novo Líder' },
+    { id:'followup',    label:'Acompanhamento' },
+    { id:'trial',       label:'Aula de Teste 📅' },
+    { id:'waiting',     label:'Espera' },
+    { id:'recovery',    label:'Recuperação' },
+    { id:'reactivation',label:'Acompanhamento da reativação' },
+    { id:'won',         label:'Fechado Ganhou 💰' },
+    { id:'lost',        label:'Fechado Perdido ❌' },
+    { id:'member',      label:'Membro' },
+  ],
+  ezmoney_sales: [
+    { id:'em_new',       label:'Novo Lead 🆕' },
+    { id:'em_contact',   label:'Contato Feito 📞' },
+    { id:'em_qualified', label:'Qualificado ✅' },
+    { id:'em_docs',      label:'Documentação Solicitada 📄' },
+    { id:'em_analysis',  label:'Análise de Crédito 🔍' },
+    { id:'em_proposal',  label:'Proposta Enviada 📋' },
+    { id:'em_negoc',     label:'Negociação 🤝' },
+    { id:'em_won',       label:'Fechado Ganhou 💰' },
+    { id:'em_lost',      label:'Fechado Perdido ❌' },
+  ],
+  ezmoney_postsale: [
+    { id:'em_active',    label:'Cliente Ativo 🌟' },
+    { id:'em_cs',        label:'Pesquisa CS 📊' },
+    { id:'em_reactivate',label:'Reativação 🔄' },
+    { id:'em_resale',    label:'Novo Empréstimo 💵' },
   ]
 };
 
@@ -1133,6 +1252,7 @@ async function loadOpps() {
       stage: o.stage,
       value: o.value || 199,
       status: o.status || 'open',
+      lang: o.lang || null,
       msgs: o.msgs_count || 0,
       notes: o.notes_count || 0,
       tasks: o.tasks_count || 0,
@@ -1195,6 +1315,23 @@ function renderOppCard(c) {
     ? `<div class="opp-card-row"><span class="opp-card-label">Status:</span> <span style="border:1px solid var(--gray-200);border-radius:4px;padding:1px 8px;font-size:11px;font-weight:600;color:var(--gray-700)">abrir</span></div>`
     : `<div class="opp-card-row"><span class="opp-card-label">Status:</span> ${statusBadge}</div>`;
 
+  const isEzMoney = c.stage && c.stage.startsWith('em_');
+  const langFlag = c.lang === 'EN' ? '🇺🇸' : c.lang === 'ES' ? '🇲🇽' : c.lang === 'PT' ? '🇧🇷' : '';
+  const langBadge = langFlag ? `<span style="font-size:14px;margin-left:4px" title="${c.lang||''}">${langFlag}</span>` : '';
+
+  let channelBtns = '';
+  if (isEzMoney) {
+    const recCall = c.lang==='EN' ? 'background:#dbeafe;border-color:#93c5fd' : '';
+    const recSms  = c.lang==='EN' ? 'background:#dbeafe;border-color:#93c5fd' : c.lang==='ES' ? 'background:#fef9c3;border-color:#fcd34d' : '';
+    const recWapp = c.lang==='PT'||c.lang==='ES' ? 'background:#dcfce7;border-color:#86efac' : '';
+    channelBtns = `
+      <div style="display:flex;gap:4px;margin-top:8px;padding-top:8px;border-top:1px solid var(--gray-100)">
+        <button onclick="event.stopPropagation()" style="flex:1;padding:5px;border-radius:6px;border:1px solid var(--gray-200);font-size:11px;font-weight:600;cursor:pointer;${recCall}" title="Ligar via OpenPhone">📞 Ligar</button>
+        <button onclick="event.stopPropagation()" style="flex:1;padding:5px;border-radius:6px;border:1px solid var(--gray-200);font-size:11px;font-weight:600;cursor:pointer;${recSms}" title="Enviar SMS">💬 SMS</button>
+        <button onclick="event.stopPropagation()" style="flex:1;padding:5px;border-radius:6px;border:1px solid var(--gray-200);font-size:11px;font-weight:600;cursor:pointer;${recWapp}" title="WhatsApp">🟢 WPP</button>
+      </div>`;
+  }
+
   const b1 = c.msgs ? `<div class="opp-action-btn has-badge"><i class="fas fa-phone"></i><span class="mini-badge">${c.msgs}</span></div>` : `<div class="opp-action-btn"><i class="fas fa-phone"></i></div>`;
   const b2 = `<div class="opp-action-btn"><i class="fas fa-comment-dots"></i></div>`;
   const b3 = c.notes ? `<div class="opp-action-btn has-badge"><i class="fas fa-tag"></i><span class="mini-badge">${c.notes}</span></div>` : `<div class="opp-action-btn"><i class="fas fa-tag"></i></div>`;
@@ -1206,7 +1343,7 @@ function renderOppCard(c) {
     <div class="opp-card">
       <div class="opp-card-top">
         <div>
-          <div class="opp-card-name">${c.contact}</div>
+          <div class="opp-card-name">${c.contact}${langBadge}</div>
           ${statusBadge && c.status!=='open' ? '' : ''}
         </div>
         <div class="opp-card-avatar" style="background:${initBg}">${c.initials}</div>
@@ -1233,12 +1370,14 @@ function closeOppModal() { document.getElementById('oppModal').classList.remove(
 async function saveOpp() {
   const name = document.getElementById('oppContactName').value.trim();
   if (!name) { toast('Nome é obrigatório','error'); return; }
+  const langEl = document.getElementById('oppLang');
   const data = {
     contact: name,
     initials: name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(),
     stage: document.getElementById('oppStage').value,
     value: parseFloat(document.getElementById('oppValue').value)||0,
     status: document.getElementById('oppStatus').value,
+    lang: langEl ? langEl.value || null : null,
     msgs_count: 0, notes_count: 0, tasks_count: 0
   };
   try {
@@ -1251,6 +1390,16 @@ async function saveOpp() {
   }
 }
 document.getElementById('oppModal').addEventListener('click', function(e){ if(e.target===this) closeOppModal(); });
+
+// ===== EZ MONEY =====
+function openNewEzLead() {
+  document.getElementById('oppModalTitle').textContent = 'Novo Lead — Ez Money USA';
+  document.getElementById('oppContactName').value = '';
+  document.getElementById('oppStage').value = 'em_new';
+  document.getElementById('oppValue').value = '';
+  document.getElementById('oppStatus').value = 'open';
+  document.getElementById('oppModal').classList.add('open');
+}
 </script>
 </body>
 </html>
