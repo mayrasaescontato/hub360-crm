@@ -1097,6 +1097,128 @@
 
 <div class="toast-wrap" id="toastWrap"></div>
 
+<!-- MODAL PERFIL CLIENTE SAM SUSHI -->
+<div class="modal-overlay" id="ssClientModal">
+  <div class="modal" style="width:560px">
+    <div class="modal-header">
+      <div class="modal-title" id="ssClientModalTitle">Perfil do Cliente</div>
+      <div class="modal-close" onclick="closeSSClientModal()"><i class="fas fa-times"></i></div>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ssClientOppId">
+      <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Identificação</div>
+      <div class="form-row">
+        <div class="form-group"><label>Nome *</label><input type="text" id="ssClientName" placeholder="Nome do cliente"></div>
+        <div class="form-group"><label>Telefone (WPP)</label><input type="text" id="ssClientPhone" placeholder="+1 508 000-0000"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Data de Nascimento</label><input type="date" id="ssClientBirthday"></div>
+        <div class="form-group"><label>Origem do Lead</label>
+          <select id="ssClientOrigin">
+            <option value="">Selecionar...</option>
+            <option value="meta_ad">Meta Ads (Anúncio)</option>
+            <option value="google_ad">Google Ads</option>
+            <option value="instagram_organic">Instagram Orgânico</option>
+            <option value="indication">Indicação</option>
+            <option value="walk_in">Entrou direto</option>
+            <option value="returning">Já era cliente</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 12px">Comportamento de Consumo</div>
+      <div class="form-row">
+        <div class="form-group"><label>Frequência de Visita</label>
+          <select id="ssClientFrequency">
+            <option value="">Selecionar...</option>
+            <option value="first_time">Primeira vez</option>
+            <option value="weekly">Semanal</option>
+            <option value="biweekly">Quinzenal</option>
+            <option value="monthly">Mensal</option>
+            <option value="sporadic">Esporádico</option>
+            <option value="inactive">Inativo (foi 1x só)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Dia da Semana Preferido</label>
+          <select id="ssClientDayPref">
+            <option value="">Selecionar...</option>
+            <option value="mon">Segunda</option>
+            <option value="tue">Terça</option>
+            <option value="wed">Quarta</option>
+            <option value="thu">Quinta</option>
+            <option value="fri">Sexta</option>
+            <option value="sat">Sábado</option>
+            <option value="sun">Domingo</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Valor Médio Consumido (US$)</label><input type="number" id="ssClientAvgSpend" placeholder="ex: 65.00" step="0.01"></div>
+        <div class="form-group"><label>Forma de Pagamento</label>
+          <select id="ssClientPayment">
+            <option value="">Selecionar...</option>
+            <option value="credit">Cartão de Crédito</option>
+            <option value="debit">Cartão de Débito</option>
+            <option value="cash">Dinheiro</option>
+            <option value="pix">PIX</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Vai sozinho ou acompanhado?</label>
+          <select id="ssClientGroup">
+            <option value="">Selecionar...</option>
+            <option value="solo">Sozinho</option>
+            <option value="couple">Casal (2)</option>
+            <option value="small">Grupo pequeno (3-4)</option>
+            <option value="large">Grupo grande (5+)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Número de Acompanhantes</label><input type="number" id="ssClientGuests" placeholder="ex: 2" min="0"></div>
+      </div>
+
+      <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 12px">Histórico de Visitas</div>
+      <div class="form-row">
+        <div class="form-group"><label>Última Visita</label><input type="date" id="ssClientLastVisit"></div>
+        <div class="form-group"><label>Total de Visitas</label><input type="number" id="ssClientTotalVisits" placeholder="ex: 5" min="0"></div>
+      </div>
+      <div class="form-group"><label>Preferências / Pedidos Favoritos</label><input type="text" id="ssClientFavorites" placeholder="ex: philadelphia, hot roll de salmão, barca medium"></div>
+      <div class="form-group"><label>Observações</label><textarea id="ssClientNotes" placeholder="Alergias, preferências especiais, aniversário, etc."></textarea></div>
+
+      <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 12px">Status no Pipeline</div>
+      <div class="form-row">
+        <div class="form-group"><label>Estágio Atual</label>
+          <select id="ssClientStage">
+            <option value="ss_new_ad">Novo Lead — Tráfego 📣</option>
+            <option value="ss_new_org">Novo Lead — Orgânico 💬</option>
+            <option value="ss_returning">Cliente Recorrente 🔄</option>
+            <option value="ss_doubt">Tirando Dúvidas ❓</option>
+            <option value="ss_delivery_ok">Delivery Concluído 🛵✅</option>
+            <option value="ss_delivery_no">Delivery Não Concluído 🛵❌</option>
+            <option value="ss_reserved">Reserva Feita 📅</option>
+            <option value="ss_showed">Compareceu 🍣✅</option>
+            <option value="ss_noshow">Não Compareceu ❌</option>
+            <option value="ss_lost">Inativo — Nunca Voltou 💤</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Alerta de Reativação</label>
+          <select id="ssClientAlert">
+            <option value="">Sem alerta</option>
+            <option value="7d">7 dias sem visita</option>
+            <option value="14d">14 dias sem visita</option>
+            <option value="30d">30 dias sem visita</option>
+            <option value="60d">60 dias sem visita</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeSSClientModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveSSClient()"><i class="fas fa-save"></i> Salvar Perfil</button>
+    </div>
+  </div>
+</div>
+
 <!-- PIPELINE MANAGER MODAL -->
 <div class="modal-overlay" id="pipelineManagerModal">
   <div class="modal" style="width:540px">
@@ -1493,6 +1615,10 @@ async function loadContacts() {
   if (q) path += `&or=(first_name.ilike.*${encodeURIComponent(q)}*,last_name.ilike.*${encodeURIComponent(q)}*,email.ilike.*${encodeURIComponent(q)}*,phone.ilike.*${encodeURIComponent(q)}*)`;
   if (contactTab === 'noemail') path += '&email=is.null';
   if (contactTab === 'nophone') path += '&phone=is.null';
+  // Filter by company
+  if (state.currentCompany === 'samsushi') path += '&tags=ilike.*samsushi*';
+  else if (state.currentCompany === 'ezmoney') path += '&tags=ilike.*ezmoney*';
+  else if (state.currentCompany === 'alliance') path += '&tags=not.ilike.*samsushi*&tags=not.ilike.*ezmoney*';
   path += `&order=${orderCol}.${sortDir}`;
 
   try {
@@ -1665,13 +1791,16 @@ const STAGES = {
     { id:'em_resale',    label:'Novo Empréstimo 💵' },
   ],
   samsushi_leads: [
-    { id:'ss_new',       label:'Novo Contato 📩' },
-    { id:'ss_replied',   label:'Respondeu ✅' },
-    { id:'ss_reserved',  label:'Reserva Feita 📅' },
-    { id:'ss_confirmed', label:'Presença Confirmada 🍣' },
-    { id:'ss_consumed',  label:'Consumo Registrado 💰' },
+    { id:'ss_new_ad',    label:'Novo Lead — Tráfego 📣' },
+    { id:'ss_new_org',   label:'Novo Lead — Orgânico 💬' },
     { id:'ss_returning', label:'Cliente Recorrente 🔄' },
-    { id:'ss_lost',      label:'Perdido ❌' },
+    { id:'ss_doubt',     label:'Tirando Dúvidas ❓' },
+    { id:'ss_delivery_ok',   label:'Delivery Concluído 🛵✅' },
+    { id:'ss_delivery_no',   label:'Delivery Não Concluído 🛵❌' },
+    { id:'ss_reserved',  label:'Reserva Feita 📅' },
+    { id:'ss_showed',    label:'Compareceu 🍣✅' },
+    { id:'ss_noshow',    label:'Não Compareceu ❌' },
+    { id:'ss_lost',      label:'Inativo — Nunca Voltou 💤' },
   ]
 };
 
@@ -1726,7 +1855,8 @@ function renderKanban() {
     const titles = {
       leads: 'Alliance BJJ — Leads',
       ezmoney_sales: 'Ez Money USA — Funil de Vendas',
-      ezmoney_postsale: 'Ez Money USA — Pós-Venda'
+      ezmoney_postsale: 'Ez Money USA — Pós-Venda',
+      samsushi_leads: 'Sam Sushi — Acompanhamento de Clientes'
     };
     titleEl.textContent = titles[pipeline] || pipeline;
   }
@@ -1947,6 +2077,55 @@ function openNewEzLead() {
 }
 
 // ===== SAM SUSHI DASHBOARD =====
+function openSSClientModal(oppId, name, phone, stage) {
+  document.getElementById('ssClientModalTitle').textContent = name || 'Novo Cliente';
+  document.getElementById('ssClientOppId').value = oppId || '';
+  document.getElementById('ssClientName').value = name || '';
+  document.getElementById('ssClientPhone').value = phone || '';
+  document.getElementById('ssClientStage').value = stage || 'ss_new_org';
+  document.getElementById('ssClientModal').classList.add('open');
+}
+
+function closeSSClientModal() {
+  document.getElementById('ssClientModal').classList.remove('open');
+}
+
+async function saveSSClient() {
+  const oppId = document.getElementById('ssClientOppId').value;
+  const name = document.getElementById('ssClientName').value.trim();
+  if (!name) { toast('Nome é obrigatório','error'); return; }
+  const stage = document.getElementById('ssClientStage').value;
+  const notes = [
+    document.getElementById('ssClientFavorites').value && 'Favoritos: ' + document.getElementById('ssClientFavorites').value,
+    document.getElementById('ssClientNotes').value
+  ].filter(Boolean).join(' | ');
+  const value = parseFloat(document.getElementById('ssClientAvgSpend').value) || 0;
+  try {
+    if (oppId) {
+      await supaFetch(`opportunities?id=eq.${oppId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ contact: name, stage, value, notes_count: notes ? 1 : 0 })
+      });
+      toast('Perfil atualizado!');
+    } else {
+      await supaFetch('opportunities', {
+        method: 'POST',
+        body: JSON.stringify({
+          contact: name,
+          initials: name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(),
+          stage, value, status: 'open', company: 'samsushi',
+          lang: null, msgs_count: 0, notes_count: notes ? 1 : 0, tasks_count: 0
+        })
+      });
+      toast('Cliente adicionado ao pipeline!');
+    }
+    closeSSClientModal();
+    loadOpps();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+document.getElementById('ssClientModal').addEventListener('click', function(e){ if(e.target===this) closeSSClientModal(); });
+
 async function loadSamSushiDash() {
   // Load pipeline funnel counts
   try {
@@ -2045,7 +2224,8 @@ function selectConversation(id, name, phone, el) {
     </div>
     <div style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Canal</div>
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:16px"><i class="fab fa-whatsapp" style="color:#25d366;font-size:16px"></i><span style="font-size:13px">WhatsApp — Sam Sushi</span></div>
-    <button onclick="openNewContact();document.getElementById('cfPhone').value='${phone}'" class="btn btn-outline" style="width:100%;justify-content:center;font-size:12px"><i class="fas fa-user-plus"></i> Salvar como contato</button>
+    <button onclick="openNewContact();document.getElementById('cfPhone').value='${phone}'" class="btn btn-outline" style="width:100%;justify-content:center;font-size:12px;margin-bottom:6px"><i class="fas fa-user-plus"></i> Salvar como contato</button>
+    ${state.currentCompany === 'samsushi' ? '<button onclick="openSSClientModal(\'\',\''+name+'\',\''+phone+'\',\'ss_new_org\')" class="btn btn-primary" style="width:100%;justify-content:center;font-size:12px"><i class="fas fa-utensils"></i> Adicionar ao Pipeline</button>' : ''}
   `;
   loadMessages(id);
 }
@@ -2085,7 +2265,20 @@ async function loadMessages(chatId) {
         else text = '[mensagem]';
       }
       const ts = m.messageTimestamp;
-      const time = ts ? new Date(ts * 1000).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+      const msgDate = ts ? new Date(ts * 1000) : null;
+      const now = new Date();
+      let time = '';
+      if (msgDate) {
+        const isToday = msgDate.toDateString() === now.toDateString();
+        const isThisYear = msgDate.getFullYear() === now.getFullYear();
+        if (isToday) {
+          time = msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        } else if (isThisYear) {
+          time = msgDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) + ' ' + msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        } else {
+          time = msgDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}) + ' ' + msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        }
+      }
       return `<div style="display:flex;justify-content:${fromMe?'flex-end':'flex-start'}">
         <div class="msg-bubble ${fromMe?'from-me':'from-them'}">
           <div>${text}</div>
