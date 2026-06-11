@@ -1216,7 +1216,8 @@ function showPage(name, el) {
     settings:'Configurações', calendar:'Calendários', email:'Email Marketing',
     sms:'SMS', automations:'Automações', payments:'Pagamentos', tasks:'Tarefas',
     'reports-ads':'Google Ads', 'reports-fb':'Facebook Ads',
-    ezmoney:'Ez Money USA — Painel'
+    ezmoney:'Ez Money USA — Painel',
+    samsushi:'Sam Sushi Art Music — Painel'
   };
   document.getElementById('topbarTitle').textContent = titles[name] || name;
   const actions = document.getElementById('topbarActions');
@@ -1227,6 +1228,7 @@ function showPage(name, el) {
   }
   if (name === 'calendar') initCalendar();
   if (name === 'conversations') loadConversations();
+  if (name === 'samsushi') loadSamSushiDash();
   if (name === 'reports' || name === 'reports-ads' || name === 'reports-fb') loadReports();
 }
 
@@ -1243,6 +1245,8 @@ function selectCompany(id, name, e) {
   const firstItem = document.querySelector('#sidebarNav .sb-item');
   if (id === 'ezmoney') {
     showPage('ezmoney', firstItem);
+  } else if (id === 'samsushi') {
+    showPage('samsushi', firstItem);
   } else {
     showPage('dashboard', firstItem);
     loadDashboard();
@@ -1309,12 +1313,32 @@ function renderNav() {
     <div class="sb-item" style="opacity:.4;cursor:default"><i class="fas fa-columns"></i> Módulos em configuração</div>
   `;
 
+  const navSamSushi = `
+    <div class="sb-section">Principal</div>
+    <div class="sb-item active" onclick="showPage('samsushi',this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
+    <div class="sb-item" onclick="showPage('conversations',this)"><i class="fab fa-whatsapp"></i> Conversas WPP</div>
+    <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
+    <div class="sb-section">Leads</div>
+    <div class="sb-item" onclick="showPage('pipeline',this);changePipeline('samsushi_leads')"><i class="fas fa-funnel-dollar"></i> Pipeline de Leads</div>
+    <div class="sb-item" onclick="showPage('tasks',this)"><i class="fas fa-tasks"></i> Tarefas</div>
+    <div class="sb-section">Marketing</div>
+    <div class="sb-item" onclick="showPage('reports-ads',this)"><i class="fab fa-google"></i> Google Ads</div>
+    <div class="sb-item" onclick="showPage('reports-fb',this)"><i class="fab fa-facebook"></i> Meta Ads</div>
+    <div class="sb-item" onclick="showPage('campaigns',this)"><i class="fas fa-bullhorn"></i> Campanhas</div>
+    <div class="sb-section">Sistema</div>
+    <div class="sb-item" onclick="showPage('settings',this)"><i class="fas fa-cog"></i> Configurações</div>
+  `;
+
   if (co === 'alliance') {
     nav.innerHTML = navAlliance;
     setTimeout(() => { changePipeline('leads'); }, 50);
   } else if (co === 'ezmoney') {
     nav.innerHTML = navEzMoney;
     setTimeout(() => { changePipeline('ezmoney_sales'); }, 50);
+  } else if (co === 'samsushi') {
+    nav.innerHTML = navSamSushi;
+    setTimeout(() => { changePipeline('samsushi_leads'); }, 50);
+    showPage('samsushi', document.querySelector('#sidebarNav .sb-item'));
   } else {
     nav.innerHTML = navGeneric;
   }
@@ -1639,6 +1663,15 @@ const STAGES = {
     { id:'em_cs',        label:'Pesquisa CS 📊' },
     { id:'em_reactivate',label:'Reativação 🔄' },
     { id:'em_resale',    label:'Novo Empréstimo 💵' },
+  ],
+  samsushi_leads: [
+    { id:'ss_new',       label:'Novo Contato 📩' },
+    { id:'ss_replied',   label:'Respondeu ✅' },
+    { id:'ss_reserved',  label:'Reserva Feita 📅' },
+    { id:'ss_confirmed', label:'Presença Confirmada 🍣' },
+    { id:'ss_consumed',  label:'Consumo Registrado 💰' },
+    { id:'ss_returning', label:'Cliente Recorrente 🔄' },
+    { id:'ss_lost',      label:'Perdido ❌' },
   ]
 };
 
@@ -1911,6 +1944,23 @@ function openNewEzLead() {
   document.getElementById('oppValue').value = '';
   document.getElementById('oppStatus').value = 'open';
   document.getElementById('oppModal').classList.add('open');
+}
+
+// ===== SAM SUSHI DASHBOARD =====
+async function loadSamSushiDash() {
+  // Load pipeline funnel counts
+  try {
+    const data = await supaFetch('opportunities?select=stage&company=eq.samsushi');
+    const opps = data || [];
+    const count = (stage) => opps.filter(o => o.stage === stage).length;
+    const el = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+    el('funnelContato', opps.length || '—');
+    el('funnelRespondeu', count('ss_replied') || '—');
+    el('funnelReserva', count('ss_reserved') || '—');
+    el('funnelPresenca', count('ss_confirmed') || '—');
+    el('funnelConsumo', count('ss_consumed') || '—');
+    el('ssStatContacts', '2.139');
+  } catch(e) {}
 }
 
 // ===== CONVERSATIONS (Evolution API) =====
