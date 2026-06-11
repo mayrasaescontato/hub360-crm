@@ -950,7 +950,7 @@
                 <div class="conv-sidebar-toprow">
                   <div style="font-size:14px;font-weight:700">Conversas</div>
                   <select id="convInstanceSelect" onchange="loadConversations()" style="font-size:11px;padding:4px 8px;border:1px solid var(--gray-200);border-radius:6px;outline:none;background:#fff">
-                    <option value="sam-sushi">Sam Sushi</option>
+                    <option value="Sam Sushi">Sam Sushi</option>
                   </select>
                 </div>
                 <input id="convSearch" type="text" placeholder="Buscar conversa..." oninput="filterConversations()" style="width:100%;padding:7px 10px;border:1px solid var(--gray-200);border-radius:7px;font-size:12px;outline:none">
@@ -1970,7 +1970,7 @@ let currentChatId = null;
 let allConversations = [];
 
 async function loadConversations() {
-  const instance = document.getElementById('convInstanceSelect')?.value || 'sam-sushi';
+  const instance = document.getElementById('convInstanceSelect')?.value || 'Sam Sushi';
   const list = document.getElementById('convList');
   list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando...</div></div>';
   try {
@@ -2041,7 +2041,7 @@ function selectConversation(id, name, phone, el) {
 
 async function loadMessages(chatId) {
   if (!chatId) return;
-  const instance = document.getElementById('convInstanceSelect')?.value || 'sam-sushi';
+  const instance = document.getElementById('convInstanceSelect')?.value || 'Sam Sushi';
   const box = document.getElementById('chatMessages');
   box.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try {
@@ -2079,7 +2079,7 @@ async function sendMessage() {
   const input = document.getElementById('msgInput');
   const text = input.value.trim();
   if (!text) return;
-  const instance = document.getElementById('convInstanceSelect')?.value || 'sam-sushi';
+  const instance = document.getElementById('convInstanceSelect')?.value || 'Sam Sushi';
   const number = currentChatId.split('@')[0];
   input.value = '';
   try {
