@@ -1977,7 +1977,7 @@ async function loadConversations() {
     const res = await fetch(`${EVOLUTION_URL}/chat/findChats/${instance}`, {
       method: 'POST',
       headers: { 'apikey': EVOLUTION_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({})
+      body: JSON.stringify({ limit: 100 })
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
@@ -1991,27 +1991,38 @@ async function loadConversations() {
 function renderConversationList(convs) {
   const list = document.getElementById('convList');
   if (!convs.length) { list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px">Nenhuma conversa encontrada</div>'; return; }
-  list.innerHTML = convs.slice(0, 60).map(c => {
-    const id = c.id || c.remoteJid || '';
-    const name = c.name || c.pushName || id.split('@')[0] || 'Desconhecido';
-    const initials = name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase() || '?';
-    const lastMsg = c.lastMessage?.conversation || c.lastMessage?.extendedTextMessage?.text || '...';
-    const unread = c.unreadCount || 0;
-    const ts = c.lastMessage?.messageTimestamp;
-    const time = ts ? new Date(ts * 1000).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
-    const safeName = name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-    const phone = id.split('@')[0];
-    return `<div class="conv-item" onclick="selectConversation('${id}','${safeName}','${phone}',this)">
-      <div class="conv-item-avatar">${initials}</div>
-      <div class="conv-item-body">
-        <div class="conv-item-top"><div class="conv-item-name">${name}</div><div class="conv-item-time">${time}</div></div>
-        <div class="conv-item-preview">${lastMsg}</div>
-      </div>
-      ${unread > 0 ? `<div class="conv-unread">${unread}</div>` : ''}
-    </div>`;
+  const filtered = convs.filter(c => {
+    const cid = c.id || c.remoteJid || '';
+    // Hide: newsletters (cmq8...), broadcast lists, groups, status
+    if (cid.startsWith('cmq8')) return false;
+    if (cid.includes('newsletter')) return false;
+    if (cid.endsWith('@g.us')) return false;
+    if (cid.startsWith('status@')) return false;
+    if (cid.includes('@broadcast')) return false;
+    // Keep only individual chats: phone@s.whatsapp.net
+    return true;
+  });
+  const toShow = filtered.length > 0 ? filtered : convs;
+  list.innerHTML = toShow.slice(0, 100).map(c => {
+    const cid = c.id || c.remoteJid || '';
+    const cphone = cid.split('@')[0];
+    const cname = c.name || c.pushName || (cphone.length >= 8 ? '+' + cphone : cphone) || 'Desconhecido';
+    const cinitials = cname.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase() || '?';
+    const clastMsg = c.lastMessage?.conversation || c.lastMessage?.extendedTextMessage?.text || c.lastMessage?.imageMessage?.caption || '\u{1F4F7} m\u00EDdia';
+    const cunread = c.unreadCount || 0;
+    const cts = c.lastMessage?.messageTimestamp;
+    const ctime = cts ? new Date(cts * 1000).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+    const csafeName = cname.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return '<div class="conv-item" onclick="selectConversation(\''+cid+'\',\''+csafeName+'\',\''+cphone+'\',this)">'
+      + '<div class="conv-item-avatar">'+cinitials+'</div>'
+      + '<div class="conv-item-body">'
+      + '<div class="conv-item-top"><div class="conv-item-name">'+cname+'</div><div class="conv-item-time">'+ctime+'</div></div>'
+      + '<div class="conv-item-preview">'+clastMsg+'</div>'
+      + '</div>'
+      + (cunread > 0 ? '<div class="conv-unread">'+cunread+'</div>' : '')
+      + '</div>';
   }).join('');
 }
-
 function filterConversations() {
   const q = document.getElementById('convSearch').value.toLowerCase();
   const filtered = q ? allConversations.filter(c => (c.name||c.pushName||c.id||'').toLowerCase().includes(q)) : allConversations;
@@ -2048,17 +2059,31 @@ async function loadMessages(chatId) {
     const res = await fetch(`${EVOLUTION_URL}/chat/findMessages/${instance}`, {
       method: 'POST',
       headers: { 'apikey': EVOLUTION_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ where: { key: { remoteJid: chatId } }, limit: 50 })
+      body: JSON.stringify({ where: { key: { remoteJid: chatId } }, limit: 40 })
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     const msgs = Array.isArray(data?.messages?.records) ? data.messages.records
       : Array.isArray(data?.messages) ? data.messages
+      : Array.isArray(data?.records) ? data.records
       : Array.isArray(data) ? data : [];
+    msgs.sort((a,b) => (a.messageTimestamp||0) - (b.messageTimestamp||0));
     if (!msgs.length) { box.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>'; return; }
     box.innerHTML = msgs.map(m => {
       const fromMe = m.key?.fromMe || false;
-      const text = m.message?.conversation || m.message?.extendedTextMessage?.text || m.message?.imageMessage?.caption || '[mídia]';
+      const msg = m.message || {};
+      let text = msg.conversation || msg.extendedTextMessage?.text || '';
+      if (!text) {
+        if (msg.imageMessage) text = msg.imageMessage.caption ? '📷 ' + msg.imageMessage.caption : '📷 Imagem';
+        else if (msg.videoMessage) text = msg.videoMessage.caption ? '🎥 ' + msg.videoMessage.caption : '🎥 Vídeo';
+        else if (msg.audioMessage) text = '🎵 Áudio';
+        else if (msg.documentMessage) text = '📄 ' + (msg.documentMessage.fileName || 'Documento');
+        else if (msg.stickerMessage) text = '🎭 Sticker';
+        else if (msg.locationMessage) text = '📍 Localização';
+        else if (msg.contactMessage) text = '👤 Contato';
+        else if (msg.reactionMessage) text = '❤️ Reação';
+        else text = '[mensagem]';
+      }
       const ts = m.messageTimestamp;
       const time = ts ? new Date(ts * 1000).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
       return `<div style="display:flex;justify-content:${fromMe?'flex-end':'flex-start'}">
