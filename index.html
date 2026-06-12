@@ -2219,14 +2219,22 @@ async function loadConversations(){
   const list = document.getElementById('convList');
   list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando...</div></div>';
   try {
-    const res = await fetch(EVOLUTION_URL+'/chat/findChats/'+instance, {
-      method:'POST',
-      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body: JSON.stringify({ limit: 200 })
-    });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data = await res.json();
-    allConversations = Array.isArray(data) ? data : [];
+    // Busca em múltiplas páginas para garantir que pega os mais recentes
+    let allChats = [];
+    const pageSize = 200;
+    for (let page = 0; page < 8; page++) {
+      const res = await fetch(EVOLUTION_URL+'/chat/findChats/'+instance, {
+        method:'POST',
+        headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+        body: JSON.stringify({ limit: pageSize, offset: page * pageSize })
+      });
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const chunk = await res.json();
+      const arr = Array.isArray(chunk) ? chunk : [];
+      allChats = allChats.concat(arr);
+      if (arr.length < pageSize) break; // última página
+    }
+    allConversations = allChats;
     const unreadTotal = allConversations.filter(c=>!_noiseFilter(c.id||c.remoteJid||'')&&_isUnread(c)).length;
     const badge = document.getElementById('unreadTabCount');
     if(badge) badge.textContent = unreadTotal > 99 ? '99+' : unreadTotal;
