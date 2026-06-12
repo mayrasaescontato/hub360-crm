@@ -1168,6 +1168,145 @@
   </div>
 </div>
 
+
+<!-- MODAL PERFIL CLIENTE SAM SUSHI -->
+<div class="modal-overlay" id="ssClientModal">
+  <div class="modal" style="width:580px;max-height:92vh">
+    <div class="modal-header">
+      <div class="modal-title" id="ssClientModalTitle">Perfil do Cliente</div>
+      <div class="modal-close" onclick="closeSSClientModal()"><i class="fas fa-times"></i></div>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ssClientOppId">
+
+      <div style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Identificação</div>
+      <div class="form-row">
+        <div class="form-group"><label>Nome *</label><input type="text" id="ssClientName" placeholder="Nome do cliente"></div>
+        <div class="form-group"><label>Telefone (WPP)</label><input type="text" id="ssClientPhone" placeholder="+1 508 000-0000"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Data de Nascimento</label><input type="date" id="ssClientBirthday"></div>
+        <div class="form-group">
+          <label>Tipo de Cliente</label>
+          <select id="ssClientType">
+            <option value="">Selecionar...</option>
+            <option value="new_trafego">Novo — Tráfego Pago 📣</option>
+            <option value="new_organic">Novo — Orgânico 💬</option>
+            <option value="returning">Cliente Recorrente 🔄</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Origem do Lead</label>
+          <select id="ssClientOrigin">
+            <option value="">Selecionar...</option>
+            <option value="meta_ad">Meta Ads (Instagram/Facebook)</option>
+            <option value="google_ad">Google Ads</option>
+            <option value="instagram_organic">Instagram Orgânico</option>
+            <option value="indication">Indicação de amigo</option>
+            <option value="walk_in">Entrou direto no restaurante</option>
+            <option value="doordash">DoorDash / Delivery App</option>
+            <option value="returning">Já era cliente</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Estágio no Pipeline</label>
+          <select id="ssClientStage">
+            <option value="ss_new_trafego">Novo Lead — Tráfego 📣</option>
+            <option value="ss_new_organic">Novo Lead — Orgânico 💬</option>
+            <option value="ss_returning">Cliente Recorrente 🔄</option>
+            <option value="ss_doubt">Tirando Dúvidas ❓</option>
+            <option value="ss_delivery_ok">Delivery Concluído 🛵✅</option>
+            <option value="ss_delivery_no">Delivery Não Concluído 🛵❌</option>
+            <option value="ss_reserved">Reserva Feita 📅</option>
+            <option value="ss_showed">Compareceu 🍣✅</option>
+            <option value="ss_noshow">Não Compareceu ❌</option>
+            <option value="ss_inactive">Inativo — Sumiu 💤</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:1px;margin:16px 0 12px">Comportamento de Consumo</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Frequência de Visita</label>
+          <select id="ssClientFrequency">
+            <option value="">Selecionar...</option>
+            <option value="first_time">Primeira vez</option>
+            <option value="weekly">Semanal</option>
+            <option value="biweekly">Quinzenal</option>
+            <option value="monthly">Mensal</option>
+            <option value="sporadic">Esporádico</option>
+            <option value="inactive">Foi 1x, nunca mais voltou</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Dia da Semana Preferido</label>
+          <select id="ssClientDayPref">
+            <option value="">Selecionar...</option>
+            <option value="mon">Segunda</option>
+            <option value="tue">Terça</option>
+            <option value="wed">Quarta</option>
+            <option value="thu">Quinta</option>
+            <option value="fri">Sexta</option>
+            <option value="sat">Sábado</option>
+            <option value="sun">Domingo</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Ticket Médio (US$)</label><input type="number" id="ssClientAvgSpend" placeholder="ex: 65.00" step="0.01"></div>
+        <div class="form-group">
+          <label>Forma de Pagamento</label>
+          <select id="ssClientPayment">
+            <option value="">Selecionar...</option>
+            <option value="credit">Cartão de Crédito</option>
+            <option value="debit">Cartão de Débito</option>
+            <option value="cash">Dinheiro</option>
+            <option value="pix">PIX</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Vai sozinho ou acompanhado?</label>
+          <select id="ssClientGroup">
+            <option value="">Selecionar...</option>
+            <option value="solo">Sozinho</option>
+            <option value="couple">Casal (2)</option>
+            <option value="small">Grupo pequeno (3-4)</option>
+            <option value="large">Grupo grande (5+)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Nº de Acompanhantes</label><input type="number" id="ssClientGuests" placeholder="ex: 2" min="0"></div>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:1px;margin:16px 0 12px">Histórico & Preferências</div>
+      <div class="form-row">
+        <div class="form-group"><label>Última Visita</label><input type="date" id="ssClientLastVisit"></div>
+        <div class="form-group"><label>Total de Visitas</label><input type="number" id="ssClientTotalVisits" placeholder="ex: 5" min="0"></div>
+      </div>
+      <div class="form-group"><label>Pedidos Favoritos</label><input type="text" id="ssClientFavorites" placeholder="ex: philadelphia, hot roll de salmão, barca medium..."></div>
+      <div class="form-group">
+        <label>Alerta de Reativação</label>
+        <select id="ssClientAlert">
+          <option value="">Sem alerta</option>
+          <option value="7d">7 dias sem visita</option>
+          <option value="14d">14 dias sem visita</option>
+          <option value="30d">30 dias sem visita</option>
+          <option value="60d">60 dias sem visita</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Observações</label><textarea id="ssClientNotes" placeholder="Alergias, preferências especiais, datas comemorativas..."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeSSClientModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveSSClient()"><i class="fas fa-save"></i> Salvar Perfil</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toastWrap"></div>
 
 <!-- PIPELINE MANAGER MODAL -->
@@ -1738,13 +1877,16 @@ const STAGES = {
     { id:'em_resale',    label:'Novo Empréstimo 💵' },
   ],
   samsushi_leads: [
-    { id:'ss_new',       label:'Novo Contato 📩' },
-    { id:'ss_replied',   label:'Respondeu ✅' },
-    { id:'ss_reserved',  label:'Reserva Feita 📅' },
-    { id:'ss_confirmed', label:'Presença Confirmada 🍣' },
-    { id:'ss_consumed',  label:'Consumo Registrado 💰' },
-    { id:'ss_returning', label:'Cliente Recorrente 🔄' },
-    { id:'ss_lost',      label:'Perdido ❌' },
+    { id:'ss_new_trafego',   label:'Novo Lead — Tráfego 📣' },
+    { id:'ss_new_organic',   label:'Novo Lead — Orgânico 💬' },
+    { id:'ss_returning',     label:'Cliente Recorrente 🔄' },
+    { id:'ss_doubt',         label:'Tirando Dúvidas ❓' },
+    { id:'ss_delivery_ok',   label:'Delivery Concluído 🛵✅' },
+    { id:'ss_delivery_no',   label:'Delivery Não Concluído 🛵❌' },
+    { id:'ss_reserved',      label:'Reserva Feita 📅' },
+    { id:'ss_showed',        label:'Compareceu 🍣✅' },
+    { id:'ss_noshow',        label:'Não Compareceu ❌' },
+    { id:'ss_inactive',      label:'Inativo — Sumiu 💤' },
   ]
 };
 
@@ -2231,7 +2373,8 @@ function selectConversation(cid, name, phone, el){
     +'</div>'
     +'<div class="cdp-actions">'
       +'<button class="cdp-btn" onclick="openNewContact();document.getElementById(\'cfPhone\').value=\'+'+phone+'\'"><i class="fas fa-user-plus"></i> Salvar como contato</button>'
-      +'<button class="cdp-btn primary" onclick="openSSClientModal(\'\',\''+name+'\',\'+'+phone+'\',\'ss_new_org\')"><i class="fas fa-utensils"></i> Adicionar ao Pipeline</button>'
+      +'<button class="cdp-btn primary" onclick="openSSClientModal(\'\',\''+name+'\',\'+'+phone+'\')">'
+      +'<i class="fas fa-utensils"></i> Adicionar ao Pipeline</button>'
       +'<button class="cdp-btn" onclick="markChatUnread(\''+cid+'\')"><i class="fas fa-envelope"></i> Marcar não lida</button>'
     +'</div>';
 
@@ -2350,6 +2493,118 @@ async function sendMessage(){
     setTimeout(()=>loadMessages(currentChatId),1500);
   } catch(e){ toast('Erro ao enviar: '+e.message,'error'); }
 }
+
+// ===== SAM SUSHI MODAL PERFIL =====
+function openSSClientModal(oppId, name, phone) {
+  // Detecta se cliente antigo (tem nome real) ou novo
+  const hasName = name && !name.startsWith('+') && name.length > 3;
+  const isReturning = hasName;
+  document.getElementById('ssClientModalTitle').textContent = hasName ? 'Perfil — ' + name : 'Novo Cliente';
+  document.getElementById('ssClientOppId').value = oppId || '';
+  document.getElementById('ssClientName').value = name || '';
+  document.getElementById('ssClientPhone').value = phone || '';
+  document.getElementById('ssClientBirthday').value = '';
+  document.getElementById('ssClientAvgSpend').value = '';
+  document.getElementById('ssClientGuests').value = '';
+  document.getElementById('ssClientTotalVisits').value = '';
+  document.getElementById('ssClientFavorites').value = '';
+  document.getElementById('ssClientNotes').value = '';
+  document.getElementById('ssClientLastVisit').value = '';
+  // Auto-detecta tipo
+  document.getElementById('ssClientType').value = isReturning ? 'returning' : '';
+  document.getElementById('ssClientStage').value = isReturning ? 'ss_returning' : 'ss_new_trafego';
+  document.getElementById('ssClientOrigin').value = isReturning ? 'returning' : '';
+  document.getElementById('ssClientFrequency').value = '';
+  document.getElementById('ssClientDayPref').value = '';
+  document.getElementById('ssClientPayment').value = '';
+  document.getElementById('ssClientGroup').value = '';
+  document.getElementById('ssClientAlert').value = '';
+  document.getElementById('ssClientModal').classList.add('open');
+}
+
+function closeSSClientModal() {
+  document.getElementById('ssClientModal').classList.remove('open');
+}
+
+async function saveSSClient() {
+  const oppId = document.getElementById('ssClientOppId').value;
+  const name  = document.getElementById('ssClientName').value.trim();
+  if (!name) { toast('Nome é obrigatório', 'error'); return; }
+  const stage    = document.getElementById('ssClientStage').value;
+  const value    = parseFloat(document.getElementById('ssClientAvgSpend').value) || 0;
+  const origin   = document.getElementById('ssClientOrigin').value;
+  const freq     = document.getElementById('ssClientFrequency').value;
+  const type     = document.getElementById('ssClientType').value;
+  const favs     = document.getElementById('ssClientFavorites').value;
+  const notes    = document.getElementById('ssClientNotes').value;
+  const birthday = document.getElementById('ssClientBirthday').value;
+  const payment  = document.getElementById('ssClientPayment').value;
+  const group    = document.getElementById('ssClientGroup').value;
+  const guests   = document.getElementById('ssClientGuests').value;
+  const alert    = document.getElementById('ssClientAlert').value;
+  const visits   = document.getElementById('ssClientTotalVisits').value;
+  const lastVisit= document.getElementById('ssClientLastVisit').value;
+
+  // Monta tags automaticamente
+  const autoTags = ['samsushi'];
+  if (type === 'returning') autoTags.push('recorrente');
+  else if (type === 'new_trafego') autoTags.push('lead-trafego');
+  else if (type === 'new_organic') autoTags.push('lead-organico');
+  if (origin) autoTags.push(origin);
+  if (alert) autoTags.push('reativar-'+alert);
+
+  const notesComposed = [
+    favs && 'Favoritos: ' + favs,
+    birthday && 'Aniversário: ' + birthday,
+    payment && 'Pagamento: ' + payment,
+    group && 'Grupo: ' + group + (guests ? ' ('+guests+' pessoas)' : ''),
+    freq && 'Frequência: ' + freq,
+    visits && 'Visitas: ' + visits,
+    lastVisit && 'Última visita: ' + lastVisit,
+    notes
+  ].filter(Boolean).join(' | ');
+
+  try {
+    if (oppId) {
+      await supaFetch('opportunities?id=eq.'+oppId, {
+        method: 'PATCH',
+        body: JSON.stringify({ contact: name, stage, value, notes_count: notesComposed ? 1 : 0 })
+      });
+      toast('Perfil atualizado!');
+    } else {
+      // Também salva/atualiza contato com tags automáticas
+      const phone = document.getElementById('ssClientPhone').value.trim();
+      try {
+        await supaFetch('contacts', {
+          method: 'POST',
+          body: JSON.stringify({
+            first_name: name.split(' ')[0],
+            last_name: name.split(' ').slice(1).join(' ') || '',
+            phone: phone || null,
+            tags: autoTags.join(', ')
+          })
+        });
+      } catch(e) { /* ignora duplicata */ }
+
+      await supaFetch('opportunities', {
+        method: 'POST',
+        body: JSON.stringify({
+          contact: name,
+          initials: name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(),
+          stage, value, status: 'open', company: 'samsushi',
+          lang: null, msgs_count: 0, notes_count: notesComposed ? 1 : 0, tasks_count: 0
+        })
+      });
+      toast('Cliente adicionado ao pipeline!');
+    }
+    closeSSClientModal();
+    loadOpps();
+  } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+document.addEventListener('click', function(e) {
+  if (e.target === document.getElementById('ssClientModal')) closeSSClientModal();
+});
 
 </script>
 </body>
