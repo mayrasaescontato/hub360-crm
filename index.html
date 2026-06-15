@@ -2420,18 +2420,38 @@ async function _fetchAndRenderMessages(chatId, silent){
   try {
     // Garante sufixo correto no remoteJid
     const remoteJid = chatId.includes('@') ? chatId : chatId+'@s.whatsapp.net';
-    const res=await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
-      method:'POST',
-      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({where:{key:{remoteJid:remoteJid}},limit:60})
-    });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data=await res.json();
-    console.log('[Hub360] findMessages raw:', JSON.stringify(data).slice(0,500));
-    const msgs=Array.isArray(data?.messages?.records)?data.messages.records
-      :Array.isArray(data?.messages)?data.messages
-      :Array.isArray(data?.records)?data.records
-      :Array.isArray(data)?data:[];
+    // Tenta os dois formatos que a Evolution API v2.3.7 aceita
+    let msgs = [];
+    try {
+      const r1 = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
+        method:'POST',
+        headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({where:{key:{remoteJid:remoteJid}},limit:60})
+      });
+      const d1 = await r1.json();
+      console.log('[Hub360] findMessages raw:', JSON.stringify(d1).slice(0,300));
+      msgs = Array.isArray(d1?.messages?.records)?d1.messages.records
+        :Array.isArray(d1?.messages)?d1.messages
+        :Array.isArray(d1?.records)?d1.records
+        :Array.isArray(d1)?d1:[];
+    } catch(e){ console.log('[Hub360] erro v1:', e.message); }
+
+    // Se veio vazio, tenta formato alternativo
+    if(!msgs.length){
+      try {
+        const r2 = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
+          method:'POST',
+          headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+          body:JSON.stringify({remoteJid:remoteJid,limit:60})
+        });
+        const d2 = await r2.json();
+        console.log('[Hub360] findMessages alt:', JSON.stringify(d2).slice(0,300));
+        msgs = Array.isArray(d2?.messages?.records)?d2.messages.records
+          :Array.isArray(d2?.messages)?d2.messages
+          :Array.isArray(d2?.records)?d2.records
+          :Array.isArray(d2)?d2:[];
+      } catch(e){ console.log('[Hub360] erro v2:', e.message); }
+    }
     msgs.sort((a,b)=>(a.messageTimestamp||0)-(b.messageTimestamp||0));
 
     if(!msgs.length){ box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>'; return; }
