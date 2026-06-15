@@ -2420,9 +2420,10 @@ async function _fetchAndRenderMessages(chatId, silent){
   const box=document.getElementById('chatMessages');
   if(!silent) box.innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try {
-    // Garante sufixo correto no remoteJid
-    const remoteJid = chatId.includes('@') ? chatId : chatId+'@s.whatsapp.net';
-    console.log('[Hub360] buscando mensagens para remoteJid:', remoteJid);
+    // Usa o remoteJid exato que veio da lista de chats, sem modificar
+    const conv = allConversations.find(c=>(c.id||c.remoteJid)===chatId);
+    const remoteJid = conv?.remoteJid || chatId;
+    console.log('[Hub360] buscando remoteJid:', remoteJid);
     const res=await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
       method:'POST',
       headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
