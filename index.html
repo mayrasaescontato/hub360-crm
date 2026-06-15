@@ -1440,11 +1440,6 @@ function showPage(name, el) {
   }
   if (name === 'calendar') initCalendar();
   if (name === 'conversations') loadConversations();
-  else {
-    // Para polling quando sai da aba de conversas
-    if(_convPollInterval){ clearInterval(_convPollInterval); _convPollInterval=null; }
-    if(_msgPollInterval){ clearInterval(_msgPollInterval); _msgPollInterval=null; }
-  }
   if (name === 'samsushi') loadSamSushiDash();
   if (name === 'reports' || name === 'reports-ads' || name === 'reports-fb') loadReports();
 }
@@ -2218,43 +2213,34 @@ function setConvTab(tab, el){
   renderConversationList(allConversations);
 }
 
-let _convPollInterval = null;
-
-async function loadConversations(silent){
+async function loadConversations(){
   const instance = 'Sam Sushi';
   document.getElementById('convInstanceLabel').textContent = instance;
   const list = document.getElementById('convList');
-  if(!silent) list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando...</div></div>';
+  list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando...</div></div>';
   try {
-    const res = await fetch(EVOLUTION_URL+'/chat/findChats/Sam Sushi', {
-      method:'POST',
-      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body: JSON.stringify({ limit: 200 })
-    });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const chunk = await res.json();
-    let arr = Array.isArray(chunk) ? chunk : [];
-    // Log do primeiro item para ver estrutura real
-    if(arr.length) console.log('[Hub360] estrutura chat[0]:', JSON.stringify(arr[0]).slice(0,400));
-    // Deduplificar por ID para evitar duplicatas
-    const seen = new Set();
-    arr = arr.filter(c => {
-      const cid = c.id||c.remoteJid||'';
-      if(seen.has(cid)) return false;
-      seen.add(cid);
-      return true;
-    });
-    allConversations = arr;
+    // Busca em múltiplas páginas para garantir que pega os mais recentes
+    let allChats = [];
+    const pageSize = 200;
+    for (let page = 0; page < 8; page++) {
+      const res = await fetch(EVOLUTION_URL+'/chat/findChats/'+instance, {
+        method:'POST',
+        headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+        body: JSON.stringify({ limit: pageSize, offset: page * pageSize })
+      });
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const chunk = await res.json();
+      const arr = Array.isArray(chunk) ? chunk : [];
+      allChats = allChats.concat(arr);
+      if (arr.length < pageSize) break; // última página
+    }
+    allConversations = allChats;
     const unreadTotal = allConversations.filter(c=>!_noiseFilter(c.id||c.remoteJid||'')&&_isUnread(c)).length;
     const badge = document.getElementById('unreadTabCount');
     if(badge) badge.textContent = unreadTotal > 99 ? '99+' : unreadTotal;
     renderConversationList(allConversations);
-    // Inicia polling em tempo real se ainda não estiver rodando
-    if(!_convPollInterval){
-      _convPollInterval = setInterval(()=>loadConversations(true), 15000);
-    }
   } catch(e) {
-    if(!silent) list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px"><i class="fas fa-exclamation-circle" style="font-size:24px;margin-bottom:8px;display:block;color:#f87171"></i>Erro ao carregar conversas.<br><small>'+e.message+'</small><br><br><button onclick="loadConversations()" style="margin-top:8px;padding:6px 12px;border:1px solid var(--gray-200);border-radius:6px;font-size:12px;cursor:pointer">Tentar novamente</button></div>';
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px"><i class="fas fa-exclamation-circle" style="font-size:24px;margin-bottom:8px;display:block;color:#f87171"></i>Erro ao carregar conversas.<br><small>'+e.message+'</small><br><br><button onclick="loadConversations()" style="margin-top:8px;padding:6px 12px;border:1px solid var(--gray-200);border-radius:6px;font-size:12px;cursor:pointer">Tentar novamente</button></div>';
   }
 }
 
@@ -2403,42 +2389,18 @@ function selectConversation(cid, name, phone, el){
   loadMessages(cid);
 }
 
-let _msgPollInterval = null;
-
 async function loadMessages(chatId){
   if(!chatId) return;
   const box=document.getElementById('chatMessages');
   box.innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
-  // Para polling anterior se mudar de conversa
-  if(_msgPollInterval){ clearInterval(_msgPollInterval); _msgPollInterval=null; }
-  await _fetchAndRenderMessages(chatId);
-  // Polling a cada 8 segundos para mensagens em tempo real
-  _msgPollInterval = setInterval(()=>_fetchAndRenderMessages(chatId, true), 8000);
-}
-
-async function _fetchAndRenderMessages(chatId, silent){
-  const box=document.getElementById('chatMessages');
-  if(!silent) box.innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try {
-    // Pega o remoteJid exato da conversa (pode ser @lid ou @s.whatsapp.net)
-    const conv = allConversations.find(c=>(c.id||c.remoteJid)===chatId);
-    const remoteJid = conv?.remoteJid || chatId;
-    const remoteJidAlt = conv?.remoteJidAlt || null;
-    console.log('[Hub360] remoteJid:', remoteJid, 'alt:', remoteJidAlt);
-
-    // Monta o where testando remoteJid e remoteJidAlt (fix para @lid do Android)
-    const whereClause = remoteJidAlt
-      ? {OR:[{key:{remoteJid:remoteJid}},{key:{remoteJid:remoteJidAlt}}]}
-      : {key:{remoteJid:remoteJid}};
-
     const res=await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
       method:'POST',
       headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({where:whereClause,limit:60})
+      body:JSON.stringify({where:{key:{remoteJid:chatId}},limit:60})
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data=await res.json();
-    console.log('[Hub360] findMessages resultado: total=', data?.messages?.total, 'records=', data?.messages?.records?.length);
     const msgs=Array.isArray(data?.messages?.records)?data.messages.records
       :Array.isArray(data?.messages)?data.messages
       :Array.isArray(data?.records)?data.records
@@ -2447,7 +2409,6 @@ async function _fetchAndRenderMessages(chatId, silent){
 
     if(!msgs.length){ box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>'; return; }
 
-    const wasAtBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
     const now=new Date();
     const conv=allConversations.find(c=>(c.id||c.remoteJid)===chatId);
     const unreadCount=conv?.unreadCount||0;
@@ -2516,9 +2477,9 @@ async function _fetchAndRenderMessages(chatId, silent){
     });
 
     box.innerHTML=html;
-    if(!silent || wasAtBottom) box.scrollTop=box.scrollHeight;
+    box.scrollTop=box.scrollHeight;
   } catch(e){
-    if(!silent) box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px">Erro: '+e.message+'</div>';
+    box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px">Erro: '+e.message+'</div>';
   }
 }
 
@@ -2656,4 +2617,3 @@ document.addEventListener('click', function(e) {
 </script>
 </body>
 </html>
-
