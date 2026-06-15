@@ -2418,10 +2418,12 @@ async function _fetchAndRenderMessages(chatId, silent){
   const box=document.getElementById('chatMessages');
   if(!silent) box.innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try {
+    // Garante sufixo correto no remoteJid
+    const remoteJid = chatId.includes('@') ? chatId : chatId+'@s.whatsapp.net';
     const res=await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
       method:'POST',
       headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({where:{key:{remoteJid:chatId}},limit:60})
+      body:JSON.stringify({where:{key:{remoteJid:remoteJid}},limit:60})
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data=await res.json();
