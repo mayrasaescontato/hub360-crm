@@ -2420,14 +2420,21 @@ async function _fetchAndRenderMessages(chatId, silent){
   const box=document.getElementById('chatMessages');
   if(!silent) box.innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try {
-    // Usa o remoteJid exato que veio da lista de chats, sem modificar
+    // Pega o remoteJid exato da conversa (pode ser @lid ou @s.whatsapp.net)
     const conv = allConversations.find(c=>(c.id||c.remoteJid)===chatId);
     const remoteJid = conv?.remoteJid || chatId;
-    console.log('[Hub360] buscando remoteJid:', remoteJid);
+    const remoteJidAlt = conv?.remoteJidAlt || null;
+    console.log('[Hub360] remoteJid:', remoteJid, 'alt:', remoteJidAlt);
+
+    // Monta o where testando remoteJid e remoteJidAlt (fix para @lid do Android)
+    const whereClause = remoteJidAlt
+      ? {OR:[{key:{remoteJid:remoteJid}},{key:{remoteJid:remoteJidAlt}}]}
+      : {key:{remoteJid:remoteJid}};
+
     const res=await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
       method:'POST',
       headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({where:{key:{remoteJid:remoteJid}},limit:60})
+      body:JSON.stringify({where:whereClause,limit:60})
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data=await res.json();
