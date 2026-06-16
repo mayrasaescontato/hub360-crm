@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hub 360 — CRM</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --green: #1a2e27;
@@ -521,6 +522,10 @@
   .cdp-btn:hover{background:var(--gray-50);border-color:var(--gray-300)}
   .cdp-btn.primary{background:var(--green);color:#fff;border-color:var(--green)}
   .cdp-btn.primary:hover{background:var(--green-light)}
+
+  /* Realtime indicator */
+  .realtime-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;animation:rtpulse 2s infinite;margin-right:3px;vertical-align:middle}
+  @keyframes rtpulse{0%,100%{opacity:1}50%{opacity:.3}}
 </style>
 </head>
 <body>
@@ -1009,7 +1014,7 @@
               <div class="conv-sidebar-header">
                 <div class="conv-sidebar-toprow">
                   <span class="conv-title">Conversas</span>
-                  <span class="conv-instance-badge" id="convInstanceLabel">Sam Sushi</span>
+                  <span class="conv-instance-badge" id="convInstanceLabel"><span class="realtime-dot"></span>Sam Sushi</span>
                 </div>
                 <div class="conv-tabs">
                   <div class="conv-tab active" onclick="setConvTab('unread',this)">Não lidas <span class="tab-count" id="unreadTabCount">0</span></div>
@@ -1333,6 +1338,29 @@
 <script>
 const SUPA_URL = 'https://mvktoymgeapkpsvfmbfl.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12a3RveW1nZWFwa3BzdmZtYmZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMjA4NTEsImV4cCI6MjA5NDc5Njg1MX0._RQsWc2jR4kSuALw5jHl7T2Q-bgjvDrSQdmjwCD8dWA';
+let _supaRT = null;
+let _rtChannel = null;
+function initSupabaseRealtime() {
+  try {
+    _supaRT = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    _rtChannel = _supaRT.channel('wpp_rt')
+      .on('postgres_changes', {event:'INSERT',schema:'public',table:'wpp_messages'}, function(payload){
+        var msg = payload.new;
+        var page = document.getElementById('page-conversations');
+        if (!page || !page.classList.contains('active')) return;
+        if (currentChatId && currentChatId === msg.remote_jid) {
+          var box = document.getElementById('chatMessages');
+          var fromMe = msg.from_me === 'true' || msg.from_me === true;
+          var time = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+          var txt = (msg.content||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>');
+          box.insertAdjacentHTML('beforeend','<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'"><div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+txt+'<div class="msg-time">'+time+(fromMe?' <span style="opacity:.7">✓✓</span>':'')+' </div></div></div>');
+          box.scrollTop = box.scrollHeight;
+        }
+        setTimeout(function(){ try{ loadConversations(); }catch(e){} }, 1000);
+      })
+      .subscribe();
+  } catch(e){ console.warn('Realtime erro:',e); }
+}
 
 async function supaFetch(path, opts={}) {
   const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
@@ -1398,6 +1426,7 @@ async function doLogin() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display = 'block';
     initApp();
+    initSupabaseRealtime();
   } catch(e) {
     err.textContent = e.message || 'E-mail ou senha incorretos.';
     err.style.display = 'block';
