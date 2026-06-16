@@ -2241,28 +2241,44 @@ function setConvTab(tab, el){
 }
 
 async function loadConversations(){
-  const instance = 'Sam Sushi';
-  document.getElementById('convInstanceLabel').textContent = instance;
+  document.getElementById('convInstanceLabel').textContent = 'Sam Sushi';
   const list = document.getElementById('convList');
   list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando...</div></div>';
   try {
-    // Busca em múltiplas páginas para garantir que pega os mais recentes
-    let allChats = [];
-    const pageSize = 200;
-    for (let page = 0; page < 8; page++) {
-      const res = await fetch(EVOLUTION_URL+'/chat/findChats/'+instance, {
-        method:'POST',
-        headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-        body: JSON.stringify({ limit: pageSize, offset: page * pageSize })
-      });
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      const chunk = await res.json();
-      const arr = Array.isArray(chunk) ? chunk : [];
-      allChats = allChats.concat(arr);
-      if (arr.length < pageSize) break; // última página
-    }
-    allConversations = allChats;
-    const unreadTotal = allConversations.filter(c=>!_noiseFilter(c.id||c.remoteJid||'')&&_isUnread(c)).length;
+    // Supabase é a fonte única de verdade
+    const msgs = await supaFetch('wpp_messages?select=remote_jid,content,from_me,timestamp,message_type&order=timestamp.desc&limit=5000');
+
+    // Agrupar por remote_jid usando Map — um contato, uma conversa
+    const convMap = new Map();
+    (msgs||[]).forEach(m => {
+      const jid = m.remote_jid;
+      if (!jid || jid === 'EMPTY' || jid === 'NULL' || jid === 'null' || jid === 'empty' || jid === 'test') return;
+      if (!jid.includes('@s.whatsapp.net')) return;
+      if (!convMap.has(jid)) {
+        convMap.set(jid, { jid, lastMsg: m, unreadCount: 0 });
+      }
+      const conv = convMap.get(jid);
+      const existingTs = parseInt(conv.lastMsg?.timestamp||0);
+      const thisTs = parseInt(m.timestamp||0);
+      if (thisTs > existingTs) conv.lastMsg = m;
+      if (m.from_me !== 'true' && m.from_me !== true) conv.unreadCount++;
+    });
+
+    // Buscar nomes dos contatos
+    let contacts = [];
+    try { contacts = await supaFetch('contacts?select=first_name,last_name,phone&limit=1000'); } catch(e){}
+
+    allConversations = Array.from(convMap.values()).map(c => {
+      const phone = c.jid.split('@')[0];
+      const contact = contacts.find(ct => ct.phone && ct.phone.replace(/\D/g,'').endsWith(phone.replace(/\D/g,'')));
+      const name = contact ? (contact.first_name+' '+(contact.last_name||'')).trim() : '+'+phone;
+      return { id: c.jid, remoteJid: c.jid, phone, name, pushName: name, lastMsg: c.lastMsg, unreadCount: readChats.has(c.jid)?0:c.unreadCount, lastMessage: { messageTimestamp: parseInt(c.lastMsg?.timestamp||0) } };
+    });
+
+    // Ordenar por última mensagem mais recente
+    allConversations.sort((a,b) => (b.lastMessage?.messageTimestamp||0) - (a.lastMessage?.messageTimestamp||0));
+
+    const unreadTotal = allConversations.filter(c=>c.unreadCount>0).length;
     const badge = document.getElementById('unreadTabCount');
     if(badge) badge.textContent = unreadTotal > 99 ? '99+' : unreadTotal;
     renderConversationList(allConversations);
@@ -2276,12 +2292,11 @@ function renderConversationList(convs){
   const q = (document.getElementById('convSearch')?.value||'').toLowerCase();
   const now = new Date();
 
-  let filtered = convs.filter(c=>!_noiseFilter(c.id||c.remoteJid||''));
-  if(q) filtered = filtered.filter(c=>(c.name||c.pushName||c.id||'').toLowerCase().includes(q));
-  if(convTabActive==='unread')   filtered = filtered.filter(c=>_isUnread(c));
-  else if(convTabActive==='starred') filtered = filtered.filter(c=>starredChats.has(c.id||c.remoteJid||''));
+  let filtered = [...convs];
+  if(q) filtered = filtered.filter(c=>(c.name||c.phone||'').toLowerCase().includes(q));
+  if(convTabActive==='unread') filtered = filtered.filter(c=>c.unreadCount>0);
+  else if(convTabActive==='starred') filtered = filtered.filter(c=>starredChats.has(c.id||''));
   else if(convTabActive==='recents') filtered = filtered.slice(0,30);
-  filtered.sort((a,b)=>(b.lastMessage?.messageTimestamp||0)-(a.lastMessage?.messageTimestamp||0));
 
   if(!filtered.length){
     const msgs={unread:'Nenhuma conversa não lida',starred:'Nenhum favorito',recents:'Nenhuma recente',all:'Nenhuma conversa'};
@@ -2291,34 +2306,33 @@ function renderConversationList(convs){
 
   list.innerHTML = filtered.slice(0,150).map(c=>{
     const cid = c.id||c.remoteJid||'';
-    const phone = cid.split('@')[0];
-    const name = c.name||c.pushName||(phone.length>=8?'+'+phone:phone)||'Desconhecido';
-    const initials = name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()||'?';
-    const color = _avatarColor(name);
+    const name = c.name||c.pushName||'+'+c.phone||'Desconhecido';
+    const phone = c.phone||cid.split('@')[0];
+    const initials = name.split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase()||'?';
+    const color = _avatarColor(cid);
     const safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
-    // Preview
-    const lm = c.lastMessage;
+    // Preview da última mensagem (formato Supabase)
+    const lm = c.lastMsg;
     let preview = '';
     if(lm){
-      const msg = lm.message||{};
-      preview = msg.conversation||msg.extendedTextMessage?.text||'';
+      preview = lm.content||'';
       if(!preview){
-        if(msg.imageMessage) preview='📷 Imagem';
-        else if(msg.videoMessage) preview='🎥 Vídeo';
-        else if(msg.audioMessage||msg.pttMessage) preview='🎵 Áudio';
-        else if(msg.documentMessage) preview='📄 Documento';
-        else if(msg.stickerMessage) preview='🎭 Sticker';
+        const t = lm.message_type||'';
+        if(t==='imageMessage') preview='📷 Imagem';
+        else if(t==='audioMessage'||t==='pttMessage') preview='🎵 Áudio';
+        else if(t==='videoMessage') preview='🎥 Vídeo';
+        else if(t==='documentMessage') preview='📄 Documento';
         else preview='💬 Mensagem';
       }
-      if(lm.key?.fromMe) preview='✓ '+preview;
+      if(lm.from_me==='true'||lm.from_me===true) preview='✓ '+preview;
     }
 
     // Data formatada
-    const ts = lm?.messageTimestamp;
+    const ts = parseInt(lm?.timestamp||0);
     let dateStr='';
-    if(ts){
-      const d=new Date(ts*1000);
+    if(ts>0){
+      const d=new Date(ts>9999999999?ts:ts*1000);
       const isToday=d.toDateString()===now.toDateString();
       const isYest=new Date(now-86400000).toDateString()===d.toDateString();
       const isWeek=(now-d)<7*86400000;
@@ -2328,12 +2342,11 @@ function renderConversationList(convs){
       else dateStr=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
     }
 
-    const unread=_isUnread(c);
-    const unreadNum=c.unreadCount||0;
-    const isStarred=starredChats.has(cid);
-    const isActive=currentChatId===cid;
+    const unreadNum = c.unreadCount||0;
+    const isStarred = starredChats.has(cid);
+    const isActive = currentChatId===cid;
 
-    return '<div class="conv-item'+(unread?' unread':'')+(isActive?' active':'')+'" onclick="selectConversation(\''+cid+'\',\''+safeName+'\',\''+phone+'\',this)">'
+    return '<div class="conv-item'+(unreadNum>0?' unread':'')+(isActive?' active':'')+'" onclick="selectConversation(\''+cid+'\',\''+safeName+'\',\''+phone+'\',this)">'
       +'<div class="conv-avatar" style="background:'+color+'">'+initials+'</div>'
       +'<div class="conv-item-body">'
         +'<div class="conv-item-top">'
@@ -2421,115 +2434,30 @@ async function loadMessages(chatId){
   const box=document.getElementById('chatMessages');
   box.innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try {
-    const res=await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
-      method:'POST',
-      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({where:{key:{remoteJid:chatId}},limit:60})
-    });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data=await res.json();
-    const msgs=Array.isArray(data?.messages?.records)?data.messages.records
-      :Array.isArray(data?.messages)?data.messages
-      :Array.isArray(data?.records)?data.records
-      :Array.isArray(data)?data:[];
-    msgs.sort((a,b)=>(a.messageTimestamp||0)-(b.messageTimestamp||0));
-
-    // Se Evolution retornou vazio, busca no Supabase
-    if(!msgs.length){
-      try {
-        const supaMsgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(chatId)+'&order=timestamp.asc&limit=500');
-        if(supaMsgs && supaMsgs.length){
-          const now2=new Date(); let html2=''; let lastDate2='';
-          supaMsgs.forEach(m=>{
-            const fromMe=m.from_me==='true'||m.from_me===true;
-            const ts=parseInt(m.timestamp||0);
-            const msgDate=ts>0?new Date(ts>9999999999?ts:ts*1000):null;
-            if(msgDate){
-              const isToday=msgDate.toDateString()===now2.toDateString();
-              const isYest=new Date(now2-86400000).toDateString()===msgDate.toDateString();
-              const label=isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
-              if(label!==lastDate2){html2+='<div class="msg-date-sep"><span>'+label+'</span></div>';lastDate2=label;}
-            }
-            const time=msgDate?msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
-            const ticks=fromMe?' <span style="opacity:.7">✓✓</span>':'';
-            const content=(m.content||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')||'<span style="opacity:.5;font-size:11px">[mensagem]</span>';
-            html2+='<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'">'
-              +'<div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content
-              +'<div class="msg-time">'+time+ticks+'</div></div></div>';
-          });
-          box.innerHTML=html2; box.scrollTop=box.scrollHeight; return;
-        }
-      } catch(e2){}
-      box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>'; return;
+    // Supabase é a fonte de verdade para o histórico
+    const msgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(chatId)+'&order=timestamp.asc&limit=500');
+    if(!msgs||!msgs.length){
+      box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>';
+      return;
     }
-
-    const now=new Date();
-    const conv=allConversations.find(c=>(c.id||c.remoteJid)===chatId);
-    const unreadCount=conv?.unreadCount||0;
-    const newStartIdx=unreadCount>0?Math.max(0,msgs.length-unreadCount):-1;
-    let html='';
-    let lastDate='';
-
-    msgs.forEach((m,idx)=>{
-      const fromMe=m.key?.fromMe||false;
-      const msgObj=m.message||{};
-      const ts=m.messageTimestamp;
-      const msgDate=ts?new Date(ts*1000):null;
-
-      // Separador de data
+    const now=new Date(); let html=''; let lastDate='';
+    msgs.forEach(m=>{
+      const fromMe=m.from_me==='true'||m.from_me===true;
+      const ts=parseInt(m.timestamp||0);
+      const msgDate=ts>0?new Date(ts>9999999999?ts:ts*1000):null;
       if(msgDate){
         const isToday=msgDate.toDateString()===now.toDateString();
         const isYest=new Date(now-86400000).toDateString()===msgDate.toDateString();
         const label=isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
-        if(label!==lastDate){ html+='<div class="msg-date-sep"><span>'+label+'</span></div>'; lastDate=label; }
+        if(label!==lastDate){html+='<div class="msg-date-sep"><span>'+label+'</span></div>';lastDate=label;}
       }
-
-      // Separador "Novo"
-      if(idx===newStartIdx&&!fromMe) html+='<div class="msg-new-sep"><span>Novo</span></div>';
-
       const time=msgDate?msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
       const ticks=fromMe?' <span style="opacity:.7">✓✓</span>':'';
-      let content='';
-
-      if(msgObj.imageMessage){
-        const imgUrl=msgObj.imageMessage.url||msgObj.imageMessage.directPath||'';
-        const cap=msgObj.imageMessage.caption||'';
-        if(imgUrl){
-          content='<img class="msg-img" src="'+imgUrl+'" alt="Imagem" onclick="window.open(\''+imgUrl+'\',\'_blank\')"'
-            +' onerror="this.className=\'msg-img-ph\';this.removeAttribute(\'src\');this.removeAttribute(\'onclick\');this.innerHTML=\'<i class=\\\"fas fa-image\\\" style=\\\"font-size:24px;opacity:.4\\\"></i><span>📷 Imagem</span>\'">';
-        } else {
-          content='<div class="msg-img-ph"><i class="fas fa-image" style="font-size:24px;opacity:.4"></i><span>📷 Imagem</span></div>';
-        }
-        if(cap) content+='<div style="margin-top:4px;font-size:12px">'+cap+'</div>';
-      } else if(msgObj.videoMessage){
-        const cap=msgObj.videoMessage.caption||'';
-        content='<div style="display:flex;align-items:center;gap:8px"><i class="fas fa-video" style="font-size:16px;opacity:.6"></i><span>🎥 '+(cap||'Vídeo')+'</span></div>';
-      } else if(msgObj.audioMessage||msgObj.pttMessage){
-        const sec=(msgObj.audioMessage||msgObj.pttMessage).seconds||0;
-        const dur=sec>0?Math.floor(sec/60)+':'+(''+(sec%60)).padStart(2,'0'):'';
-        content='<div class="msg-audio-wrap"><i class="fas fa-microphone" style="font-size:14px;opacity:.7"></i><div class="msg-audio-bar"></div><span style="font-size:11px;opacity:.7">'+(dur||'Áudio')+'</span></div>';
-      } else if(msgObj.documentMessage){
-        const fname=msgObj.documentMessage.fileName||'Documento';
-        content='<div style="display:flex;align-items:center;gap:8px"><i class="fas fa-file-alt" style="font-size:16px;opacity:.6"></i><span>📄 '+fname+'</span></div>';
-      } else if(msgObj.stickerMessage){
-        content='<span style="font-size:28px">🎭</span>';
-      } else if(msgObj.locationMessage){
-        const lat=msgObj.locationMessage.degreesLatitude,lng=msgObj.locationMessage.degreesLongitude;
-        content='<a href="https://maps.google.com/?q='+lat+','+lng+'" target="_blank" style="color:inherit">📍 Ver localização</a>';
-      } else if(msgObj.reactionMessage){
-        content='<span style="font-size:22px">'+(msgObj.reactionMessage.text||'❤️')+'</span>';
-      } else {
-        const text=msgObj.conversation||msgObj.extendedTextMessage?.text||'';
-        content=text?text.split('\n').join('<br>'):'<span style="opacity:.5;font-size:11px">[mensagem]</span>';
-      }
-
+      const content=(m.content||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')||'<span style="opacity:.5;font-size:11px">['+( m.message_type||'mensagem')+']</span>';
       html+='<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'">'
-        +'<div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'
-          +content
-          +'<div class="msg-time">'+time+ticks+'</div>'
-        +'</div></div>';
+        +'<div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content
+        +'<div class="msg-time">'+time+ticks+'</div></div></div>';
     });
-
     box.innerHTML=html;
     box.scrollTop=box.scrollHeight;
   } catch(e){
@@ -2544,6 +2472,11 @@ async function sendMessage(){
   if(!text) return;
   const number=currentChatId.split('@')[0];
   input.value='';
+  // Adiciona visualmente imediato
+  const box=document.getElementById('chatMessages');
+  const time=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  box.insertAdjacentHTML('beforeend','<div style="display:flex;justify-content:flex-end"><div class="msg-bubble from-me">'+text.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')+'<div class="msg-time">'+time+' <span style="opacity:.7">✓✓</span></div></div></div>');
+  box.scrollTop=box.scrollHeight;
   try {
     const res=await fetch(EVOLUTION_URL+'/message/sendText/Sam Sushi',{
       method:'POST',
@@ -2552,7 +2485,6 @@ async function sendMessage(){
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
     toast('Mensagem enviada!');
-    setTimeout(()=>loadMessages(currentChatId),1500);
   } catch(e){ toast('Erro ao enviar: '+e.message,'error'); }
 }
 
