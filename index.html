@@ -2258,7 +2258,7 @@ async function loadConversations(){
     } catch(e){}
 
     // Load all messages grouped by remote_jid from Supabase
-    const msgs = await supaFetch('wpp_messages?select=remote_jid,content,from_me,timestamp,message_type&order=timestamp.desc&limit=2000');
+    const msgs = await supaFetch('wpp_messages?select=remote_jid,content,from_me,timestamp,message_type&order=timestamp.desc&limit=5000');
 
     // Group by remote_jid - one entry per contact
     const convMap = {};
@@ -2267,11 +2267,15 @@ async function loadConversations(){
       if (!jid || jid === 'EMPTY' || jid === 'NULL' || jid === 'null' || jid === 'empty') return;
       if (!jid.includes('@s.whatsapp.net')) return;
       if (!convMap[jid]) {
-        convMap[jid] = { jid, lastMsg: m, msgs: [], unread: 0 };
+        convMap[jid] = { jid, lastMsg: m, msgs: [], unreadCount: 0 };
       }
+      // Update lastMsg only if this message is newer
+      const existingTs = parseInt(convMap[jid].lastMsg?.timestamp||0);
+      const thisTs = parseInt(m.timestamp||0);
+      if (thisTs > existingTs) convMap[jid].lastMsg = m;
       convMap[jid].msgs.push(m);
-      if (!readChats.has(jid) && m.from_me !== 'true' && m.from_me !== true) {
-        convMap[jid].unread++;
+      if (m.from_me !== 'true' && m.from_me !== true) {
+        convMap[jid].unreadCount++;
       }
     });
 
@@ -2279,13 +2283,14 @@ async function loadConversations(){
     allConversations = Object.values(convMap).map(c => {
       const phone = _formatPhone(c.jid);
       const contactName = _nameFromPhone(phone, contacts);
+      const isRead = readChats.has(c.jid);
       return {
         jid: c.jid,
         phone,
         name: contactName || phone,
         hasName: !!contactName,
         lastMsg: c.lastMsg,
-        unread: readChats.has(c.jid) ? 0 : c.unread,
+        unread: isRead ? 0 : c.unreadCount,
         msgCount: c.msgs.length
       };
     });
@@ -2442,7 +2447,7 @@ async function loadMessages(jid){
   box.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try {
     // Load from Supabase wpp_messages
-    const msgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(jid)+'&order=timestamp.asc&limit=100');
+    const msgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(jid)+'&order=timestamp.asc&limit=500');
 
     if(!msgs || !msgs.length){
       // Fallback to Evolution API
