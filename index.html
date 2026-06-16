@@ -2207,32 +2207,36 @@ async function loadSamSushiDash() {
   } catch(e) {}
 }
 
-// ===== CONVERSATIONS NOVADASH =====
+// ===== CONVERSATIONS =====
 const EVOLUTION_URL = 'https://evolution-api-production-7eff.up.railway.app';
 const EVOLUTION_KEY = 'Hub360@Evolution2026';
 let currentChatId = null;
 let allConversations = [];
-let convTabActive = 'unread';
+let convTabActive = 'all';
 
 function _lsGet(k){ try{ return new Set(JSON.parse(localStorage.getItem(k)||'[]')); }catch(e){ return new Set(); } }
 function _lsSave(k,s){ try{ localStorage.setItem(k,JSON.stringify([...s])); }catch(e){} }
 let starredChats = _lsGet('h360_starred');
 let readChats    = _lsGet('h360_read');
 
-function _isUnread(c){ return (c.unreadCount > 0) && !readChats.has(c.id||c.remoteJid||''); }
-
-function _noiseFilter(cid){
-  if(!cid) return true;
-  if(cid.startsWith('cmq8')||cid.startsWith('cmq9')) return true;
-  if(cid.includes('newsletter')||cid.includes('@broadcast')) return true;
-  if(cid.endsWith('@g.us')||cid.startsWith('status@')) return true;
-  return false;
-}
-
 function _avatarColor(n){
   const c=['#1a2e27','#3b82f6','#8b5cf6','#f59e0b','#10b981','#ef4444','#ec4899','#06b6d4','#f97316','#84cc16'];
   let h=0; for(let i=0;i<n.length;i++) h=(h*31+n.charCodeAt(i))%c.length;
   return c[Math.abs(h)];
+}
+
+function _formatPhone(jid){
+  const n = jid.split('@')[0];
+  return '+' + n;
+}
+
+function _nameFromPhone(phone, contacts){
+  const clean = phone.replace(/\D/g,'');
+  const found = contacts.find(c => {
+    const cp = (c.phone||'').replace(/\D/g,'');
+    return cp && (cp.endsWith(clean) || clean.endsWith(cp));
+  });
+  return found ? (found.first_name||'') + ' ' + (found.last_name||'') : null;
 }
 
 function setConvTab(tab, el){
@@ -2243,33 +2247,68 @@ function setConvTab(tab, el){
 }
 
 async function loadConversations(){
-  const instance = 'Sam Sushi';
-  document.getElementById('convInstanceLabel').textContent = instance;
+  document.getElementById('convInstanceLabel').innerHTML = '<span class="realtime-dot"></span>Sam Sushi';
   const list = document.getElementById('convList');
   list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando...</div></div>';
   try {
-    // Busca em múltiplas páginas para garantir que pega os mais recentes
-    let allChats = [];
-    const pageSize = 200;
-    for (let page = 0; page < 8; page++) {
-      const res = await fetch(EVOLUTION_URL+'/chat/findChats/'+instance, {
-        method:'POST',
-        headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-        body: JSON.stringify({ limit: pageSize, offset: page * pageSize })
-      });
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      const chunk = await res.json();
-      const arr = Array.isArray(chunk) ? chunk : [];
-      allChats = allChats.concat(arr);
-      if (arr.length < pageSize) break; // última página
-    }
-    allConversations = allChats;
-    const unreadTotal = allConversations.filter(c=>!_noiseFilter(c.id||c.remoteJid||'')&&_isUnread(c)).length;
+    // Load contacts for name matching
+    let contacts = [];
+    try {
+      contacts = await supaFetch('contacts?select=first_name,last_name,phone&limit=1000');
+    } catch(e){}
+
+    // Load all messages grouped by remote_jid from Supabase
+    const msgs = await supaFetch('wpp_messages?select=remote_jid,content,from_me,timestamp,message_type&order=timestamp.desc&limit=5000');
+
+    // Group by remote_jid - one entry per contact
+    const convMap = {};
+    (msgs||[]).forEach(m => {
+      const jid = m.remote_jid;
+      if (!jid || jid === 'EMPTY' || jid === 'NULL' || jid === 'null' || jid === 'empty') return;
+      if (!jid.includes('@s.whatsapp.net')) return;
+      if (!convMap[jid]) {
+        convMap[jid] = { jid, lastMsg: m, msgs: [], unreadCount: 0 };
+      }
+      // Update lastMsg only if this message is newer
+      const existingTs = parseInt(convMap[jid].lastMsg?.timestamp||0);
+      const thisTs = parseInt(m.timestamp||0);
+      if (thisTs > existingTs) convMap[jid].lastMsg = m;
+      convMap[jid].msgs.push(m);
+      if (m.from_me !== 'true' && m.from_me !== true) {
+        convMap[jid].unreadCount++;
+      }
+    });
+
+    // Build conversation list
+    allConversations = Object.values(convMap).map(c => {
+      const phone = _formatPhone(c.jid);
+      const contactName = _nameFromPhone(phone, contacts);
+      const isRead = readChats.has(c.jid);
+      return {
+        jid: c.jid,
+        phone,
+        name: contactName || phone,
+        hasName: !!contactName,
+        lastMsg: c.lastMsg,
+        unread: isRead ? 0 : c.unreadCount,
+        msgCount: c.msgs.length
+      };
+    });
+
+    // Sort by last message timestamp desc
+    allConversations.sort((a,b) => {
+      const ta = parseInt(a.lastMsg?.timestamp||0);
+      const tb = parseInt(b.lastMsg?.timestamp||0);
+      return tb - ta;
+    });
+
+    const unreadTotal = allConversations.filter(c => c.unread > 0).length;
     const badge = document.getElementById('unreadTabCount');
     if(badge) badge.textContent = unreadTotal > 99 ? '99+' : unreadTotal;
+
     renderConversationList(allConversations);
   } catch(e) {
-    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px"><i class="fas fa-exclamation-circle" style="font-size:24px;margin-bottom:8px;display:block;color:#f87171"></i>Erro ao carregar conversas.<br><small>'+e.message+'</small><br><br><button onclick="loadConversations()" style="margin-top:8px;padding:6px 12px;border:1px solid var(--gray-200);border-radius:6px;font-size:12px;cursor:pointer">Tentar novamente</button></div>';
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px"><i class="fas fa-exclamation-circle" style="font-size:24px;margin-bottom:8px;display:block;color:#f87171"></i>Erro ao carregar.<br><small>'+e.message+'</small><br><br><button onclick="loadConversations()" style="margin-top:8px;padding:6px 12px;border:1px solid var(--gray-200);border-radius:6px;font-size:12px;cursor:pointer">Tentar novamente</button></div>';
   }
 }
 
@@ -2277,13 +2316,11 @@ function renderConversationList(convs){
   const list = document.getElementById('convList');
   const q = (document.getElementById('convSearch')?.value||'').toLowerCase();
   const now = new Date();
-
-  let filtered = convs.filter(c=>!_noiseFilter(c.id||c.remoteJid||''));
-  if(q) filtered = filtered.filter(c=>(c.name||c.pushName||c.id||'').toLowerCase().includes(q));
-  if(convTabActive==='unread')   filtered = filtered.filter(c=>_isUnread(c));
-  else if(convTabActive==='starred') filtered = filtered.filter(c=>starredChats.has(c.id||c.remoteJid||''));
+  let filtered = [...convs];
+  if(q) filtered = filtered.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q));
+  if(convTabActive==='unread') filtered = filtered.filter(c => c.unread > 0);
+  else if(convTabActive==='starred') filtered = filtered.filter(c => starredChats.has(c.jid));
   else if(convTabActive==='recents') filtered = filtered.slice(0,30);
-  filtered.sort((a,b)=>(b.lastMessage?.messageTimestamp||0)-(a.lastMessage?.messageTimestamp||0));
 
   if(!filtered.length){
     const msgs={unread:'Nenhuma conversa não lida',starred:'Nenhum favorito',recents:'Nenhuma recente',all:'Nenhuma conversa'};
@@ -2291,225 +2328,240 @@ function renderConversationList(convs){
     return;
   }
 
-  list.innerHTML = filtered.slice(0,150).map(c=>{
-    const cid = c.id||c.remoteJid||'';
-    const phone = cid.split('@')[0];
-    const name = c.name||c.pushName||(phone.length>=8?'+'+phone:phone)||'Desconhecido';
-    const initials = name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()||'?';
-    const color = _avatarColor(name);
-    const safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  list.innerHTML = filtered.map(c => {
+    const initials = c.name.split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase() || '?';
+    const color = _avatarColor(c.jid);
+    const isActive = currentChatId === c.jid;
+    const isStarred = starredChats.has(c.jid);
+    const hasUnread = c.unread > 0;
+
+    // Format timestamp
+    let dateStr = '';
+    const ts = parseInt(c.lastMsg?.timestamp||0);
+    if(ts > 0){
+      const d = new Date(ts > 9999999999 ? ts : ts*1000);
+      const isToday = d.toDateString() === now.toDateString();
+      const isYest = new Date(now-86400000).toDateString() === d.toDateString();
+      if(isToday) dateStr = d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      else if(isYest) dateStr = 'Ontem';
+      else dateStr = d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+    }
 
     // Preview
-    const lm = c.lastMessage;
-    let preview = '';
-    if(lm){
-      const msg = lm.message||{};
-      preview = msg.conversation||msg.extendedTextMessage?.text||'';
-      if(!preview){
-        if(msg.imageMessage) preview='📷 Imagem';
-        else if(msg.videoMessage) preview='🎥 Vídeo';
-        else if(msg.audioMessage||msg.pttMessage) preview='🎵 Áudio';
-        else if(msg.documentMessage) preview='📄 Documento';
-        else if(msg.stickerMessage) preview='🎭 Sticker';
-        else preview='💬 Mensagem';
-      }
-      if(lm.key?.fromMe) preview='✓ '+preview;
+    let preview = c.lastMsg?.content || '';
+    if(!preview){
+      const t = c.lastMsg?.message_type||'';
+      if(t==='imageMessage') preview='📷 Imagem';
+      else if(t==='audioMessage'||t==='pttMessage') preview='🎵 Áudio';
+      else if(t==='videoMessage') preview='🎥 Vídeo';
+      else if(t==='documentMessage') preview='📄 Documento';
+      else preview='💬 Mensagem';
     }
+    if(c.lastMsg?.from_me==='true'||c.lastMsg?.from_me===true) preview='✓ '+preview;
 
-    // Data formatada
-    const ts = lm?.messageTimestamp;
-    let dateStr='';
-    if(ts){
-      const d=new Date(ts*1000);
-      const isToday=d.toDateString()===now.toDateString();
-      const isYest=new Date(now-86400000).toDateString()===d.toDateString();
-      const isWeek=(now-d)<7*86400000;
-      if(isToday) dateStr=d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-      else if(isYest) dateStr='Ontem';
-      else if(isWeek) dateStr=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()];
-      else dateStr=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
-    }
+    const safeName = c.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    const safePhone = c.phone.replace(/'/g,"\\'");
 
-    const unread=_isUnread(c);
-    const unreadNum=c.unreadCount||0;
-    const isStarred=starredChats.has(cid);
-    const isActive=currentChatId===cid;
-
-    return '<div class="conv-item'+(unread?' unread':'')+(isActive?' active':'')+'" onclick="selectConversation(\''+cid+'\',\''+safeName+'\',\''+phone+'\',this)">'
+    return '<div class="conv-item'+(hasUnread?' unread':'')+(isActive?' active':'')+'" onclick="selectConversation(\''+c.jid+'\',\''+safeName+'\',\''+safePhone+'\',this)">'
       +'<div class="conv-avatar" style="background:'+color+'">'+initials+'</div>'
       +'<div class="conv-item-body">'
         +'<div class="conv-item-top">'
-          +'<div class="conv-item-name">'+name+'</div>'
+          +'<div class="conv-item-name">'+(c.hasName?'<strong>'+c.name+'</strong>':c.name)+'</div>'
           +'<div class="conv-item-date">'+dateStr+'</div>'
         +'</div>'
         +'<div class="conv-item-preview-row">'
           +'<div class="conv-item-preview">'+preview+'</div>'
           +'<div style="display:flex;align-items:center;gap:2px;flex-shrink:0">'
-            +(unreadNum>0?'<span class="conv-unread-badge">'+unreadNum+'</span>':'')
-            +'<span class="conv-star-btn'+(isStarred?' starred':'')+'" onclick="event.stopPropagation();toggleStarChat(\''+cid+'\')"><i class="fas fa-star"></i></span>'
+            +(hasUnread?'<span class="conv-unread-badge">'+c.unread+'</span>':'')
+            +'<span class="conv-star-btn'+(isStarred?' starred':'')+'" onclick="event.stopPropagation();toggleStarChat(\''+c.jid+'\')"><i class="fas fa-star"></i></span>'
           +'</div>'
         +'</div>'
-      +'</div>'
-    +'</div>';
+      +'</div></div>';
   }).join('');
 }
 
 function filterConversations(){ renderConversationList(allConversations); }
 
-function toggleStarChat(cid){
-  if(!cid) return;
-  if(starredChats.has(cid)) starredChats.delete(cid);
-  else starredChats.add(cid);
+function toggleStarChat(jid){
+  if(!jid) return;
+  if(starredChats.has(jid)) starredChats.delete(jid); else starredChats.add(jid);
   _lsSave('h360_starred',starredChats);
-  const btn=document.getElementById('chatStarBtn');
-  if(btn&&currentChatId===cid) btn.style.color=starredChats.has(cid)?'#f59e0b':'';
   renderConversationList(allConversations);
 }
 
-function markChatUnread(cid){
-  if(!cid) return;
-  readChats.delete(cid);
+function markChatUnread(jid){
+  if(!jid) return;
+  readChats.delete(jid);
   _lsSave('h360_read',readChats);
+  const conv = allConversations.find(c=>c.jid===jid);
+  if(conv) conv.unread = conv.msgCount;
   renderConversationList(allConversations);
   toast('Marcado como não lida');
 }
 
-function selectConversation(cid, name, phone, el){
-  currentChatId = cid;
-  readChats.add(cid);
+function selectConversation(jid, name, phone, el){
+  currentChatId = jid;
+  readChats.add(jid);
   _lsSave('h360_read',readChats);
+  const conv = allConversations.find(c=>c.jid===jid);
+  if(conv) conv.unread = 0;
 
-  const initials=name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()||'?';
-  const color=_avatarColor(name);
-  document.getElementById('chatHeaderName').textContent=name;
-  document.getElementById('chatHeaderPhone').textContent='+'+phone;
-  const av=document.getElementById('chatHeaderAvatar');
-  av.textContent=initials; av.style.background=color;
-  const btn=document.getElementById('chatStarBtn');
-  if(btn) btn.style.color=starredChats.has(cid)?'#f59e0b':'';
+  const initials = name.split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase()||'?';
+  const color = _avatarColor(jid);
 
-  document.querySelectorAll('.conv-item').forEach(i=>{ i.classList.remove('active'); });
+  document.getElementById('chatHeaderName').textContent = name;
+  document.getElementById('chatHeaderPhone').textContent = phone;
+  const av = document.getElementById('chatHeaderAvatar');
+  av.textContent = initials; av.style.background = color;
+  const btn = document.getElementById('chatStarBtn');
+  if(btn) btn.style.color = starredChats.has(jid) ? '#f59e0b' : '';
+
+  document.querySelectorAll('.conv-item').forEach(i=>i.classList.remove('active'));
   if(el){ el.classList.add('active'); el.classList.remove('unread'); }
 
-  const unreadTotal=allConversations.filter(c=>!_noiseFilter(c.id||c.remoteJid||'')&&_isUnread(c)).length;
-  const badge=document.getElementById('unreadTabCount');
-  if(badge) badge.textContent=unreadTotal>99?'99+':unreadTotal;
+  const unreadTotal = allConversations.filter(c=>c.unread>0).length;
+  const badge = document.getElementById('unreadTabCount');
+  if(badge) badge.textContent = unreadTotal > 99 ? '99+' : unreadTotal;
 
-  // Painel direito estilo NovoDash
-  document.getElementById('convContactDetails').innerHTML=
-    '<div class="cdp-avatar-wrap">'
-      +'<div class="cdp-avatar" style="background:'+color+'">'+initials+'</div>'
-      +'<div class="cdp-cname">'+name+'</div>'
-      +'<div class="cdp-cphone">+'+phone+'</div>'
-    +'</div>'
+  // Right panel
+  document.getElementById('convContactDetails').innerHTML =
+    '<div class="cdp-avatar-wrap"><div class="cdp-avatar" style="background:'+color+'">'+initials+'</div>'
+    +'<div class="cdp-cname">'+name+'</div><div class="cdp-cphone">'+phone+'</div></div>'
     +'<div class="cdp-section"><div class="cdp-section-title">Canal</div>'
-      +'<div class="cdp-row"><i class="fab fa-whatsapp" style="color:#25d366;font-size:15px"></i><span>WhatsApp — Sam Sushi</span></div>'
-    +'</div>'
+    +'<div class="cdp-row"><i class="fab fa-whatsapp" style="color:#25d366;font-size:15px"></i><span>WhatsApp — Sam Sushi</span></div></div>'
     +'<div class="cdp-section"><div class="cdp-section-title">Tags</div>'
-      +'<div class="cdp-tags"><span class="cdp-tag blue">whatsapp</span><span class="cdp-tag green">sam sushi</span></div>'
-    +'</div>'
+    +'<div class="cdp-tags"><span class="cdp-tag blue">whatsapp</span><span class="cdp-tag green">sam sushi</span></div></div>'
     +'<div class="cdp-actions">'
-      +'<button class="cdp-btn" onclick="openNewContact();document.getElementById(\'cfPhone\').value=\'+'+phone+'\'"><i class="fas fa-user-plus"></i> Salvar como contato</button>'
-      +'<button class="cdp-btn primary" onclick="openSSClientModal(\'\',\''+name+'\',\'+'+phone+'\')">'
-      +'<i class="fas fa-utensils"></i> Adicionar ao Pipeline</button>'
-      +'<button class="cdp-btn" onclick="markChatUnread(\''+cid+'\')"><i class="fas fa-envelope"></i> Marcar não lida</button>'
+    +'<button class="cdp-btn" onclick="openNewContact();document.getElementById(\'cfPhone\').value=\''+phone+'\'"><i class="fas fa-user-plus"></i> Salvar como contato</button>'
+    +'<button class="cdp-btn primary" onclick="openSSClientModal(\'\',\''+name+'\',\''+phone+'\')">'
+    +'<i class="fas fa-utensils"></i> Adicionar ao Pipeline</button>'
+    +'<button class="cdp-btn" onclick="markChatUnread(\''+jid+'\')"><i class="fas fa-envelope"></i> Marcar não lida</button>'
     +'</div>';
 
-  loadMessages(cid);
+  loadMessages(jid);
 }
 
-async function loadMessages(chatId){
-  if(!chatId) return;
-  const box=document.getElementById('chatMessages');
-  box.innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
+async function loadMessages(jid){
+  if(!jid) return;
+  const box = document.getElementById('chatMessages');
+  box.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try {
-    const res=await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
+    // Try Evolution API first for full history
+    const evoRes = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam%20Sushi',{
       method:'POST',
       headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({where:{key:{remoteJid:chatId}},limit:60})
+      body:JSON.stringify({where:{key:{remoteJid:jid}},limit:200})
+    });
+    if(evoRes.ok){
+      const evoData = await evoRes.json();
+      const evoMsgs = Array.isArray(evoData?.messages?.records)?evoData.messages.records
+        :Array.isArray(evoData?.messages)?evoData.messages
+        :Array.isArray(evoData?.records)?evoData.records
+        :Array.isArray(evoData)?evoData:[];
+      if(evoMsgs.length > 0){
+        renderEvolutionMessages(evoMsgs, box);
+        return;
+      }
+    }
+    // Fallback: Supabase wpp_messages
+    const msgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(jid)+'&order=timestamp.asc&limit=500');
+    if(!msgs || !msgs.length){
+      box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>';
+      return;
+    }
+
+    const now = new Date();
+    let html = '';
+    let lastDate = '';
+
+    msgs.forEach(m => {
+      const fromMe = m.from_me === 'true' || m.from_me === true;
+      const ts = parseInt(m.timestamp||0);
+      const msgDate = ts > 0 ? new Date(ts > 9999999999 ? ts : ts*1000) : null;
+
+      if(msgDate){
+        const isToday = msgDate.toDateString()===now.toDateString();
+        const isYest = new Date(now-86400000).toDateString()===msgDate.toDateString();
+        const label = isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+        if(label !== lastDate){ html += '<div class="msg-date-sep"><span>'+label+'</span></div>'; lastDate = label; }
+      }
+
+      const time = msgDate ? msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+      const ticks = fromMe ? ' <span style="opacity:.7">✓✓</span>' : '';
+      const content = (m.content||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>') || '<span style="opacity:.5;font-size:11px">['+( m.message_type||'mensagem')+']</span>';
+
+      html += '<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'">'
+        +'<div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'
+        +content
+        +'<div class="msg-time">'+time+ticks+'</div>'
+        +'</div></div>';
+    });
+
+    box.innerHTML = html || '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>';
+    box.scrollTop = box.scrollHeight;
+  } catch(e){
+    box.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px">Erro: '+e.message+'</div>';
+  }
+}
+
+function renderEvolutionMessages(msgs, box){
+  msgs.sort((a,b)=>(a.messageTimestamp||0)-(b.messageTimestamp||0));
+  const now = new Date(); let html=''; let lastDate='';
+  msgs.forEach(m=>{
+    const fromMe=m.key?.fromMe||false;
+    const msgObj=m.message||{};
+    const ts=m.messageTimestamp;
+    const msgDate=ts?new Date(ts*1000):null;
+    if(msgDate){ const isToday=msgDate.toDateString()===now.toDateString(); const isYest=new Date(now-86400000).toDateString()===msgDate.toDateString(); const label=isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'}); if(label!==lastDate){ html+='<div class="msg-date-sep"><span>'+label+'</span></div>'; lastDate=label; } }
+    const time=msgDate?msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
+    const ticks=fromMe?' <span style="opacity:.7">✓✓</span>':'';
+    let content='';
+    if(msgObj.imageMessage) content='<div class="msg-img-ph"><i class="fas fa-image" style="font-size:24px;opacity:.4"></i><span>📷 Imagem</span></div>';
+    else if(msgObj.videoMessage) content='<span>🎥 Vídeo</span>';
+    else if(msgObj.audioMessage||msgObj.pttMessage){ const sec=(msgObj.audioMessage||msgObj.pttMessage).seconds||0; const dur=sec>0?Math.floor(sec/60)+':'+(''+(sec%60)).padStart(2,'0'):''; content='<div class="msg-audio-wrap"><i class="fas fa-microphone" style="font-size:14px;opacity:.7"></i><div class="msg-audio-bar"></div><span style="font-size:11px;opacity:.7">'+(dur||'Áudio')+'</span></div>'; }
+    else if(msgObj.documentMessage) content='<span>📄 '+(msgObj.documentMessage.fileName||'Documento')+'</span>';
+    else { const text=msgObj.conversation||msgObj.extendedTextMessage?.text||''; content=text?text.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>'):'<span style="opacity:.5;font-size:11px">[mensagem]</span>'; }
+    html+='<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'"><div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content+'<div class="msg-time">'+time+ticks+'</div></div></div>';
+  });
+  box.innerHTML = html || '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>';
+  box.scrollTop = box.scrollHeight;
+}
+
+async function loadMessagesFromEvolution(jid){
+  const box = document.getElementById('chatMessages');
+  try {
+    const res = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
+      method:'POST',
+      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({where:{key:{remoteJid:jid}},limit:60})
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
-    const data=await res.json();
-    const msgs=Array.isArray(data?.messages?.records)?data.messages.records
+    const data = await res.json();
+    const msgs = Array.isArray(data?.messages?.records)?data.messages.records
       :Array.isArray(data?.messages)?data.messages
       :Array.isArray(data?.records)?data.records
       :Array.isArray(data)?data:[];
     msgs.sort((a,b)=>(a.messageTimestamp||0)-(b.messageTimestamp||0));
-
     if(!msgs.length){ box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>'; return; }
-
-    const now=new Date();
-    const conv=allConversations.find(c=>(c.id||c.remoteJid)===chatId);
-    const unreadCount=conv?.unreadCount||0;
-    const newStartIdx=unreadCount>0?Math.max(0,msgs.length-unreadCount):-1;
-    let html='';
-    let lastDate='';
-
-    msgs.forEach((m,idx)=>{
+    const now = new Date(); let html=''; let lastDate='';
+    msgs.forEach(m=>{
       const fromMe=m.key?.fromMe||false;
       const msgObj=m.message||{};
       const ts=m.messageTimestamp;
       const msgDate=ts?new Date(ts*1000):null;
-
-      // Separador de data
-      if(msgDate){
-        const isToday=msgDate.toDateString()===now.toDateString();
-        const isYest=new Date(now-86400000).toDateString()===msgDate.toDateString();
-        const label=isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
-        if(label!==lastDate){ html+='<div class="msg-date-sep"><span>'+label+'</span></div>'; lastDate=label; }
-      }
-
-      // Separador "Novo"
-      if(idx===newStartIdx&&!fromMe) html+='<div class="msg-new-sep"><span>Novo</span></div>';
-
+      if(msgDate){ const isToday=msgDate.toDateString()===now.toDateString(); const isYest=new Date(now-86400000).toDateString()===msgDate.toDateString(); const label=isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'}); if(label!==lastDate){ html+='<div class="msg-date-sep"><span>'+label+'</span></div>'; lastDate=label; } }
       const time=msgDate?msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
       const ticks=fromMe?' <span style="opacity:.7">✓✓</span>':'';
       let content='';
-
-      if(msgObj.imageMessage){
-        const imgUrl=msgObj.imageMessage.url||msgObj.imageMessage.directPath||'';
-        const cap=msgObj.imageMessage.caption||'';
-        if(imgUrl){
-          content='<img class="msg-img" src="'+imgUrl+'" alt="Imagem" onclick="window.open(\''+imgUrl+'\',\'_blank\')"'
-            +' onerror="this.className=\'msg-img-ph\';this.removeAttribute(\'src\');this.removeAttribute(\'onclick\');this.innerHTML=\'<i class=\\\"fas fa-image\\\" style=\\\"font-size:24px;opacity:.4\\\"></i><span>📷 Imagem</span>\'">';
-        } else {
-          content='<div class="msg-img-ph"><i class="fas fa-image" style="font-size:24px;opacity:.4"></i><span>📷 Imagem</span></div>';
-        }
-        if(cap) content+='<div style="margin-top:4px;font-size:12px">'+cap+'</div>';
-      } else if(msgObj.videoMessage){
-        const cap=msgObj.videoMessage.caption||'';
-        content='<div style="display:flex;align-items:center;gap:8px"><i class="fas fa-video" style="font-size:16px;opacity:.6"></i><span>🎥 '+(cap||'Vídeo')+'</span></div>';
-      } else if(msgObj.audioMessage||msgObj.pttMessage){
-        const sec=(msgObj.audioMessage||msgObj.pttMessage).seconds||0;
-        const dur=sec>0?Math.floor(sec/60)+':'+(''+(sec%60)).padStart(2,'0'):'';
-        content='<div class="msg-audio-wrap"><i class="fas fa-microphone" style="font-size:14px;opacity:.7"></i><div class="msg-audio-bar"></div><span style="font-size:11px;opacity:.7">'+(dur||'Áudio')+'</span></div>';
-      } else if(msgObj.documentMessage){
-        const fname=msgObj.documentMessage.fileName||'Documento';
-        content='<div style="display:flex;align-items:center;gap:8px"><i class="fas fa-file-alt" style="font-size:16px;opacity:.6"></i><span>📄 '+fname+'</span></div>';
-      } else if(msgObj.stickerMessage){
-        content='<span style="font-size:28px">🎭</span>';
-      } else if(msgObj.locationMessage){
-        const lat=msgObj.locationMessage.degreesLatitude,lng=msgObj.locationMessage.degreesLongitude;
-        content='<a href="https://maps.google.com/?q='+lat+','+lng+'" target="_blank" style="color:inherit">📍 Ver localização</a>';
-      } else if(msgObj.reactionMessage){
-        content='<span style="font-size:22px">'+(msgObj.reactionMessage.text||'❤️')+'</span>';
-      } else {
-        const text=msgObj.conversation||msgObj.extendedTextMessage?.text||'';
-        content=text?text.split('\n').join('<br>'):'<span style="opacity:.5;font-size:11px">[mensagem]</span>';
-      }
-
-      html+='<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'">'
-        +'<div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'
-          +content
-          +'<div class="msg-time">'+time+ticks+'</div>'
-        +'</div></div>';
+      if(msgObj.imageMessage) content='<div class="msg-img-ph"><i class="fas fa-image" style="font-size:24px;opacity:.4"></i><span>📷 Imagem</span></div>';
+      else if(msgObj.videoMessage) content='<span>🎥 Vídeo</span>';
+      else if(msgObj.audioMessage||msgObj.pttMessage) content='<span>🎵 Áudio</span>';
+      else if(msgObj.documentMessage) content='<span>📄 '+(msgObj.documentMessage.fileName||'Documento')+'</span>';
+      else { const text=msgObj.conversation||msgObj.extendedTextMessage?.text||''; content=text?text.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>'):'<span style="opacity:.5;font-size:11px">[mensagem]</span>'; }
+      html+='<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'"><div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content+'<div class="msg-time">'+time+ticks+'</div></div></div>';
     });
-
-    box.innerHTML=html;
-    box.scrollTop=box.scrollHeight;
-  } catch(e){
-    box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px">Erro: '+e.message+'</div>';
-  }
+    box.innerHTML=html; box.scrollTop=box.scrollHeight;
+  } catch(e){ box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px">Erro: '+e.message+'</div>'; }
 }
 
 async function sendMessage(){
@@ -2520,14 +2572,14 @@ async function sendMessage(){
   const number=currentChatId.split('@')[0];
   input.value='';
   try {
-    const res=await fetch(EVOLUTION_URL+'/message/sendText/Sam Sushi',{
-      method:'POST',
-      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({number,text})
-    });
+    const res=await fetch(EVOLUTION_URL+'/message/sendText/Sam Sushi',{method:'POST',headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},body:JSON.stringify({number,text})});
     if(!res.ok) throw new Error('HTTP '+res.status);
     toast('Mensagem enviada!');
-    setTimeout(()=>loadMessages(currentChatId),1500);
+    // Add message to chat immediately
+    const box=document.getElementById('chatMessages');
+    const time=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    box.insertAdjacentHTML('beforeend','<div style="display:flex;justify-content:flex-end"><div class="msg-bubble from-me">'+text.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')+'<div class="msg-time">'+time+' <span style="opacity:.7">✓✓</span></div></div></div>');
+    box.scrollTop=box.scrollHeight;
   } catch(e){ toast('Erro ao enviar: '+e.message,'error'); }
 }
 
