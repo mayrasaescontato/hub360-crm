@@ -2245,38 +2245,92 @@ async function loadConversations(){
   const list = document.getElementById('convList');
   list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando...</div></div>';
   try {
-    // Supabase é a fonte única de verdade
-    const msgs = await supaFetch('wpp_messages?select=remote_jid,content,from_me,timestamp,message_type&order=timestamp.desc&limit=5000');
-
-    // Agrupar por remote_jid usando Map — um contato, uma conversa
-    const convMap = new Map();
-    (msgs||[]).forEach(m => {
-      const jid = m.remote_jid;
-      if (!jid || jid === 'EMPTY' || jid === 'NULL' || jid === 'null' || jid === 'empty' || jid === 'test') return;
-      if (!jid.includes('@s.whatsapp.net')) return;
-      if (!convMap.has(jid)) {
-        convMap.set(jid, { jid, lastMsg: m, unreadCount: 0 });
+    // 1. Busca lista completa na Evolution API
+    let evoChats = [];
+    try {
+      const pageSize = 200;
+      for (let page = 0; page < 8; page++) {
+        const res = await fetch(EVOLUTION_URL+'/chat/findChats/Sam Sushi', {
+          method:'POST',
+          headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+          body: JSON.stringify({ limit: pageSize, offset: page * pageSize })
+        });
+        if(!res.ok) break;
+        const chunk = await res.json();
+        const arr = Array.isArray(chunk) ? chunk : [];
+        evoChats = evoChats.concat(arr);
+        if (arr.length < pageSize) break;
       }
-      const conv = convMap.get(jid);
-      const existingTs = parseInt(conv.lastMsg?.timestamp||0);
-      const thisTs = parseInt(m.timestamp||0);
-      if (thisTs > existingTs) conv.lastMsg = m;
-      if (m.from_me !== 'true' && m.from_me !== true) conv.unreadCount++;
+    } catch(e){}
+
+    // 2. Busca mensagens recentes no Supabase
+    let supaMsgs = [];
+    try {
+      supaMsgs = await supaFetch('wpp_messages?select=remote_jid,content,from_me,timestamp,message_type&order=timestamp.desc&limit=5000');
+    } catch(e){}
+
+    // 3. Monta mapa do Supabase por JID
+    const supaMap = new Map();
+    (supaMsgs||[]).forEach(m => {
+      const jid = m.remote_jid;
+      if (!jid || !jid.includes('@s.whatsapp.net')) return;
+      if (!supaMap.has(jid)) supaMap.set(jid, m);
+      else {
+        const existing = supaMap.get(jid);
+        if (parseInt(m.timestamp||0) > parseInt(existing.timestamp||0)) supaMap.set(jid, m);
+      }
     });
 
-    // Buscar nomes dos contatos
+    // 4. Busca nomes de contatos
     let contacts = [];
     try { contacts = await supaFetch('contacts?select=first_name,last_name,phone&limit=1000'); } catch(e){}
 
-    allConversations = Array.from(convMap.values()).map(c => {
-      const phone = c.jid.split('@')[0];
-      const contact = contacts.find(ct => ct.phone && ct.phone.replace(/\D/g,'').endsWith(phone.replace(/\D/g,'')));
-      const name = contact ? (contact.first_name+' '+(contact.last_name||'')).trim() : '+'+phone;
-      return { id: c.jid, remoteJid: c.jid, phone, name, pushName: name, lastMsg: c.lastMsg, unreadCount: readChats.has(c.jid)?0:c.unreadCount, lastMessage: { messageTimestamp: parseInt(c.lastMsg?.timestamp||0) } };
+    // 5. Combina: começa com Evolution, enriquece com Supabase
+    const convMap = new Map();
+
+    // Adiciona chats da Evolution
+    evoChats.forEach(c => {
+      const jid = c.id||c.remoteJid||'';
+      if (!jid || !jid.includes('@s.whatsapp.net')) return;
+      const supaMsg = supaMap.get(jid);
+      const evoTs = c.lastMessage?.messageTimestamp||0;
+      const supaTs = parseInt(supaMsg?.timestamp||0);
+      const lastTs = supaTs > evoTs ? supaTs : evoTs;
+      convMap.set(jid, {
+        id: jid, remoteJid: jid,
+        phone: jid.split('@')[0],
+        pushName: c.name||c.pushName||'',
+        lastMessage: c.lastMessage,
+        lastSupaMsg: supaMsg||null,
+        lastTs,
+        unreadCount: c.unreadCount||0
+      });
     });
 
-    // Ordenar por última mensagem mais recente
-    allConversations.sort((a,b) => (b.lastMessage?.messageTimestamp||0) - (a.lastMessage?.messageTimestamp||0));
+    // Adiciona do Supabase quem não estava na Evolution
+    supaMap.forEach((msg, jid) => {
+      if (!convMap.has(jid)) {
+        convMap.set(jid, {
+          id: jid, remoteJid: jid,
+          phone: jid.split('@')[0],
+          pushName: '',
+          lastMessage: null,
+          lastSupaMsg: msg,
+          lastTs: parseInt(msg.timestamp||0),
+          unreadCount: 0
+        });
+      }
+    });
+
+    // 6. Resolve nomes
+    allConversations = Array.from(convMap.values()).map(c => {
+      const contact = contacts.find(ct => ct.phone && ct.phone.replace(/\D/g,'').endsWith(c.phone.replace(/\D/g,'')));
+      const name = contact ? (contact.first_name+' '+(contact.last_name||'')).trim() : (c.pushName||'+'+c.phone);
+      return { ...c, name, hasSupabase: !!c.lastSupaMsg };
+    });
+
+    // 7. Ordena por última mensagem mais recente
+    allConversations.sort((a,b) => (b.lastTs||0) - (a.lastTs||0));
 
     const unreadTotal = allConversations.filter(c=>c.unreadCount>0).length;
     const badge = document.getElementById('unreadTabCount');
@@ -2312,24 +2366,37 @@ function renderConversationList(convs){
     const color = _avatarColor(cid);
     const safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
-    // Preview da última mensagem (formato Supabase)
-    const lm = c.lastMsg;
+    // Preview da última mensagem — prioriza Supabase (mais recente) depois Evolution
     let preview = '';
-    if(lm){
-      preview = lm.content||'';
+    const supaMsg = c.lastSupaMsg;
+    const lm = c.lastMessage;
+    if(supaMsg && parseInt(supaMsg.timestamp||0) >= (lm?.messageTimestamp||0)){
+      preview = supaMsg.content||'';
       if(!preview){
-        const t = lm.message_type||'';
+        const t = supaMsg.message_type||'';
         if(t==='imageMessage') preview='📷 Imagem';
         else if(t==='audioMessage'||t==='pttMessage') preview='🎵 Áudio';
         else if(t==='videoMessage') preview='🎥 Vídeo';
         else if(t==='documentMessage') preview='📄 Documento';
         else preview='💬 Mensagem';
       }
-      if(lm.from_me==='true'||lm.from_me===true) preview='✓ '+preview;
+      if(supaMsg.from_me==='true'||supaMsg.from_me===true) preview='✓ '+preview;
+    } else if(lm){
+      const msg = lm.message||{};
+      preview = msg.conversation||msg.extendedTextMessage?.text||'';
+      if(!preview){
+        if(msg.imageMessage) preview='📷 Imagem';
+        else if(msg.videoMessage) preview='🎥 Vídeo';
+        else if(msg.audioMessage||msg.pttMessage) preview='🎵 Áudio';
+        else if(msg.documentMessage) preview='📄 Documento';
+        else if(msg.stickerMessage) preview='🎭 Sticker';
+        else preview='💬 Mensagem';
+      }
+      if(lm.key?.fromMe) preview='✓ '+preview;
     }
 
     // Data formatada
-    const ts = parseInt(lm?.timestamp||0);
+    const ts = c.lastTs||0;
     let dateStr='';
     if(ts>0){
       const d=new Date(ts>9999999999?ts:ts*1000);
