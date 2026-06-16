@@ -2446,24 +2446,7 @@ async function loadMessages(jid){
   const box = document.getElementById('chatMessages');
   box.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try {
-    // Try Evolution API first for full history
-    const evoRes = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam%20Sushi',{
-      method:'POST',
-      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({where:{key:{remoteJid:jid}},limit:200})
-    });
-    if(evoRes.ok){
-      const evoData = await evoRes.json();
-      const evoMsgs = Array.isArray(evoData?.messages?.records)?evoData.messages.records
-        :Array.isArray(evoData?.messages)?evoData.messages
-        :Array.isArray(evoData?.records)?evoData.records
-        :Array.isArray(evoData)?evoData:[];
-      if(evoMsgs.length > 0){
-        renderEvolutionMessages(evoMsgs, box);
-        return;
-      }
-    }
-    // Fallback: Supabase wpp_messages
+    // Load messages from Supabase
     const msgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(jid)+'&order=timestamp.asc&limit=500');
     if(!msgs || !msgs.length){
       box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>';
