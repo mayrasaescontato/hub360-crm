@@ -2305,6 +2305,28 @@ async function loadConversations(){
         return { jid, phone, name, hasName: !!(contactName||pushName), preview, ts, unread };
       });
 
+    // Complement with contacts from Supabase wpp_messages not in Evolution list
+    try {
+      const supaMsgs = await supaFetch('wpp_messages?select=remote_jid,content,from_me,timestamp&order=timestamp.desc&limit=5000');
+      const supaMap = {};
+      (supaMsgs||[]).forEach(m => {
+        const jid = m.remote_jid;
+        if(!jid || !jid.includes('@s.whatsapp.net')) return;
+        if(!supaMap[jid] || parseInt(m.timestamp) > parseInt(supaMap[jid].timestamp)) supaMap[jid] = m;
+      });
+      const existingJids = new Set(allConversations.map(c=>c.jid));
+      Object.entries(supaMap).forEach(([jid, m]) => {
+        if(existingJids.has(jid)) return;
+        const phone = '+'+jid.split('@')[0];
+        const contactName = _nameFromContacts(jid, contacts);
+        const name = contactName || phone;
+        const fromMe = m.from_me === 'true' || m.from_me === true;
+        const preview = (fromMe ? '✓ ' : '') + (m.content || '💬 Mensagem');
+        const ts = parseInt(m.timestamp||0);
+        allConversations.push({ jid, phone, name, hasName: !!contactName, preview, ts, unread: readChats.has(jid) ? 0 : 1 });
+      });
+    } catch(e) {}
+
     allConversations.sort((a,b) => b.ts - a.ts);
 
     const unreadTotal = allConversations.filter(c => c.unread > 0).length;
