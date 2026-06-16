@@ -1348,6 +1348,7 @@ function initSupabaseRealtime() {
         var msg = payload.new;
         var page = document.getElementById('page-conversations');
         if (!page || !page.classList.contains('active')) return;
+        // Add message directly to open chat
         if (currentChatId && currentChatId === msg.remote_jid) {
           var box = document.getElementById('chatMessages');
           var fromMe = msg.from_me === 'true' || msg.from_me === true;
@@ -1356,7 +1357,18 @@ function initSupabaseRealtime() {
           box.insertAdjacentHTML('beforeend','<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'"><div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+txt+'<div class="msg-time">'+time+(fromMe?' <span style="opacity:.7">✓✓</span>':'')+' </div></div></div>');
           box.scrollTop = box.scrollHeight;
         }
-        setTimeout(function(){ try{ loadConversations(); }catch(e){} }, 1000);
+        // Update conversation list preview
+        var jid = msg.remote_jid;
+        var conv = allConversations.find(function(c){ return c.jid === jid; });
+        if(conv){
+          conv.preview = msg.content||conv.preview;
+          conv.ts = parseInt(msg.timestamp||0);
+          if(!readChats.has(jid) && msg.from_me !== 'true' && msg.from_me !== true) conv.unread = (conv.unread||0)+1;
+          allConversations.sort(function(a,b){ return b.ts-a.ts; });
+          renderConversationList(allConversations);
+        } else {
+          setTimeout(function(){ try{ loadConversations(); }catch(e){} }, 1500);
+        }
       })
       .subscribe();
   } catch(e){ console.warn('Realtime erro:',e); }
