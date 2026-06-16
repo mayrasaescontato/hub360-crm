@@ -1446,7 +1446,8 @@ function initApp() { renderNav(); loadDashboard(); loadOpps(); loadCustomStages(
 
 function showPage(name, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById(`page-${name}`).classList.add('active');
+  const pageEl = document.getElementById(`page-${name}`);
+  if(pageEl) pageEl.classList.add('active');
   document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
   if (el) el.classList.add('active');
   const titles = {
