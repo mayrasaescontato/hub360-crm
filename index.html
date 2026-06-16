@@ -2501,32 +2501,73 @@ async function loadMessages(chatId){
   const box=document.getElementById('chatMessages');
   box.innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try {
-    // Supabase é a fonte de verdade para o histórico
-    const msgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(chatId)+'&order=timestamp.asc&limit=500');
-    if(!msgs||!msgs.length){
-      box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>';
-      return;
+    // 1. Tenta Supabase primeiro
+    const supaMsgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(chatId)+'&order=timestamp.asc&limit=500');
+    if(supaMsgs && supaMsgs.length){
+      const now=new Date(); let html=''; let lastDate='';
+      supaMsgs.forEach(m=>{
+        const fromMe=m.from_me==='true'||m.from_me===true;
+        const ts=parseInt(m.timestamp||0);
+        const msgDate=ts>0?new Date(ts>9999999999?ts:ts*1000):null;
+        if(msgDate){
+          const isToday=msgDate.toDateString()===now.toDateString();
+          const isYest=new Date(now-86400000).toDateString()===msgDate.toDateString();
+          const label=isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+          if(label!==lastDate){html+='<div class="msg-date-sep"><span>'+label+'</span></div>';lastDate=label;}
+        }
+        const time=msgDate?msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
+        const ticks=fromMe?' <span style="opacity:.7">✓✓</span>':'';
+        const content=(m.content||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')||'<span style="opacity:.5;font-size:11px">['+( m.message_type||'mensagem')+']</span>';
+        html+='<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'">'
+          +'<div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content
+          +'<div class="msg-time">'+time+ticks+'</div></div></div>';
+      });
+      box.innerHTML=html; box.scrollTop=box.scrollHeight; return;
     }
-    const now=new Date(); let html=''; let lastDate='';
-    msgs.forEach(m=>{
-      const fromMe=m.from_me==='true'||m.from_me===true;
-      const ts=parseInt(m.timestamp||0);
-      const msgDate=ts>0?new Date(ts>9999999999?ts:ts*1000):null;
-      if(msgDate){
-        const isToday=msgDate.toDateString()===now.toDateString();
-        const isYest=new Date(now-86400000).toDateString()===msgDate.toDateString();
-        const label=isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
-        if(label!==lastDate){html+='<div class="msg-date-sep"><span>'+label+'</span></div>';lastDate=label;}
-      }
-      const time=msgDate?msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
-      const ticks=fromMe?' <span style="opacity:.7">✓✓</span>':'';
-      const content=(m.content||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')||'<span style="opacity:.5;font-size:11px">['+( m.message_type||'mensagem')+']</span>';
-      html+='<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'">'
-        +'<div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content
-        +'<div class="msg-time">'+time+ticks+'</div></div></div>';
+
+    // 2. Fallback: Evolution API
+    const evoRes = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
+      method:'POST',
+      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({where:{key:{remoteJid:chatId}},limit:60})
     });
-    box.innerHTML=html;
-    box.scrollTop=box.scrollHeight;
+    if(evoRes.ok){
+      const data=await evoRes.json();
+      const msgs=Array.isArray(data?.messages?.records)?data.messages.records
+        :Array.isArray(data?.messages)?data.messages
+        :Array.isArray(data?.records)?data.records
+        :Array.isArray(data)?data:[];
+      msgs.sort((a,b)=>(a.messageTimestamp||0)-(b.messageTimestamp||0));
+      if(msgs.length){
+        const now=new Date(); let html=''; let lastDate='';
+        msgs.forEach(m=>{
+          const fromMe=m.key?.fromMe||false;
+          const msgObj=m.message||{};
+          const ts=m.messageTimestamp;
+          const msgDate=ts?new Date(ts*1000):null;
+          if(msgDate){
+            const isToday=msgDate.toDateString()===now.toDateString();
+            const isYest=new Date(now-86400000).toDateString()===msgDate.toDateString();
+            const label=isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+            if(label!==lastDate){html+='<div class="msg-date-sep"><span>'+label+'</span></div>';lastDate=label;}
+          }
+          const time=msgDate?msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
+          const ticks=fromMe?' <span style="opacity:.7">✓✓</span>':'';
+          let content='';
+          if(msgObj.imageMessage) content='<div class="msg-img-ph"><i class="fas fa-image" style="font-size:24px;opacity:.4"></i><span>📷 Imagem</span></div>';
+          else if(msgObj.videoMessage) content='<span>🎥 Vídeo</span>';
+          else if(msgObj.audioMessage||msgObj.pttMessage) content='<span>🎵 Áudio</span>';
+          else if(msgObj.documentMessage) content='<span>📄 '+(msgObj.documentMessage.fileName||'Documento')+'</span>';
+          else { const text=msgObj.conversation||msgObj.extendedTextMessage?.text||''; content=text?text.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>'):'<span style="opacity:.5;font-size:11px">[mensagem]</span>'; }
+          html+='<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'">'
+            +'<div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content
+            +'<div class="msg-time">'+time+ticks+'</div></div></div>';
+        });
+        box.innerHTML=html; box.scrollTop=box.scrollHeight; return;
+      }
+    }
+
+    box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>';
   } catch(e){
     box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px">Erro: '+e.message+'</div>';
   }
