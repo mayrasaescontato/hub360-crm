@@ -2210,6 +2210,7 @@ async function loadSamSushiDash() {
 // ===== CONVERSATIONS =====
 const EVOLUTION_URL = 'https://evolution-api-production-7eff.up.railway.app';
 const EVOLUTION_KEY = 'Hub360@Evolution2026';
+const EVO_INSTANCE = 'Sam%20Sushi';
 let currentChatId = null;
 let allConversations = [];
 let convTabActive = 'all';
@@ -2225,18 +2226,13 @@ function _avatarColor(n){
   return c[Math.abs(h)];
 }
 
-function _formatPhone(jid){
-  const n = jid.split('@')[0];
-  return '+' + n;
-}
-
-function _nameFromPhone(phone, contacts){
-  const clean = phone.replace(/\D/g,'');
+function _nameFromContacts(jid, contacts){
+  const phone = jid.split('@')[0];
   const found = contacts.find(c => {
     const cp = (c.phone||'').replace(/\D/g,'');
-    return cp && (cp.endsWith(clean) || clean.endsWith(cp));
+    return cp && (cp.endsWith(phone) || phone.endsWith(cp));
   });
-  return found ? (found.first_name||'') + ' ' + (found.last_name||'') : null;
+  return found ? ((found.first_name||'') + ' ' + (found.last_name||'')).trim() : null;
 }
 
 function setConvTab(tab, el){
@@ -2247,60 +2243,57 @@ function setConvTab(tab, el){
 }
 
 async function loadConversations(){
-  document.getElementById('convInstanceLabel').innerHTML = '<span class="realtime-dot"></span>Sam Sushi';
   const list = document.getElementById('convList');
-  list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando...</div></div>';
+  list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando conversas...</div></div>';
   try {
     // Load contacts for name matching
     let contacts = [];
-    try {
-      contacts = await supaFetch('contacts?select=first_name,last_name,phone&limit=1000');
-    } catch(e){}
+    try { contacts = await supaFetch('contacts?select=first_name,last_name,phone&limit=2000'); } catch(e){}
 
-    // Load all messages grouped by remote_jid from Supabase
-    const msgs = await supaFetch('wpp_messages?select=remote_jid,content,from_me,timestamp,message_type&order=timestamp.desc&limit=5000');
-
-    // Group by remote_jid - one entry per contact
-    const convMap = {};
-    (msgs||[]).forEach(m => {
-      const jid = m.remote_jid;
-      if (!jid || jid === 'EMPTY' || jid === 'NULL' || jid === 'null' || jid === 'empty') return;
-      if (!jid.includes('@s.whatsapp.net')) return;
-      if (!convMap[jid]) {
-        convMap[jid] = { jid, lastMsg: m, msgs: [], unreadCount: 0 };
-      }
-      // Update lastMsg only if this message is newer
-      const existingTs = parseInt(convMap[jid].lastMsg?.timestamp||0);
-      const thisTs = parseInt(m.timestamp||0);
-      if (thisTs > existingTs) convMap[jid].lastMsg = m;
-      convMap[jid].msgs.push(m);
-      if (m.from_me !== 'true' && m.from_me !== true) {
-        convMap[jid].unreadCount++;
-      }
+    // Load chats from Evolution API
+    const res = await fetch(EVOLUTION_URL+'/chat/findChats/'+decodeURIComponent(EVO_INSTANCE), {
+      method: 'POST',
+      headers: {'apikey': EVOLUTION_KEY, 'Content-Type': 'application/json'},
+      body: JSON.stringify({limit: 200, offset: 0})
     });
+    if(!res.ok) throw new Error('Evolution API: HTTP '+res.status);
+    const chats = await res.json();
+    const arr = Array.isArray(chats) ? chats : [];
 
-    // Build conversation list
-    allConversations = Object.values(convMap).map(c => {
-      const phone = _formatPhone(c.jid);
-      const contactName = _nameFromPhone(phone, contacts);
-      const isRead = readChats.has(c.jid);
-      return {
-        jid: c.jid,
-        phone,
-        name: contactName || phone,
-        hasName: !!contactName,
-        lastMsg: c.lastMsg,
-        unread: isRead ? 0 : c.unreadCount,
-        msgCount: c.msgs.length
-      };
-    });
+    // Filter and build conversations
+    allConversations = arr
+      .filter(c => {
+        const jid = c.id||c.remoteJid||'';
+        if(!jid.includes('@s.whatsapp.net')) return false;
+        if(jid.startsWith('status@')) return false;
+        return true;
+      })
+      .map(c => {
+        const jid = c.id||c.remoteJid||'';
+        const phone = '+'+jid.split('@')[0];
+        const contactName = _nameFromContacts(jid, contacts);
+        const pushName = c.name||c.pushName||'';
+        const name = contactName || pushName || phone;
+        const lm = c.lastMessage;
+        let preview = '';
+        if(lm){
+          const msg = lm.message||{};
+          preview = msg.conversation||msg.extendedTextMessage?.text||'';
+          if(!preview){
+            if(msg.imageMessage) preview='📷 Imagem';
+            else if(msg.audioMessage||msg.pttMessage) preview='🎵 Áudio';
+            else if(msg.videoMessage) preview='🎥 Vídeo';
+            else if(msg.documentMessage) preview='📄 Documento';
+            else preview='💬 Mensagem';
+          }
+          if(lm.key?.fromMe) preview = '✓ '+preview;
+        }
+        const ts = lm?.messageTimestamp||0;
+        const unread = readChats.has(jid) ? 0 : (c.unreadCount||0);
+        return { jid, phone, name, hasName: !!(contactName||pushName), preview, ts, unread };
+      });
 
-    // Sort by last message timestamp desc
-    allConversations.sort((a,b) => {
-      const ta = parseInt(a.lastMsg?.timestamp||0);
-      const tb = parseInt(b.lastMsg?.timestamp||0);
-      return tb - ta;
-    });
+    allConversations.sort((a,b) => b.ts - a.ts);
 
     const unreadTotal = allConversations.filter(c => c.unread > 0).length;
     const badge = document.getElementById('unreadTabCount');
@@ -2308,8 +2301,35 @@ async function loadConversations(){
 
     renderConversationList(allConversations);
   } catch(e) {
-    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px"><i class="fas fa-exclamation-circle" style="font-size:24px;margin-bottom:8px;display:block;color:#f87171"></i>Erro ao carregar.<br><small>'+e.message+'</small><br><br><button onclick="loadConversations()" style="margin-top:8px;padding:6px 12px;border:1px solid var(--gray-200);border-radius:6px;font-size:12px;cursor:pointer">Tentar novamente</button></div>';
+    // Fallback: use Supabase
+    try { await loadConversationsFromSupabase(); }
+    catch(e2) { list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px"><i class="fas fa-exclamation-circle" style="color:#f87171;font-size:24px;margin-bottom:8px;display:block"></i>Erro ao carregar.<br><button onclick="loadConversations()" style="margin-top:8px;padding:6px 12px;border:1px solid var(--gray-200);border-radius:6px;font-size:12px;cursor:pointer">Tentar novamente</button></div>'; }
   }
+}
+
+async function loadConversationsFromSupabase(){
+  let contacts = [];
+  try { contacts = await supaFetch('contacts?select=first_name,last_name,phone&limit=2000'); } catch(e){}
+  const msgs = await supaFetch('wpp_messages?select=remote_jid,content,from_me,timestamp&order=timestamp.desc&limit=5000');
+  const convMap = {};
+  (msgs||[]).forEach(m => {
+    const jid = m.remote_jid;
+    if(!jid||!jid.includes('@s.whatsapp.net')) return;
+    if(!convMap[jid]){ convMap[jid] = {jid, lastMsg:m, unreadCount:0}; }
+    const et = parseInt(convMap[jid].lastMsg?.timestamp||0);
+    const tt = parseInt(m.timestamp||0);
+    if(tt > et) convMap[jid].lastMsg = m;
+    if(m.from_me!=='true'&&m.from_me!==true) convMap[jid].unreadCount++;
+  });
+  allConversations = Object.values(convMap).map(c => {
+    const phone = '+'+c.jid.split('@')[0];
+    const contactName = _nameFromContacts(c.jid, contacts);
+    return { jid: c.jid, phone, name: contactName||phone, hasName:!!contactName,
+      preview: c.lastMsg?.content||'', ts: parseInt(c.lastMsg?.timestamp||0),
+      unread: readChats.has(c.jid)?0:c.unreadCount };
+  });
+  allConversations.sort((a,b)=>b.ts-a.ts);
+  renderConversationList(allConversations);
 }
 
 function renderConversationList(convs){
@@ -2317,60 +2337,41 @@ function renderConversationList(convs){
   const q = (document.getElementById('convSearch')?.value||'').toLowerCase();
   const now = new Date();
   let filtered = [...convs];
-  if(q) filtered = filtered.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q));
-  if(convTabActive==='unread') filtered = filtered.filter(c => c.unread > 0);
-  else if(convTabActive==='starred') filtered = filtered.filter(c => starredChats.has(c.jid));
+  if(q) filtered = filtered.filter(c => c.name.toLowerCase().includes(q)||c.phone.includes(q));
+  if(convTabActive==='unread') filtered = filtered.filter(c=>c.unread>0);
+  else if(convTabActive==='starred') filtered = filtered.filter(c=>starredChats.has(c.jid));
   else if(convTabActive==='recents') filtered = filtered.slice(0,30);
 
   if(!filtered.length){
-    const msgs={unread:'Nenhuma conversa não lida',starred:'Nenhum favorito',recents:'Nenhuma recente',all:'Nenhuma conversa'};
+    const msgs={unread:'Nenhuma não lida',starred:'Nenhum favorito',recents:'Nenhuma recente',all:'Nenhuma conversa'};
     list.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px"><i class="fas fa-inbox" style="font-size:24px;margin-bottom:8px;display:block;opacity:.3"></i>'+(msgs[convTabActive]||msgs.all)+'</div>';
     return;
   }
 
   list.innerHTML = filtered.map(c => {
-    const initials = c.name.split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase() || '?';
+    const initials = c.name.split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase()||'?';
     const color = _avatarColor(c.jid);
-    const isActive = currentChatId === c.jid;
+    const isActive = currentChatId===c.jid;
     const isStarred = starredChats.has(c.jid);
-    const hasUnread = c.unread > 0;
-
-    // Format timestamp
+    const hasUnread = c.unread>0;
     let dateStr = '';
-    const ts = parseInt(c.lastMsg?.timestamp||0);
-    if(ts > 0){
-      const d = new Date(ts > 9999999999 ? ts : ts*1000);
-      const isToday = d.toDateString() === now.toDateString();
-      const isYest = new Date(now-86400000).toDateString() === d.toDateString();
-      if(isToday) dateStr = d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-      else if(isYest) dateStr = 'Ontem';
-      else dateStr = d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+    if(c.ts>0){
+      const d = new Date(c.ts*1000);
+      const isToday = d.toDateString()===now.toDateString();
+      const isYest = new Date(now-86400000).toDateString()===d.toDateString();
+      const isWeek = (now-d)<7*86400000;
+      if(isToday) dateStr=d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      else if(isYest) dateStr='Ontem';
+      else if(isWeek) dateStr=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()];
+      else dateStr=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
     }
-
-    // Preview
-    let preview = c.lastMsg?.content || '';
-    if(!preview){
-      const t = c.lastMsg?.message_type||'';
-      if(t==='imageMessage') preview='📷 Imagem';
-      else if(t==='audioMessage'||t==='pttMessage') preview='🎵 Áudio';
-      else if(t==='videoMessage') preview='🎥 Vídeo';
-      else if(t==='documentMessage') preview='📄 Documento';
-      else preview='💬 Mensagem';
-    }
-    if(c.lastMsg?.from_me==='true'||c.lastMsg?.from_me===true) preview='✓ '+preview;
-
-    const safeName = c.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-    const safePhone = c.phone.replace(/'/g,"\\'");
-
-    return '<div class="conv-item'+(hasUnread?' unread':'')+(isActive?' active':'')+'" onclick="selectConversation(\''+c.jid+'\',\''+safeName+'\',\''+safePhone+'\',this)">'
+    const safeName = c.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return '<div class="conv-item'+(hasUnread?' unread':'')+(isActive?' active':'')+'" onclick="selectConversation(\''+c.jid+'\',\''+safeName+'\',\''+c.phone+'\',this)">'
       +'<div class="conv-avatar" style="background:'+color+'">'+initials+'</div>'
       +'<div class="conv-item-body">'
-        +'<div class="conv-item-top">'
-          +'<div class="conv-item-name">'+(c.hasName?'<strong>'+c.name+'</strong>':c.name)+'</div>'
-          +'<div class="conv-item-date">'+dateStr+'</div>'
-        +'</div>'
+        +'<div class="conv-item-top"><div class="conv-item-name">'+c.name+'</div><div class="conv-item-date">'+dateStr+'</div></div>'
         +'<div class="conv-item-preview-row">'
-          +'<div class="conv-item-preview">'+preview+'</div>'
+          +'<div class="conv-item-preview">'+c.preview+'</div>'
           +'<div style="display:flex;align-items:center;gap:2px;flex-shrink:0">'
             +(hasUnread?'<span class="conv-unread-badge">'+c.unread+'</span>':'')
             +'<span class="conv-star-btn'+(isStarred?' starred':'')+'" onclick="event.stopPropagation();toggleStarChat(\''+c.jid+'\')"><i class="fas fa-star"></i></span>'
@@ -2394,7 +2395,7 @@ function markChatUnread(jid){
   readChats.delete(jid);
   _lsSave('h360_read',readChats);
   const conv = allConversations.find(c=>c.jid===jid);
-  if(conv) conv.unread = conv.msgCount;
+  if(conv) conv.unread = 1;
   renderConversationList(allConversations);
   toast('Marcado como não lida');
 }
@@ -2414,16 +2415,15 @@ function selectConversation(jid, name, phone, el){
   const av = document.getElementById('chatHeaderAvatar');
   av.textContent = initials; av.style.background = color;
   const btn = document.getElementById('chatStarBtn');
-  if(btn) btn.style.color = starredChats.has(jid) ? '#f59e0b' : '';
+  if(btn) btn.style.color = starredChats.has(jid)?'#f59e0b':'';
 
   document.querySelectorAll('.conv-item').forEach(i=>i.classList.remove('active'));
   if(el){ el.classList.add('active'); el.classList.remove('unread'); }
 
   const unreadTotal = allConversations.filter(c=>c.unread>0).length;
   const badge = document.getElementById('unreadTabCount');
-  if(badge) badge.textContent = unreadTotal > 99 ? '99+' : unreadTotal;
+  if(badge) badge.textContent = unreadTotal>99?'99+':unreadTotal;
 
-  // Right panel
   document.getElementById('convContactDetails').innerHTML =
     '<div class="cdp-avatar-wrap"><div class="cdp-avatar" style="background:'+color+'">'+initials+'</div>'
     +'<div class="cdp-cname">'+name+'</div><div class="cdp-cphone">'+phone+'</div></div>'
@@ -2446,94 +2446,10 @@ async function loadMessages(jid){
   const box = document.getElementById('chatMessages');
   box.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try {
-    // Try Evolution API first for full history
-    const evoRes = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam%20Sushi',{
+    const res = await fetch(EVOLUTION_URL+'/chat/findMessages/'+decodeURIComponent(EVO_INSTANCE), {
       method:'POST',
       headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
       body:JSON.stringify({where:{key:{remoteJid:jid}},limit:200})
-    });
-    if(evoRes.ok){
-      const evoData = await evoRes.json();
-      const evoMsgs = Array.isArray(evoData?.messages?.records)?evoData.messages.records
-        :Array.isArray(evoData?.messages)?evoData.messages
-        :Array.isArray(evoData?.records)?evoData.records
-        :Array.isArray(evoData)?evoData:[];
-      if(evoMsgs.length > 0){
-        renderEvolutionMessages(evoMsgs, box);
-        return;
-      }
-    }
-    // Fallback: Supabase wpp_messages
-    const msgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(jid)+'&order=timestamp.asc&limit=500');
-    if(!msgs || !msgs.length){
-      box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>';
-      return;
-    }
-
-    const now = new Date();
-    let html = '';
-    let lastDate = '';
-
-    msgs.forEach(m => {
-      const fromMe = m.from_me === 'true' || m.from_me === true;
-      const ts = parseInt(m.timestamp||0);
-      const msgDate = ts > 0 ? new Date(ts > 9999999999 ? ts : ts*1000) : null;
-
-      if(msgDate){
-        const isToday = msgDate.toDateString()===now.toDateString();
-        const isYest = new Date(now-86400000).toDateString()===msgDate.toDateString();
-        const label = isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
-        if(label !== lastDate){ html += '<div class="msg-date-sep"><span>'+label+'</span></div>'; lastDate = label; }
-      }
-
-      const time = msgDate ? msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
-      const ticks = fromMe ? ' <span style="opacity:.7">✓✓</span>' : '';
-      const content = (m.content||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>') || '<span style="opacity:.5;font-size:11px">['+( m.message_type||'mensagem')+']</span>';
-
-      html += '<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'">'
-        +'<div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'
-        +content
-        +'<div class="msg-time">'+time+ticks+'</div>'
-        +'</div></div>';
-    });
-
-    box.innerHTML = html || '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>';
-    box.scrollTop = box.scrollHeight;
-  } catch(e){
-    box.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px">Erro: '+e.message+'</div>';
-  }
-}
-
-function renderEvolutionMessages(msgs, box){
-  msgs.sort((a,b)=>(a.messageTimestamp||0)-(b.messageTimestamp||0));
-  const now = new Date(); let html=''; let lastDate='';
-  msgs.forEach(m=>{
-    const fromMe=m.key?.fromMe||false;
-    const msgObj=m.message||{};
-    const ts=m.messageTimestamp;
-    const msgDate=ts?new Date(ts*1000):null;
-    if(msgDate){ const isToday=msgDate.toDateString()===now.toDateString(); const isYest=new Date(now-86400000).toDateString()===msgDate.toDateString(); const label=isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'}); if(label!==lastDate){ html+='<div class="msg-date-sep"><span>'+label+'</span></div>'; lastDate=label; } }
-    const time=msgDate?msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
-    const ticks=fromMe?' <span style="opacity:.7">✓✓</span>':'';
-    let content='';
-    if(msgObj.imageMessage) content='<div class="msg-img-ph"><i class="fas fa-image" style="font-size:24px;opacity:.4"></i><span>📷 Imagem</span></div>';
-    else if(msgObj.videoMessage) content='<span>🎥 Vídeo</span>';
-    else if(msgObj.audioMessage||msgObj.pttMessage){ const sec=(msgObj.audioMessage||msgObj.pttMessage).seconds||0; const dur=sec>0?Math.floor(sec/60)+':'+(''+(sec%60)).padStart(2,'0'):''; content='<div class="msg-audio-wrap"><i class="fas fa-microphone" style="font-size:14px;opacity:.7"></i><div class="msg-audio-bar"></div><span style="font-size:11px;opacity:.7">'+(dur||'Áudio')+'</span></div>'; }
-    else if(msgObj.documentMessage) content='<span>📄 '+(msgObj.documentMessage.fileName||'Documento')+'</span>';
-    else { const text=msgObj.conversation||msgObj.extendedTextMessage?.text||''; content=text?text.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>'):'<span style="opacity:.5;font-size:11px">[mensagem]</span>'; }
-    html+='<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'"><div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content+'<div class="msg-time">'+time+ticks+'</div></div></div>';
-  });
-  box.innerHTML = html || '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>';
-  box.scrollTop = box.scrollHeight;
-}
-
-async function loadMessagesFromEvolution(jid){
-  const box = document.getElementById('chatMessages');
-  try {
-    const res = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
-      method:'POST',
-      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({where:{key:{remoteJid:jid}},limit:60})
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
@@ -2543,25 +2459,51 @@ async function loadMessagesFromEvolution(jid){
       :Array.isArray(data)?data:[];
     msgs.sort((a,b)=>(a.messageTimestamp||0)-(b.messageTimestamp||0));
     if(!msgs.length){ box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>'; return; }
-    const now = new Date(); let html=''; let lastDate='';
+    const now=new Date(); let html=''; let lastDate='';
     msgs.forEach(m=>{
       const fromMe=m.key?.fromMe||false;
       const msgObj=m.message||{};
       const ts=m.messageTimestamp;
       const msgDate=ts?new Date(ts*1000):null;
-      if(msgDate){ const isToday=msgDate.toDateString()===now.toDateString(); const isYest=new Date(now-86400000).toDateString()===msgDate.toDateString(); const label=isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'}); if(label!==lastDate){ html+='<div class="msg-date-sep"><span>'+label+'</span></div>'; lastDate=label; } }
+      if(msgDate){
+        const isToday=msgDate.toDateString()===now.toDateString();
+        const isYest=new Date(now-86400000).toDateString()===msgDate.toDateString();
+        const label=isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+        if(label!==lastDate){ html+='<div class="msg-date-sep"><span>'+label+'</span></div>'; lastDate=label; }
+      }
       const time=msgDate?msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
       const ticks=fromMe?' <span style="opacity:.7">✓✓</span>':'';
       let content='';
-      if(msgObj.imageMessage) content='<div class="msg-img-ph"><i class="fas fa-image" style="font-size:24px;opacity:.4"></i><span>📷 Imagem</span></div>';
-      else if(msgObj.videoMessage) content='<span>🎥 Vídeo</span>';
-      else if(msgObj.audioMessage||msgObj.pttMessage) content='<span>🎵 Áudio</span>';
-      else if(msgObj.documentMessage) content='<span>📄 '+(msgObj.documentMessage.fileName||'Documento')+'</span>';
-      else { const text=msgObj.conversation||msgObj.extendedTextMessage?.text||''; content=text?text.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>'):'<span style="opacity:.5;font-size:11px">[mensagem]</span>'; }
+      if(msgObj.imageMessage){ const cap=msgObj.imageMessage.caption||''; content='<div class="msg-img-ph"><i class="fas fa-image" style="font-size:24px;opacity:.4"></i><span>📷 Imagem</span></div>'+(cap?'<div style="margin-top:4px;font-size:12px">'+cap+'</div>':''); }
+      else if(msgObj.videoMessage){ content='<span>🎥 Vídeo</span>'; }
+      else if(msgObj.audioMessage||msgObj.pttMessage){ const sec=(msgObj.audioMessage||msgObj.pttMessage).seconds||0; const dur=sec>0?Math.floor(sec/60)+':'+(''+(sec%60)).padStart(2,'0'):''; content='<div class="msg-audio-wrap"><i class="fas fa-microphone" style="font-size:14px;opacity:.7"></i><div class="msg-audio-bar"></div><span style="font-size:11px;opacity:.7">'+(dur||'Áudio')+'</span></div>'; }
+      else if(msgObj.documentMessage){ content='<span>📄 '+(msgObj.documentMessage.fileName||'Documento')+'</span>'; }
+      else if(msgObj.stickerMessage){ content='<span style="font-size:28px">🎭</span>'; }
+      else if(msgObj.reactionMessage){ content='<span style="font-size:22px">'+(msgObj.reactionMessage.text||'❤️')+'</span>'; }
+      else { const text=msgObj.conversation||msgObj.extendedTextMessage?.text||''; content=text?text.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>'):'<span style="opacity:.5;font-size:11px">['+m.messageType+']</span>'; }
       html+='<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'"><div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content+'<div class="msg-time">'+time+ticks+'</div></div></div>';
     });
-    box.innerHTML=html; box.scrollTop=box.scrollHeight;
-  } catch(e){ box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px">Erro: '+e.message+'</div>'; }
+    box.innerHTML=html;
+    box.scrollTop=box.scrollHeight;
+  } catch(e){
+    // Fallback to Supabase
+    try {
+      const msgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(jid)+'&order=timestamp.asc&limit=500');
+      if(!msgs||!msgs.length){ box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>'; return; }
+      const now=new Date(); let html=''; let lastDate='';
+      msgs.forEach(m=>{
+        const fromMe=m.from_me==='true'||m.from_me===true;
+        const ts=parseInt(m.timestamp||0);
+        const msgDate=ts>0?new Date(ts>9999999999?ts:ts*1000):null;
+        if(msgDate){ const isToday=msgDate.toDateString()===now.toDateString(); const isYest=new Date(now-86400000).toDateString()===msgDate.toDateString(); const label=isToday?'Hoje':isYest?'Ontem':msgDate.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'}); if(label!==lastDate){ html+='<div class="msg-date-sep"><span>'+label+'</span></div>'; lastDate=label; } }
+        const time=msgDate?msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
+        const ticks=fromMe?' <span style="opacity:.7">✓✓</span>':'';
+        const content=(m.content||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')||'<span style="opacity:.5;font-size:11px">[mensagem]</span>';
+        html+='<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'"><div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content+'<div class="msg-time">'+time+ticks+'</div></div></div>';
+      });
+      box.innerHTML=html; box.scrollTop=box.scrollHeight;
+    } catch(e2){ box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px">Erro: '+e.message+'</div>'; }
+  }
 }
 
 async function sendMessage(){
@@ -2572,16 +2514,16 @@ async function sendMessage(){
   const number=currentChatId.split('@')[0];
   input.value='';
   try {
-    const res=await fetch(EVOLUTION_URL+'/message/sendText/Sam Sushi',{method:'POST',headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},body:JSON.stringify({number,text})});
+    const res=await fetch(EVOLUTION_URL+'/message/sendText/'+decodeURIComponent(EVO_INSTANCE),{method:'POST',headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},body:JSON.stringify({number,text})});
     if(!res.ok) throw new Error('HTTP '+res.status);
     toast('Mensagem enviada!');
-    // Add message to chat immediately
     const box=document.getElementById('chatMessages');
     const time=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     box.insertAdjacentHTML('beforeend','<div style="display:flex;justify-content:flex-end"><div class="msg-bubble from-me">'+text.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')+'<div class="msg-time">'+time+' <span style="opacity:.7">✓✓</span></div></div></div>');
     box.scrollTop=box.scrollHeight;
   } catch(e){ toast('Erro ao enviar: '+e.message,'error'); }
 }
+
 
 // ===== SAM SUSHI MODAL PERFIL =====
 function openSSClientModal(oppId, name, phone) {
