@@ -1687,7 +1687,7 @@ function bulkAction(action) {
   if (!ids.length) { toast('Selecione contatos primeiro','error'); return; }
   if (action==='delete') {
     if (!confirm(`Excluir ${ids.length} contato(s)?`)) return;
-    Promise.all(ids.map(id => supaFetch(`contacts?id=eq.${id}`,{method:'DELETE'}))).then(() => { toast(`${ids.length} contato(s) excluído(s)`); clearSelection(); loadContacts(); });
+    Promise.all(ids.map(id => supaFetch(`${getContactsTable()}?id=eq.${id}`,{method:'DELETE'}))).then(() => { toast(`${ids.length} contato(s) excluído(s)`); clearSelection(); loadContacts(); });
   } else if (action==='export') {
     exportSelectedCSV(ids);
   } else {
@@ -1719,6 +1719,7 @@ function exportToCSV(contacts) {
 function toggleSortContacts() { toast('Clique no cabeçalho da coluna para ordenar'); }
 function toggleFilterContacts() { toast('Filtros avançados em breve'); }
 
+function getContactsTable(){ return state.currentCompany === 'samsushi' ? 'contacts_sam_sushi' : 'contacts'; }
 async function loadContacts() {
   const tbody = document.getElementById('contactsBody');
   tbody.innerHTML = '<tr><td colspan="7"><div class="loading"><div class="spinner"></div></div></td></tr>';
@@ -1732,7 +1733,8 @@ async function loadContacts() {
   const sortMap = { name:'first_name', phone:'phone', email:'email', created:'id' };
   const orderCol = sortMap[sortField] || sortField;
 
-  let path = 'contacts?select=id,first_name,last_name,email,phone,tags,created_at';
+  const contactsTable = getContactsTable();
+  let path = `${contactsTable}?select=id,first_name,last_name,email,phone,tags,created_at`;
   if (q) path += `&or=(first_name.ilike.*${encodeURIComponent(q)}*,last_name.ilike.*${encodeURIComponent(q)}*,email.ilike.*${encodeURIComponent(q)}*,phone.ilike.*${encodeURIComponent(q)}*)`;
   if (contactTab === 'noemail') path += '&email=is.null';
   if (contactTab === 'nophone') path += '&phone=is.null';
@@ -1832,14 +1834,14 @@ async function saveContact() {
   const data = { first_name:document.getElementById('cfFirstName').value.trim(), last_name:document.getElementById('cfLastName').value.trim(), phone:document.getElementById('cfPhone').value.trim()||null, email:document.getElementById('cfEmail').value.trim()||null, tags:document.getElementById('cfTags').value.trim()||null };
   if (!data.first_name) { toast('Nome é obrigatório','error'); return; }
   try {
-    if (id) { await supaFetch(`contacts?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(data)}); toast('Contato atualizado!'); }
-    else { await supaFetch('contacts',{method:'POST',body:JSON.stringify(data)}); toast('Contato criado!'); }
-    closeContactModal(); loadContacts(); loadDashboard();
+    if (id) { await supaFetch(`${getContactsTable()}?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(data)}); toast('Contato atualizado!'); }
+    else { await supaFetch(getContactsTable(),{method:'POST',body:JSON.stringify(data)}); toast('Contato criado!'); }
+    closeContactModal(); loadContacts(); if(state.currentCompany!=='samsushi') loadDashboard();
   } catch(e) { toast('Erro ao salvar: '+e.message,'error'); }
 }
 async function deleteContact(id) {
   if (!confirm('Excluir este contato?')) return;
-  try { await supaFetch(`contacts?id=eq.${id}`,{method:'DELETE'}); toast('Contato excluído'); loadContacts(); }
+  try { await supaFetch(`${getContactsTable()}?id=eq.${id}`,{method:'DELETE'}); toast('Contato excluído'); loadContacts(); }
   catch(e) { toast('Erro ao excluir: '+e.message,'error'); }
 }
 document.getElementById('contactModal').addEventListener('click', function(e){ if(e.target===this) closeContactModal(); });
@@ -2222,7 +2224,7 @@ function _lsSave(k,s){ try{ localStorage.setItem(k,JSON.stringify([...s])); }cat
 function _getCustomNames(){
   try{ return JSON.parse(localStorage.getItem('h360_wpp_custom_names')||'{}'); }catch(e){ return {}; }
 }
-function _setCustomName(phone, name){
+function _cacheCustomName(phone, name){
   const map = _getCustomNames();
   const digits = (phone||'').replace(/\D/g,'');
   if(!digits) return;
@@ -2230,10 +2232,34 @@ function _setCustomName(phone, name){
   else delete map[digits];
   try{ localStorage.setItem('h360_wpp_custom_names', JSON.stringify(map)); }catch(e){}
 }
+async function _setCustomName(phone, name){
+  const digits = (phone||'').replace(/\D/g,'');
+  if(!digits) return;
+  _cacheCustomName(phone, name); // resposta visual imediata
+  try{
+    const existing = await supaFetch(`contacts_sam_sushi?phone=eq.${encodeURIComponent('+'+digits)}&select=id`);
+    if(name && name.trim()){
+      if(existing && existing.length){
+        await supaFetch(`contacts_sam_sushi?id=eq.${existing[0].id}`,{method:'PATCH',body:JSON.stringify({first_name:name.trim()})});
+      } else {
+        await supaFetch('contacts_sam_sushi',{method:'POST',body:JSON.stringify({first_name:name.trim(),phone:'+'+digits})});
+      }
+    } else if(existing && existing.length){
+      await supaFetch(`contacts_sam_sushi?id=eq.${existing[0].id}`,{method:'DELETE'});
+    }
+  }catch(e){ console.error('Erro ao salvar nome no Supabase:', e); }
+}
 function _getCustomName(phone){
   const map = _getCustomNames();
   const digits = (phone||'').replace(/\D/g,'');
   return map[digits] || '';
+}
+async function _loadCustomNamesFromSupabase(){
+  try{
+    const rows = await supaFetch('contacts_sam_sushi?select=first_name,last_name,phone');
+    if(!rows) return;
+    rows.forEach(r=>{ if(r.phone) _cacheCustomName(r.phone, (r.first_name+' '+(r.last_name||'')).trim()); });
+  }catch(e){ console.error('Erro ao carregar nomes do Supabase:', e); }
 }
 
 function editChatName(){
@@ -2253,7 +2279,27 @@ function editChatName(){
 let starredChats = _lsGet('h360_starred');
 let readChats    = _lsGet('h360_read');
 
-function _isUnread(c){ return (c.unreadCount > 0) && !readChats.has(c.id||c.remoteJid||''); }
+async function _setUnreadFlag(phone, unread){
+  const digits = (phone||'').replace(/\D/g,'');
+  if(!digits) return;
+  try{
+    const existing = await supaFetch(`contacts_sam_sushi?phone=eq.${encodeURIComponent('+'+digits)}&select=id`);
+    if(existing && existing.length){
+      await supaFetch(`contacts_sam_sushi?id=eq.${existing[0].id}`,{method:'PATCH',body:JSON.stringify({unread})});
+    } else if(unread){
+      await supaFetch('contacts_sam_sushi',{method:'POST',body:JSON.stringify({phone:'+'+digits,unread:true})});
+    }
+  }catch(e){ console.error('Erro ao salvar status de leitura:', e); }
+}
+let _manualUnreadPhones = new Set();
+async function _loadManualUnreadFromSupabase(){
+  try{
+    const rows = await supaFetch('contacts_sam_sushi?unread=eq.true&select=phone');
+    _manualUnreadPhones = new Set((rows||[]).map(r=>(r.phone||'').replace(/\D/g,'')));
+  }catch(e){ console.error('Erro ao carregar status de leitura:', e); _manualUnreadPhones = new Set(); }
+}
+
+function _isUnread(c){ return ((c.unreadCount > 0) || _manualUnreadPhones.has((c.phone||'').replace(/\D/g,''))) && !readChats.has(c.id||c.remoteJid||''); }
 
 function _noiseFilter(cid){
   if(!cid) return true;
@@ -2281,6 +2327,8 @@ async function loadConversations(){
   const list = document.getElementById('convList');
   list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando...</div></div>';
   try {
+    await _loadCustomNamesFromSupabase();
+    await _loadManualUnreadFromSupabase();
     // 1. Busca lista completa na Evolution API
     let evoChats = [];
     try {
@@ -2487,6 +2535,9 @@ function markChatUnread(cid){
   _lsSave('h360_read',readChats);
   const conv = allConversations.find(c=>(c.id||c.remoteJid)===cid);
   if(conv && !(conv.unreadCount>0)) conv.unreadCount = 1;
+  const phone = cid.split('@')[0];
+  _manualUnreadPhones.add(phone.replace(/\D/g,''));
+  _setUnreadFlag(phone, true);
   renderConversationList(allConversations);
   const unreadTotal = allConversations.filter(c=>c.unreadCount>0).length;
   const badge = document.getElementById('unreadTabCount');
@@ -2498,6 +2549,11 @@ function selectConversation(cid, name, phone, el){
   currentChatId = cid;
   readChats.add(cid);
   _lsSave('h360_read',readChats);
+  const digitsOnly = (phone||'').replace(/\D/g,'');
+  if(_manualUnreadPhones.has(digitsOnly)){
+    _manualUnreadPhones.delete(digitsOnly);
+    _setUnreadFlag(phone, false);
+  }
 
   const initials=name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()||'?';
   const color=_avatarColor(name);
