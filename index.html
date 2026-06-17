@@ -2488,6 +2488,9 @@ function markChatUnread(cid){
   const conv = allConversations.find(c=>(c.id||c.remoteJid)===cid);
   if(conv && !(conv.unreadCount>0)) conv.unreadCount = 1;
   renderConversationList(allConversations);
+  const unreadTotal = allConversations.filter(c=>c.unreadCount>0).length;
+  const badge = document.getElementById('unreadTabCount');
+  if(badge) badge.textContent = unreadTotal > 99 ? '99+' : unreadTotal;
   toast('Marcado como não lida');
 }
 
