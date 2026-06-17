@@ -1032,7 +1032,10 @@
               <div class="chat-header">
                 <div class="chat-header-avatar" id="chatHeaderAvatar">?</div>
                 <div style="flex:1;min-width:0">
-                  <div id="chatHeaderName" style="font-size:14px;font-weight:700">Selecione uma conversa</div>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <div id="chatHeaderName" style="font-size:14px;font-weight:700">Selecione uma conversa</div>
+                    <i class="fas fa-pencil-alt" id="chatHeaderEditBtn" onclick="editChatName()" style="font-size:11px;color:var(--gray-400);cursor:pointer;display:none" title="Editar nome"></i>
+                  </div>
                   <div id="chatHeaderPhone" style="font-size:11px;color:var(--gray-500)"></div>
                 </div>
                 <div class="chat-hdr-actions">
@@ -2215,6 +2218,38 @@ let convTabActive = 'unread';
 
 function _lsGet(k){ try{ return new Set(JSON.parse(localStorage.getItem(k)||'[]')); }catch(e){ return new Set(); } }
 function _lsSave(k,s){ try{ localStorage.setItem(k,JSON.stringify([...s])); }catch(e){} }
+
+function _getCustomNames(){
+  try{ return JSON.parse(localStorage.getItem('h360_wpp_custom_names')||'{}'); }catch(e){ return {}; }
+}
+function _setCustomName(phone, name){
+  const map = _getCustomNames();
+  const digits = (phone||'').replace(/\D/g,'');
+  if(!digits) return;
+  if(name && name.trim()) map[digits] = name.trim();
+  else delete map[digits];
+  try{ localStorage.setItem('h360_wpp_custom_names', JSON.stringify(map)); }catch(e){}
+}
+function _getCustomName(phone){
+  const map = _getCustomNames();
+  const digits = (phone||'').replace(/\D/g,'');
+  return map[digits] || '';
+}
+
+function editChatName(){
+  if(!currentChatId) return;
+  const phone = currentChatId.split('@')[0];
+  const current = _getCustomName(phone) || document.getElementById('chatHeaderName').textContent || '';
+  const novo = prompt('Nome do contato:', current==='+'+phone || current==='Selecione uma conversa' ? '' : current);
+  if(novo===null) return;
+  _setCustomName(phone, novo);
+  toast(novo.trim() ? 'Nome salvo!' : 'Nome removido');
+  // Atualiza visualmente sem precisar recarregar tudo
+  const conv = allConversations.find(c=>(c.id||c.remoteJid)===currentChatId);
+  if(conv) conv.name = novo.trim() || (conv.pushName||('+'+phone));
+  selectConversation(currentChatId, (conv?conv.name:novo.trim()||('+'+phone)), phone, document.querySelector('.conv-item.active'));
+  renderConversationList(allConversations);
+}
 let starredChats = _lsGet('h360_starred');
 let readChats    = _lsGet('h360_read');
 
@@ -2323,10 +2358,11 @@ async function loadConversations(){
       }
     });
 
-    // 6. Resolve nomes
+    // 6. Resolve nomes (prioridade: nome customizado > contato Supabase > pushName Evolution > telefone)
     allConversations = Array.from(convMap.values()).map(c => {
+      const customName = _getCustomName(c.phone);
       const contact = contacts.find(ct => ct.phone && ct.phone.replace(/\D/g,'').endsWith(c.phone.replace(/\D/g,'')));
-      const name = contact ? (contact.first_name+' '+(contact.last_name||'')).trim() : (c.pushName||'+'+c.phone);
+      const name = customName || (contact ? (contact.first_name+' '+(contact.last_name||'')).trim() : (c.pushName||'+'+c.phone));
       return { ...c, name, hasSupabase: !!c.lastSupaMsg };
     });
 
@@ -2462,6 +2498,8 @@ function selectConversation(cid, name, phone, el){
   const color=_avatarColor(name);
   document.getElementById('chatHeaderName').textContent=name;
   document.getElementById('chatHeaderPhone').textContent='+'+phone;
+  const editBtn=document.getElementById('chatHeaderEditBtn');
+  if(editBtn) editBtn.style.display='inline-block';
   const av=document.getElementById('chatHeaderAvatar');
   av.textContent=initials; av.style.background=color;
   const btn=document.getElementById('chatStarBtn');
