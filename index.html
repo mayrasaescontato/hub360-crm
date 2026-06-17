@@ -2485,6 +2485,8 @@ function markChatUnread(cid){
   if(!cid) return;
   readChats.delete(cid);
   _lsSave('h360_read',readChats);
+  const conv = allConversations.find(c=>(c.id||c.remoteJid)===cid);
+  if(conv && !(conv.unreadCount>0)) conv.unreadCount = 1;
   renderConversationList(allConversations);
   toast('Marcado como não lida');
 }
