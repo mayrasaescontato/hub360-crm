@@ -1385,6 +1385,9 @@ function toast(msg, type='success') {
   setTimeout(() => el.remove(), 3500);
 }
 
+let _lastMsgTs = 0;
+let _pollingTimer = null;
+
 function initSupabaseRealtime() {
   try {
     const client = window.supabase.createClient(SUPA_URL, SUPA_KEY);
@@ -1408,6 +1411,32 @@ function initSupabaseRealtime() {
       })
       .subscribe();
   } catch(e) { console.warn('Realtime error:', e); }
+
+  // Polling a cada 15s: atualiza lista de conversas e verifica novas mensagens na conversa aberta
+  if(_pollingTimer) clearInterval(_pollingTimer);
+  _pollingTimer = setInterval(async function(){
+    try { loadConversations(); } catch(e){}
+    if(!currentChatId) return;
+    try {
+      const res = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
+        method:'POST',
+        headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({where:{key:{remoteJid:currentChatId}},limit:5,sort:[{messageTimestamp:'desc'}]})
+      });
+      if(!res.ok) return;
+      const data = await res.json();
+      const msgs = Array.isArray(data?.messages?.records)?data.messages.records
+        :Array.isArray(data?.messages)?data.messages
+        :Array.isArray(data?.records)?data.records
+        :Array.isArray(data)?data:[];
+      if(!msgs.length) return;
+      const latestTs = msgs[0].messageTimestamp || 0;
+      if(_lastMsgTs && latestTs > _lastMsgTs){
+        loadMessages(currentChatId);
+      }
+      _lastMsgTs = latestTs;
+    } catch(e){}
+  }, 15000);
 }
 
 async function doLogin() {
@@ -2612,7 +2641,7 @@ async function loadMessages(chatId){
           const evoRes = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
             method:'POST',
             headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-            body:JSON.stringify({where:{key:{remoteJid:chatId}},limit:200})
+            body:JSON.stringify({where:{key:{remoteJid:chatId}},limit:200,sort:[{messageTimestamp:'desc'}]})
           });
           if(evoRes.ok){
             const data=await evoRes.json();
