@@ -2639,7 +2639,7 @@ async function loadMessages(chatId){
         :Array.isArray(data)?data:[];
       msgs.sort((a,b)=>(a.messageTimestamp||0)-(b.messageTimestamp||0));
       if(msgs.length){
-        const now=new Date(); let html=''; let lastDate='';
+        const now=new Date(); let html=''; let lastDate=''; const pendingMedia=[];
         msgs.forEach(m=>{
           const fromMe=m.key?.fromMe||false;
           const msgObj=m.message||{};
@@ -2654,22 +2654,59 @@ async function loadMessages(chatId){
           const time=msgDate?msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
           const ticks=fromMe?' <span style="opacity:.7">✓✓</span>':'';
           let content='';
-          if(msgObj.imageMessage) content='<div class="msg-img-ph"><i class="fas fa-image" style="font-size:24px;opacity:.4"></i><span>📷 Imagem</span></div>';
-          else if(msgObj.videoMessage) content='<span>🎥 Vídeo</span>';
-          else if(msgObj.audioMessage||msgObj.pttMessage) content='<span>🎵 Áudio</span>';
+          let mediaPromiseId='';
+          if(msgObj.imageMessage){
+            mediaPromiseId='med_'+m.key.id;
+            content='<div class="msg-media-ph" id="'+mediaPromiseId+'"><i class="fas fa-image" style="font-size:24px;opacity:.4"></i><span>📷 Carregando imagem...</span></div>';
+          }
+          else if(msgObj.videoMessage){
+            mediaPromiseId='med_'+m.key.id;
+            content='<div class="msg-media-ph" id="'+mediaPromiseId+'"><i class="fas fa-video" style="font-size:24px;opacity:.4"></i><span>🎥 Carregando vídeo...</span></div>';
+          }
+          else if(msgObj.audioMessage||msgObj.pttMessage){
+            mediaPromiseId='med_'+m.key.id;
+            content='<div class="msg-media-ph" id="'+mediaPromiseId+'"><span>🎵 Carregando áudio...</span></div>';
+          }
           else if(msgObj.documentMessage) content='<span>📄 '+(msgObj.documentMessage.fileName||'Documento')+'</span>';
           else { const text=msgObj.conversation||msgObj.extendedTextMessage?.text||''; content=text?text.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>'):'<span style="opacity:.5;font-size:11px">[mensagem]</span>'; }
+          if(mediaPromiseId) pendingMedia.push({ id:mediaPromiseId, key:m.key, type: msgObj.imageMessage?'image':msgObj.videoMessage?'video':'audio' });
           html+='<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'">'
             +'<div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content
             +'<div class="msg-time">'+time+ticks+'</div></div></div>';
         });
-        box.innerHTML=html; box.scrollTop=box.scrollHeight; return;
+        box.innerHTML=html; box.scrollTop=box.scrollHeight;
+        pendingMedia.forEach(pm=>_loadMediaForMessage(pm));
+        return;
       }
     }
 
     box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>';
   } catch(e){
     box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px">Erro: '+e.message+'</div>';
+  }
+}
+
+async function _loadMediaForMessage(pm){
+  const el = document.getElementById(pm.id);
+  if(!el) return;
+  try{
+    const res = await fetch(EVOLUTION_URL+'/chat/getBase64FromMediaMessage/Sam Sushi', {
+      method:'POST',
+      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+      body: JSON.stringify({ message:{ key:pm.key }, convertToMp4:false })
+    });
+    if(!res.ok) throw new Error('falha ao buscar mídia');
+    const data = await res.json();
+    const b64 = data?.base64;
+    const mimetype = data?.mimetype || (pm.type==='image'?'image/jpeg':pm.type==='video'?'video/mp4':'audio/ogg');
+    if(!b64) throw new Error('mídia vazia');
+    const src = 'data:'+mimetype+';base64,'+b64;
+    if(pm.type==='image') el.outerHTML = '<img src="'+src+'" style="max-width:280px;border-radius:8px;display:block" />';
+    else if(pm.type==='video') el.outerHTML = '<video src="'+src+'" controls style="max-width:280px;border-radius:8px;display:block"></video>';
+    else el.outerHTML = '<audio src="'+src+'" controls style="max-width:240px"></audio>';
+  }catch(e){
+    const icon = pm.type==='image'?'📷 Imagem':pm.type==='video'?'🎥 Vídeo':'🎵 Áudio';
+    el.outerHTML = '<span style="opacity:.6;font-size:12px">'+icon+' (indisponível — link expirado)</span>';
   }
 }
 
