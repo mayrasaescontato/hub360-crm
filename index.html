@@ -2604,10 +2604,34 @@ async function loadMessages(chatId){
     // 1. Tenta Supabase primeiro
     const supaMsgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(chatId)+'&order=timestamp.asc&limit=500');
     if(supaMsgs && supaMsgs.length){
-      const now=new Date(); let html=''; let lastDate='';
+      // Se houver mensagens de mídia sem conteúdo, busca os keys reais na Evolution para decodificar depois
+      const hasMedia = supaMsgs.some(m=>!m.content && m.message_type && m.message_type!=='conversation');
+      let evoKeyByTs = {};
+      if(hasMedia){
+        try{
+          const evoRes = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
+            method:'POST',
+            headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+            body:JSON.stringify({where:{key:{remoteJid:chatId}},limit:200})
+          });
+          if(evoRes.ok){
+            const data=await evoRes.json();
+            const evoMsgs=Array.isArray(data?.messages?.records)?data.messages.records
+              :Array.isArray(data?.messages)?data.messages
+              :Array.isArray(data?.records)?data.records
+              :Array.isArray(data)?data:[];
+            evoMsgs.forEach(em=>{
+              const ts=em.messageTimestamp;
+              if(ts) evoKeyByTs[ts]={ key:em.key, message:em.message||{} };
+            });
+          }
+        }catch(e){ console.error('Erro ao buscar mídia Evolution:', e); }
+      }
+      const now=new Date(); let html=''; let lastDate=''; const pendingMedia=[];
       supaMsgs.forEach(m=>{
         const fromMe=m.from_me==='true'||m.from_me===true;
         const ts=parseInt(m.timestamp||0);
+        const tsSec = ts>9999999999?Math.floor(ts/1000):ts;
         const msgDate=ts>0?new Date(ts>9999999999?ts:ts*1000):null;
         if(msgDate){
           const isToday=msgDate.toDateString()===now.toDateString();
@@ -2617,12 +2641,31 @@ async function loadMessages(chatId){
         }
         const time=msgDate?msgDate.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
         const ticks=fromMe?' <span style="opacity:.7">✓✓</span>':'';
-        const content=(m.content||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')||'<span style="opacity:.5;font-size:11px">['+( m.message_type||'mensagem')+']</span>';
+        let content='';
+        let mediaPromiseId='';
+        const isMediaType = m.message_type && ['image','video','audio','imageMessage','videoMessage','audioMessage','pttMessage'].includes(m.message_type);
+        if(!m.content && isMediaType){
+          // tenta achar correspondente exato ou próximo (±2s) na Evolution
+          let match = evoKeyByTs[tsSec] || evoKeyByTs[tsSec+1] || evoKeyByTs[tsSec-1] || evoKeyByTs[tsSec+2] || evoKeyByTs[tsSec-2];
+          const typeNorm = m.message_type.replace('Message','').toLowerCase();
+          mediaPromiseId='med_'+Math.random().toString(36).slice(2);
+          const icon = typeNorm==='image'?'📷':typeNorm==='video'?'🎥':'🎵';
+          if(match){
+            content='<div class="msg-media-ph" id="'+mediaPromiseId+'"><span>'+icon+' Carregando...</span></div>';
+            pendingMedia.push({ id:mediaPromiseId, key:match.key, type: typeNorm==='image'?'image':typeNorm==='video'?'video':'audio' });
+          } else {
+            content='<span style="opacity:.6;font-size:12px">'+icon+' (indisponível — link expirado)</span>';
+          }
+        } else {
+          content=(m.content||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')||'<span style="opacity:.5;font-size:11px">['+( m.message_type||'mensagem')+']</span>';
+        }
         html+='<div style="display:flex;justify-content:'+(fromMe?'flex-end':'flex-start')+'">'
           +'<div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content
           +'<div class="msg-time">'+time+ticks+'</div></div></div>';
       });
-      box.innerHTML=html; box.scrollTop=box.scrollHeight; return;
+      box.innerHTML=html; box.scrollTop=box.scrollHeight;
+      pendingMedia.forEach(pm=>_loadMediaForMessage(pm));
+      return;
     }
 
     // 2. Fallback: Evolution API
