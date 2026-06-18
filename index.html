@@ -1412,10 +1412,9 @@ function initSupabaseRealtime() {
       .subscribe();
   } catch(e) { console.warn('Realtime error:', e); }
 
-  // Polling a cada 15s: atualiza lista de conversas e verifica novas mensagens na conversa aberta
+  // Polling a cada 15s: verifica novas mensagens apenas na conversa aberta
   if(_pollingTimer) clearInterval(_pollingTimer);
   _pollingTimer = setInterval(async function(){
-    try { loadConversations(); } catch(e){}
     if(!currentChatId) return;
     try {
       const res = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
@@ -1433,6 +1432,7 @@ function initSupabaseRealtime() {
       const latestTs = msgs[0].messageTimestamp || 0;
       if(_lastMsgTs && latestTs > _lastMsgTs){
         loadMessages(currentChatId);
+        try { loadConversations(); } catch(e){}
       }
       _lastMsgTs = latestTs;
     } catch(e){}
