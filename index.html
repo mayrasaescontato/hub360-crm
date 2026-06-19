@@ -1420,14 +1420,16 @@ function initSupabaseRealtime() {
       const res = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
         method:'POST',
         headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-        body:JSON.stringify({where:{key:{remoteJid:currentChatId}},limit:200,page:1})
+        body:JSON.stringify({where:{},limit:200,page:1})
       });
       if(!res.ok) return;
       const data = await res.json();
-      const msgs = Array.isArray(data?.messages?.records)?data.messages.records
+      let msgs = Array.isArray(data?.messages?.records)?data.messages.records
         :Array.isArray(data?.messages)?data.messages
         :Array.isArray(data?.records)?data.records
         :Array.isArray(data)?data:[];
+      // Filtro confiável no JS, já que o where.key.remoteJid da Evolution é bugado
+      msgs = msgs.filter(m=>m?.key?.remoteJid===currentChatId);
       if(!msgs.length) return;
       // A Evolution não garante ordenação - pega o maior timestamp do lote
       const latestTs = Math.max(...msgs.map(m=>m.messageTimestamp||0));
@@ -2639,14 +2641,15 @@ async function loadMessages(chatId){
       let evoKeyByTs = {};
       if(hasMedia){
         try{
-          // A Evolution não respeita 'sort' nesse endpoint - busca todas as páginas e combina
+          // O filtro 'where.key.remoteJid' do findMessages é bugado nesta versão da Evolution
+          // (retorna resultados incompletos/incorretos). Busca sem filtro e filtra no JS.
+          let allEvoMsgs = [];
+          let totalPages = 1;
           let evoPage1 = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
             method:'POST',
             headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-            body:JSON.stringify({where:{key:{remoteJid:chatId}},limit:200,page:1})
+            body:JSON.stringify({where:{},limit:200,page:1})
           });
-          let allEvoMsgs = [];
-          let totalPages = 1;
           if(evoPage1.ok){
             const data1=await evoPage1.json();
             totalPages = data1?.messages?.pages || 1;
@@ -2656,13 +2659,13 @@ async function loadMessages(chatId){
               :Array.isArray(data1)?data1:[];
             allEvoMsgs = allEvoMsgs.concat(msgs1);
           }
-          // Busca páginas adicionais (até no máximo 5, por segurança)
-          for(let p=2; p<=Math.min(totalPages,5); p++){
+          // Busca páginas adicionais (até no máximo 8, por segurança - sem filtro traz mais mensagens no total)
+          for(let p=2; p<=Math.min(totalPages,8); p++){
             try{
               const evoResP = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
                 method:'POST',
                 headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-                body:JSON.stringify({where:{key:{remoteJid:chatId}},limit:200,page:p})
+                body:JSON.stringify({where:{},limit:200,page:p})
               });
               if(evoResP.ok){
                 const dataP=await evoResP.json();
@@ -2674,6 +2677,8 @@ async function loadMessages(chatId){
               }
             }catch(e){}
           }
+          // Filtra no JS pelo remoteJid certo (filtro confiável, já que o da API é bugado)
+          allEvoMsgs = allEvoMsgs.filter(em=>em?.key?.remoteJid===chatId);
           allEvoMsgs.forEach(em=>{
             const ts=em.messageTimestamp;
             if(ts) evoKeyByTs[ts]={ key:em.key, message:em.message||{} };
