@@ -2845,7 +2845,8 @@ async function sendMessage(){
   input.value='';
   // Adiciona visualmente imediato
   const box=document.getElementById('chatMessages');
-  const time=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const nowMs=Date.now();
+  const time=new Date(nowMs).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   box.insertAdjacentHTML('beforeend','<div style="display:flex;justify-content:flex-end"><div class="msg-bubble from-me">'+text.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')+'<div class="msg-time">'+time+' <span style="opacity:.7">✓✓</span></div></div></div>');
   box.scrollTop=box.scrollHeight;
   try {
@@ -2856,6 +2857,19 @@ async function sendMessage(){
     });
     if(!res.ok) throw new Error('HTTP '+res.status);
     toast('Mensagem enviada!');
+    // Salva no Supabase para a mensagem não se perder ao recarregar
+    try{
+      await supaFetch('wpp_messages',{
+        method:'POST',
+        body:JSON.stringify({
+          remote_jid: currentChatId,
+          content: text,
+          from_me: 'true',
+          timestamp: String(Math.floor(nowMs/1000)),
+          message_type: 'conversation'
+        })
+      });
+    }catch(e){ console.error('Erro ao salvar mensagem enviada no Supabase:', e); }
   } catch(e){ toast('Erro ao enviar: '+e.message,'error'); }
 }
 
