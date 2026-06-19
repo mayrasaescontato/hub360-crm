@@ -2677,8 +2677,9 @@ async function loadMessages(chatId){
               }
             }catch(e){}
           }
-          // Filtra no JS pelo remoteJid certo (filtro confiável, já que o da API é bugado)
-          allEvoMsgs = allEvoMsgs.filter(em=>em?.key?.remoteJid===chatId);
+          // NÃO filtra por remoteJid aqui: contatos Android frequentemente chegam com JID @lid
+          // (bug conhecido da Evolution/Baileys), diferente do @s.whatsapp.net salvo no Supabase.
+          // O casamento real e seguro é feito por timestamp (±2s) mais abaixo.
           allEvoMsgs.forEach(em=>{
             const ts=em.messageTimestamp;
             if(ts) evoKeyByTs[ts]={ key:em.key, message:em.message||{} };
