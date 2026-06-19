@@ -1452,8 +1452,8 @@ async function doLogin() {
   try {
     const data = await supaAuth(email, pass);
     state.user = data.user; state.token = data.access_token;
-    sessionStorage.setItem('hub360_token', data.access_token);
-    sessionStorage.setItem('hub360_user', JSON.stringify(data.user));
+    localStorage.setItem('hub360_token', data.access_token);
+    localStorage.setItem('hub360_user', JSON.stringify(data.user));
     document.getElementById('sbUserName').textContent = email.split('@')[0];
     document.getElementById('sbAvatar').textContent = email[0].toUpperCase();
     document.getElementById('loginScreen').style.display = 'none';
@@ -1470,7 +1470,7 @@ document.getElementById('loginPass').addEventListener('keypress', e => { if (e.k
 
 async function doLogout() {
   try { await supaSignOut(state.token); } catch(e){}
-  sessionStorage.clear(); state.user = null; state.token = null;
+  localStorage.removeItem('hub360_token'); localStorage.removeItem('hub360_user'); state.user = null; state.token = null;
   document.getElementById('appScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginPass').value = '';
@@ -3010,6 +3010,25 @@ async function saveSSClient() {
 document.addEventListener('click', function(e) {
   if (e.target === document.getElementById('ssClientModal')) closeSSClientModal();
 });
+
+// Restaura sessão salva ao recarregar a página, evitando pedir login de novo
+(function restoreSession(){
+  try{
+    const token = localStorage.getItem('hub360_token');
+    const userRaw = localStorage.getItem('hub360_user');
+    if(token && userRaw){
+      state.user = JSON.parse(userRaw);
+      state.token = token;
+      const email = state.user.email || '';
+      document.getElementById('sbUserName').textContent = email.split('@')[0];
+      document.getElementById('sbAvatar').textContent = (email[0]||'?').toUpperCase();
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('appScreen').style.display = 'block';
+      initApp();
+      initSupabaseRealtime();
+    }
+  }catch(e){ console.warn('Falha ao restaurar sessão:', e); }
+})();
 
 </script>
 </body>
