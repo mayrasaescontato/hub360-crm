@@ -2443,8 +2443,34 @@ async function loadConversations(){
       const customName = _getCustomName(c.phone);
       const contact = contacts.find(ct => ct.phone && ct.phone.replace(/\D/g,'').endsWith(c.phone.replace(/\D/g,'')));
       const name = customName || (contact ? (contact.first_name+' '+(contact.last_name||'')).trim() : (c.pushName||'+'+c.phone));
-      return { ...c, name, hasSupabase: !!c.lastSupaMsg };
+      return { ...c, name, hasSupabase: !!c.lastSupaMsg, _hasContact: !!contact };
     });
+
+    // 6b. Auto-cria na lista de Contatos quem ainda não existe lá (somente Sam Sushi - Alliance é lista fechada de alunos)
+    const newOnes = state.currentCompany === 'samsushi' ? allConversations.filter(c => !c._hasContact && c.phone) : [];
+    if(newOnes.length){
+      (async()=>{
+        for(const c of newOnes){
+          try{
+            const digits = c.phone.replace(/\D/g,'');
+            const phoneFmt = '+'+digits;
+            const already = await supaFetch(`${getContactsTable()}?phone=eq.${encodeURIComponent(phoneFmt)}&select=id`);
+            if(already && already.length) continue;
+            const rawName = (c.pushName||'').trim();
+            const isJustNumber = !rawName || rawName.replace(/\D/g,'')===digits;
+            await supaFetch(getContactsTable(),{
+              method:'POST',
+              body:JSON.stringify({
+                first_name: isJustNumber ? '' : rawName,
+                last_name: '',
+                phone: phoneFmt,
+                tags: 'whatsapp,auto'
+              })
+            });
+          }catch(e){ console.warn('Auto-criação de contato falhou para', c.phone, e); }
+        }
+      })();
+    }
 
     // 7. Ordena por última mensagem mais recente
     allConversations.sort((a,b) => (b.lastTs||0) - (a.lastTs||0));
