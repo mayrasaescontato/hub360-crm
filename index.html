@@ -2803,13 +2803,37 @@ async function _loadMediaForMessage(pm){
     const mimetype = data?.mimetype || (pm.type==='image'?'image/jpeg':pm.type==='video'?'video/mp4':'audio/ogg');
     if(!b64) throw new Error('mídia vazia');
     const src = 'data:'+mimetype+';base64,'+b64;
-    if(pm.type==='image') el.outerHTML = '<img src="'+src+'" style="max-width:280px;border-radius:8px;display:block" />';
+    if(pm.type==='image') el.outerHTML = '<img src="'+src+'" onclick="openImageModal(this.src)" style="max-width:280px;border-radius:8px;display:block;cursor:zoom-in" />';
     else if(pm.type==='video') el.outerHTML = '<video src="'+src+'" controls style="max-width:280px;border-radius:8px;display:block"></video>';
     else el.outerHTML = '<audio src="'+src+'" controls style="max-width:240px"></audio>';
   }catch(e){
     const icon = pm.type==='image'?'📷 Imagem':pm.type==='video'?'🎥 Vídeo':'🎵 Áudio';
     el.outerHTML = '<span style="opacity:.6;font-size:12px">'+icon+' (indisponível — link expirado)</span>';
   }
+}
+
+function openImageModal(src){
+  let modal = document.getElementById('imgZoomModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'imgZoomModal';
+    modal.style = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px;';
+    modal.onclick = function(e){ if(e.target===modal) closeImageModal(); };
+    modal.innerHTML =
+      '<img id="imgZoomTarget" src="" style="max-width:90vw;max-height:80vh;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5)" />' +
+      '<div style="display:flex;gap:12px">' +
+        '<a id="imgZoomDownload" download="imagem.jpg" style="background:var(--gold,#C4A97D);color:#1a2e27;padding:10px 20px;border-radius:8px;font-weight:700;text-decoration:none;cursor:pointer">⬇ Baixar imagem</a>' +
+        '<button onclick="closeImageModal()" style="background:rgba(255,255,255,.15);color:#fff;padding:10px 20px;border-radius:8px;font-weight:700;border:none;cursor:pointer">Fechar</button>' +
+      '</div>';
+    document.body.appendChild(modal);
+  }
+  document.getElementById('imgZoomTarget').src = src;
+  document.getElementById('imgZoomDownload').href = src;
+  modal.style.display = 'flex';
+}
+function closeImageModal(){
+  const modal = document.getElementById('imgZoomModal');
+  if(modal) modal.style.display = 'none';
 }
 
 async function sendMessage(){
