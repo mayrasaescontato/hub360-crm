@@ -1388,16 +1388,46 @@ function toast(msg, type='success') {
 let _lastMsgTs = 0;
 let _pollingTimer = null;
 
+// Registra o Service Worker (necessário para mostrar notificações do sistema)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(e => console.warn('SW falhou:', e));
+}
+
+function requestNotificationPermission(){
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function _notifyNewMessage(msg){
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try{
+    const phone = (msg.remote_jid||'').split('@')[0];
+    const conv = allConversations && allConversations.find(c => (c.id||c.remoteJid) === msg.remote_jid);
+    const title = (conv && conv.name) ? conv.name : ('+'+phone);
+    const isMedia = msg.message_type && msg.message_type !== 'conversation';
+    const body = isMedia ? '📎 Nova mídia recebida' : (msg.content || 'Nova mensagem');
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(title, { body, icon: '/favicon.ico', tag: msg.remote_jid });
+      });
+    } else {
+      new Notification(title, { body, icon: '/favicon.ico', tag: msg.remote_jid });
+    }
+  }catch(e){ console.warn('Erro ao notificar:', e); }
+}
+
 function initSupabaseRealtime() {
   try {
     const client = window.supabase.createClient(SUPA_URL, SUPA_KEY);
     client.channel('wpp_messages')
       .on('postgres_changes', {event:'INSERT',schema:'public',table:'wpp_messages'}, function(payload){
         const msg = payload.new;
+        const fromMe = msg.from_me === 'true' || msg.from_me === true;
         if (currentChatId && currentChatId === msg.remote_jid) {
           const box = document.getElementById('chatMessages');
           if(box) {
-            const fromMe = msg.from_me === 'true' || msg.from_me === true;
             const time = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
             const ticks = fromMe ? ' <span style="opacity:.7">✓✓</span>' : '';
             const content = (msg.content||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')||'<span style="opacity:.5;font-size:11px">[mensagem]</span>';
@@ -1406,6 +1436,10 @@ function initSupabaseRealtime() {
               +'<div class="msg-time">'+time+ticks+'</div></div></div>');
             box.scrollTop = box.scrollHeight;
           }
+        }
+        // Notificação do sistema: só para mensagens recebidas e quando a aba está minimizada/sem foco
+        if(!fromMe && document.hidden){
+          _notifyNewMessage(msg);
         }
         setTimeout(function(){ try{ loadConversations(); }catch(e){} }, 1000);
       })
@@ -1460,6 +1494,7 @@ async function doLogin() {
     document.getElementById('appScreen').style.display = 'block';
     initApp();
     initSupabaseRealtime();
+    requestNotificationPermission();
   } catch(e) {
     err.textContent = e.message || 'E-mail ou senha incorretos.';
     err.style.display = 'block';
@@ -3026,6 +3061,7 @@ document.addEventListener('click', function(e) {
       document.getElementById('appScreen').style.display = 'block';
       initApp();
       initSupabaseRealtime();
+      requestNotificationPermission();
     }
   }catch(e){ console.warn('Falha ao restaurar sessão:', e); }
 })();
