@@ -2763,16 +2763,18 @@ async function loadMessages(chatId){
         const ticks=fromMe?' <span style="opacity:.7">✓✓</span>':'';
         let content='';
         let mediaPromiseId='';
-        const isMediaType = m.message_type && ['image','video','audio','imageMessage','videoMessage','audioMessage','pttMessage'].includes(m.message_type);
+        const isMediaType = m.message_type && ['image','video','audio','document','imageMessage','videoMessage','audioMessage','pttMessage','documentMessage'].includes(m.message_type);
         if(!m.content && isMediaType){
           // tenta achar correspondente exato ou próximo (±2s) na Evolution
           let match = evoKeyByTs[tsSec] || evoKeyByTs[tsSec+1] || evoKeyByTs[tsSec-1] || evoKeyByTs[tsSec+2] || evoKeyByTs[tsSec-2];
           const typeNorm = m.message_type.replace('Message','').toLowerCase();
           mediaPromiseId='med_'+Math.random().toString(36).slice(2);
-          const icon = typeNorm==='image'?'📷':typeNorm==='video'?'🎥':'🎵';
+          const icon = typeNorm==='image'?'📷':typeNorm==='video'?'🎥':typeNorm==='document'?'📄':'🎵';
           if(match){
             content='<div class="msg-media-ph" id="'+mediaPromiseId+'"><span>'+icon+' Carregando...</span></div>';
-            pendingMedia.push({ id:mediaPromiseId, key:match.key, type: typeNorm==='image'?'image':typeNorm==='video'?'video':'audio' });
+            const mType = typeNorm==='image'?'image':typeNorm==='video'?'video':typeNorm==='document'?'document':'audio';
+            const fileName = match.message?.documentMessage?.fileName || '';
+            pendingMedia.push({ id:mediaPromiseId, key:match.key, type: mType, fileName: fileName });
           } else {
             content='<span style="opacity:.6;font-size:12px">'+icon+' (indisponível — link expirado)</span>';
           }
@@ -2861,14 +2863,18 @@ async function _loadMediaForMessage(pm){
     if(!res.ok) throw new Error('falha ao buscar mídia');
     const data = await res.json();
     const b64 = data?.base64;
-    const mimetype = data?.mimetype || (pm.type==='image'?'image/jpeg':pm.type==='video'?'video/mp4':'audio/ogg');
+    const mimetype = data?.mimetype || (pm.type==='image'?'image/jpeg':pm.type==='video'?'video/mp4':pm.type==='document'?'application/octet-stream':'audio/ogg');
     if(!b64) throw new Error('mídia vazia');
     const src = 'data:'+mimetype+';base64,'+b64;
     if(pm.type==='image') el.outerHTML = '<img src="'+src+'" onclick="openImageModal(this.src)" style="max-width:280px;border-radius:8px;display:block;cursor:zoom-in" />';
     else if(pm.type==='video') el.outerHTML = '<video src="'+src+'" controls style="max-width:280px;border-radius:8px;display:block"></video>';
+    else if(pm.type==='document'){
+      const fname = pm.fileName || 'documento';
+      el.outerHTML = '<a href="'+src+'" download="'+fname.replace(/"/g,'')+'" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit"><span style="font-size:20px">📄</span><span style="text-decoration:underline">'+fname+'</span></a>';
+    }
     else el.outerHTML = '<audio src="'+src+'" controls style="max-width:240px"></audio>';
   }catch(e){
-    const icon = pm.type==='image'?'📷 Imagem':pm.type==='video'?'🎥 Vídeo':'🎵 Áudio';
+    const icon = pm.type==='image'?'📷 Imagem':pm.type==='video'?'🎥 Vídeo':pm.type==='document'?'📄 Documento':'🎵 Áudio';
     el.outerHTML = '<span style="opacity:.6;font-size:12px">'+icon+' (indisponível — link expirado)</span>';
   }
 }
