@@ -1513,9 +1513,16 @@ async function doLogout() {
 }
 
 function initApp() {
+  let savedPage = null;
+  let savedChat = null;
   try{
     const savedCo = localStorage.getItem('hub360_company');
     const savedName = localStorage.getItem('hub360_company_name');
+    // Lê a página/conversa salvas ANTES de chamar renderNav(), porque renderNav()
+    // força showPage('samsushi',...) como efeito colateral para a empresa Sam Sushi,
+    // o que sobrescreveria hub360_page se lêssemos depois.
+    savedPage = localStorage.getItem('hub360_page');
+    savedChat = JSON.parse(localStorage.getItem('hub360_chat')||'null');
     if(savedCo && savedName){
       state.currentCompany = savedCo;
       state.currentCompanyName = savedName.split(' ').slice(0,2).join(' ');
@@ -1527,8 +1534,6 @@ function initApp() {
   }catch(e){}
   renderNav();
   const firstItem = document.querySelector('#sidebarNav .sb-item');
-  let savedPage = null;
-  try{ savedPage = localStorage.getItem('hub360_page'); }catch(e){}
   let navEl = null;
   if(savedPage){
     navEl = document.querySelector(`#sidebarNav .sb-item[onclick*="showPage('${savedPage}'"]`);
@@ -1544,13 +1549,8 @@ function initApp() {
     loadDashboard();
   }
   // Reabre a conversa que estava aberta antes de atualizar (só faz sentido na página de conversas)
-  if(savedPage==='conversations'){
-    try{
-      const savedChat = JSON.parse(localStorage.getItem('hub360_chat')||'null');
-      if(savedChat && savedChat.cid){
-        setTimeout(()=>{ selectConversation(savedChat.cid, savedChat.name, savedChat.phone, null); }, 600);
-      }
-    }catch(e){}
+  if(savedPage==='conversations' && savedChat && savedChat.cid){
+    setTimeout(()=>{ selectConversation(savedChat.cid, savedChat.name, savedChat.phone, null); }, 600);
   }
   loadOpps(); loadCustomStages();
 }
