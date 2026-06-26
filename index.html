@@ -1512,7 +1512,31 @@ async function doLogout() {
   toast('Você saiu da conta.');
 }
 
-function initApp() { renderNav(); loadDashboard(); loadOpps(); loadCustomStages(); }
+function initApp() {
+  try{
+    const savedCo = localStorage.getItem('hub360_company');
+    const savedName = localStorage.getItem('hub360_company_name');
+    if(savedCo && savedName){
+      state.currentCompany = savedCo;
+      state.currentCompanyName = savedName.split(' ').slice(0,2).join(' ');
+      document.getElementById('sbCompanyName').innerHTML = `${state.currentCompanyName} <i class="fas fa-chevron-down" style="font-size:10px"></i>`;
+      document.querySelectorAll('.cd-item').forEach(i=>{
+        i.classList.toggle('active', i.getAttribute('onclick')&&i.getAttribute('onclick').includes("'"+savedCo+"'"));
+      });
+    }
+  }catch(e){}
+  renderNav();
+  const firstItem = document.querySelector('#sidebarNav .sb-item');
+  if (state.currentCompany === 'ezmoney') {
+    showPage('ezmoney', firstItem);
+  } else if (state.currentCompany === 'samsushi') {
+    showPage('samsushi', firstItem);
+  } else {
+    showPage('dashboard', firstItem);
+    loadDashboard();
+  }
+  loadOpps(); loadCustomStages();
+}
 
 function showPage(name, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1547,6 +1571,7 @@ document.addEventListener('click', e => { if (!e.target.closest('.sb-company')) 
 function selectCompany(id, name, e) {
   e.stopPropagation();
   state.currentCompany = id; state.currentCompanyName = name.split(' ').slice(0,2).join(' ');
+  try{ localStorage.setItem('hub360_company', id); localStorage.setItem('hub360_company_name', name); }catch(err){}
   document.getElementById('sbCompanyName').innerHTML = `${state.currentCompanyName} <i class="fas fa-chevron-down" style="font-size:10px"></i>`;
   document.querySelectorAll('.cd-item').forEach(i => i.classList.remove('active'));
   e.currentTarget.classList.add('active');
