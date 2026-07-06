@@ -3102,7 +3102,8 @@ async function stopAndSendAudio(){
     _mediaRecorder.stop();
   });
   _stopRecordingUI();
-  const blob = new Blob(_audioChunks, {type:'audio/ogg; codecs=opus'});
+  const mimeUsed = _mediaRecorder.mimeType || 'audio/webm';
+  const blob = new Blob(_audioChunks, {type: mimeUsed});
   _audioChunks=[];
   const b64 = await new Promise((res,rej)=>{
     const reader=new FileReader();
@@ -3113,16 +3114,25 @@ async function stopAndSendAudio(){
   const number = currentChatId.split('@')[0];
   const box = document.getElementById('chatMessages');
   const time = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  const src = 'data:audio/ogg;base64,'+b64;
+  const src = URL.createObjectURL(blob);
   box.insertAdjacentHTML('beforeend','<div style="display:flex;justify-content:flex-end"><div class="msg-bubble from-me"><audio src="'+src+'" controls style="max-width:220px"></audio><div class="msg-time">'+time+' <span style="opacity:.7">✓✓</span></div></div></div>');
   box.scrollTop=box.scrollHeight;
   try{
-    const res = await fetch(EVOLUTION_URL+'/message/sendMedia/Sam Sushi',{
+    // Usa sendWhatsAppAudio que aceita qualquer formato e converte pra PTT
+    const res = await fetch(EVOLUTION_URL+'/message/sendWhatsAppAudio/Sam Sushi',{
       method:'POST',
       headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({number, mediatype:'audio', mimetype:'audio/ogg; codecs=opus', media:b64, fileName:'audio.ogg', caption:''})
+      body:JSON.stringify({number, audio: b64, encoding: true})
     });
-    if(!res.ok) throw new Error('HTTP '+res.status);
+    if(!res.ok){
+      // Fallback: tenta sendMedia com ptt:true
+      const res2 = await fetch(EVOLUTION_URL+'/message/sendMedia/Sam Sushi',{
+        method:'POST',
+        headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({number, mediatype:'audio', mimetype: mimeUsed, media:b64, fileName:'audio.ogg', caption:'', ptt: true})
+      });
+      if(!res2.ok) throw new Error('HTTP '+res2.status);
+    }
     toast('Áudio enviado!');
     try{
       await supaFetch('wpp_messages',{method:'POST',body:JSON.stringify({
