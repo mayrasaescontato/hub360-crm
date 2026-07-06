@@ -1048,6 +1048,8 @@
                 <div style="text-align:center;padding:60px 20px;color:var(--gray-400)"><i class="fas fa-comments" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i><div style="font-size:13px">Selecione uma conversa</div></div>
               </div>
               <div class="chat-input-area">
+                <input type="file" id="mediaFileInput" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" style="display:none" onchange="sendMediaMessage(this)">
+                <button onclick="document.getElementById('mediaFileInput').click()" title="Enviar mídia" style="background:none;border:none;cursor:pointer;color:var(--gray-400);font-size:18px;padding:0 8px;line-height:1;flex-shrink:0" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--gray-400)'"><i class="fas fa-paperclip"></i></button>
                 <textarea id="msgInput" placeholder="Digite uma mensagem... (Enter para enviar)" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"></textarea>
                 <button onclick="sendMessage()" class="btn btn-primary"><i class="fas fa-paper-plane"></i></button>
               </div>
@@ -2982,6 +2984,74 @@ async function sendMessage(){
       });
     }catch(e){ console.error('Erro ao salvar mensagem enviada no Supabase:', e); }
   } catch(e){ toast('Erro ao enviar: '+e.message,'error'); }
+}
+
+async function sendMediaMessage(input){
+  if(!currentChatId){ toast('Selecione uma conversa primeiro','error'); input.value=''; return; }
+  const file = input.files[0];
+  if(!file){ return; }
+  input.value='';
+  const number = currentChatId.split('@')[0];
+  const mime = file.type;
+  const fileName = file.name;
+
+  // Determina tipo e endpoint da Evolution
+  let mediaType, endpoint;
+  if(mime.startsWith('image/'))       { mediaType='image';    endpoint='sendMedia'; }
+  else if(mime.startsWith('video/'))  { mediaType='video';    endpoint='sendMedia'; }
+  else if(mime.startsWith('audio/'))  { mediaType='audio';    endpoint='sendMedia'; }
+  else                                { mediaType='document'; endpoint='sendMedia'; }
+
+  // Converte para base64
+  const b64 = await new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  // Mostra preview imediato
+  const box = document.getElementById('chatMessages');
+  const time = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const src = 'data:'+mime+';base64,'+b64;
+  let previewHtml;
+  if(mediaType==='image')         previewHtml = '<img src="'+src+'" style="max-width:220px;border-radius:8px;display:block">';
+  else if(mediaType==='video')    previewHtml = '<video src="'+src+'" controls style="max-width:220px;border-radius:8px;display:block"></video>';
+  else if(mediaType==='audio')    previewHtml = '<audio src="'+src+'" controls style="max-width:220px"></audio>';
+  else                            previewHtml = '<span>📄 '+fileName+'</span>';
+  box.insertAdjacentHTML('beforeend','<div style="display:flex;justify-content:flex-end"><div class="msg-bubble from-me">'+previewHtml+'<div class="msg-time">'+time+' <span style="opacity:.7">✓✓</span></div></div></div>');
+  box.scrollTop = box.scrollHeight;
+
+  try{
+    const body = {
+      number,
+      mediatype: mediaType,
+      mimetype: mime,
+      media: b64,
+      fileName: fileName,
+      caption: ''
+    };
+    const res = await fetch(EVOLUTION_URL+'/message/'+endpoint+'/Sam Sushi',{
+      method:'POST',
+      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    toast('Mídia enviada!');
+    // Salva no Supabase
+    try{
+      await supaFetch('wpp_messages',{
+        method:'POST',
+        body:JSON.stringify({
+          remote_jid: currentChatId,
+          content: fileName,
+          from_me: 'true',
+          timestamp: String(Math.floor(Date.now()/1000)),
+          message_type: mediaType+'Message'
+        })
+      });
+    }catch(e){ console.error('Erro ao salvar mídia no Supabase:',e); }
+  }catch(e){ toast('Erro ao enviar mídia: '+e.message,'error'); }
 }
 
 // ===== SAM SUSHI MODAL PERFIL =====
