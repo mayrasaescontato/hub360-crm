@@ -2590,6 +2590,15 @@ function setConvTab(tab, el){
 }
 
 async function loadConversations(){
+  if(state.currentCompany !== 'samsushi'){
+    document.getElementById('convInstanceLabel').textContent = state.currentCompanyName || 'Não conectado';
+    const list = document.getElementById('convList');
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px"><i class="fab fa-whatsapp" style="font-size:24px;margin-bottom:8px;display:block;opacity:.3"></i>WhatsApp ainda não conectado para '+(state.currentCompanyName||'esta empresa')+'.<br><small>Configure a instância do Evolution API para habilitar as conversas.</small></div>';
+    document.getElementById('chatHeaderName').textContent = '—';
+    document.getElementById('chatHeaderPhone').textContent = '';
+    document.getElementById('convContactDetails').innerHTML = '';
+    return;
+  }
   document.getElementById('convInstanceLabel').textContent = 'Sam Sushi';
   const list = document.getElementById('convList');
   list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando...</div></div>';
