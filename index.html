@@ -6,6 +6,7 @@
 <title>Hub 360 — CRM</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://sdk.twilio.com/js/voice/releases/2.12.3/twilio.min.js"></script>
 <style>
   :root {
     --green: #1a2e27;
@@ -80,6 +81,47 @@
     color:#F5F0E8; font-weight:600; font-size:14px; transition:background .2s, transform .1s;
   }
   .welcome-card:hover { background:rgba(196,169,125,0.18); transform:translateY(-2px); }
+
+  /* ===== DISCADOR (Twilio Voice) ===== */
+  #callWidget {
+    display:none; position:fixed; bottom:20px; right:20px; width:300px;
+    background:#1a2e27; border:1px solid rgba(196,169,125,0.35); border-radius:14px;
+    box-shadow:0 20px 50px rgba(0,0,0,0.4); z-index:9999; color:#F5F0E8; overflow:hidden;
+    font-family:'Segoe UI', system-ui, sans-serif;
+  }
+  #callWidget .cw-header {
+    padding:14px 16px; border-bottom:1px solid rgba(255,255,255,0.08);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  #callWidget .cw-title { font-size:11px; color:rgba(255,255,255,0.5); text-transform:uppercase; letter-spacing:.6px; }
+  #callWidget .cw-close { cursor:pointer; color:rgba(255,255,255,0.4); font-size:14px; }
+  #callWidget .cw-body { padding:18px 16px; text-align:center; }
+  #callWidget .cw-avatar {
+    width:56px; height:56px; border-radius:50%; margin:0 auto 10px; background:var(--gold);
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:20px; color:#1a2e27;
+  }
+  #callWidget .cw-name { font-weight:700; font-size:15px; }
+  #callWidget .cw-number { font-size:12px; color:rgba(255,255,255,0.5); margin-top:2px; }
+  #callWidget .cw-status { margin-top:10px; font-size:12px; color:var(--gold); font-weight:600; }
+  #callWidget .cw-status.ringing { animation:cwPulse 1.2s infinite; }
+  @keyframes cwPulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+  #callWidget .cw-dialpad {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:16px 0;
+  }
+  #callWidget .cw-key {
+    background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px;
+    padding:10px 0; font-size:15px; font-weight:600; cursor:pointer; color:#F5F0E8;
+  }
+  #callWidget .cw-key:hover { background:rgba(196,169,125,0.2); }
+  #callWidget .cw-actions { display:flex; gap:10px; justify-content:center; margin-top:6px; }
+  #callWidget .cw-btn {
+    width:48px; height:48px; border-radius:50%; border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:18px; color:#fff;
+  }
+  #callWidget .cw-btn.hangup { background:#dc2626; }
+  #callWidget .cw-btn.hangup:hover { background:#b91c1c; }
+  #callWidget .cw-btn.mute { background:rgba(255,255,255,0.1); color:#F5F0E8; }
+  #callWidget .cw-btn.mute.active { background:var(--gold); color:#1a2e27; }
 
   /* ===== LAYOUT ===== */
   #appScreen { display:none; }
@@ -1583,6 +1625,7 @@ function enterCompanyFromWelcome(id, name){
   initApp();
   initSupabaseRealtime();
   requestNotificationPermission();
+  initTwilioDevice();
 }
 
 function initApp() {
@@ -3321,27 +3364,70 @@ async function sendMediaMessage(input){
   }catch(e){ toast('Erro ao enviar mídia: '+e.message,'error'); }
 }
 
+let twilioDevice = null;
+let activeCall = null;
+
+async function initTwilioDevice(){
+  try{
+    const res = await fetch('/api/token');
+    const data = await res.json();
+    if(!res.ok) { console.warn('Token Twilio falhou:', data.error); return; }
+    if(twilioDevice){ try{ twilioDevice.destroy(); }catch(e){} }
+    twilioDevice = new Twilio.Device(data.token, { logLevel: 'error' });
+    twilioDevice.on('error', (e)=> console.warn('Twilio Device erro:', e.message));
+    await twilioDevice.register();
+  }catch(e){ console.warn('initTwilioDevice falhou:', e); }
+}
+
+function showCallWidget(name, phone){
+  const initials=(name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()||'?';
+  document.getElementById('cwAvatar').textContent = initials;
+  document.getElementById('cwName').textContent = name || phone;
+  document.getElementById('cwNumber').textContent = phone;
+  document.getElementById('cwStatus').textContent = 'Chamando...';
+  document.getElementById('cwStatus').classList.add('ringing');
+  document.getElementById('cwDialpad').style.display = 'none';
+  document.getElementById('callWidget').style.display = 'block';
+}
+function hideCallWidget(){ document.getElementById('callWidget').style.display = 'none'; }
+
 async function makeCall(phone){
   if(!phone){ toast('Número de telefone não disponível','error'); return; }
-  // Normaliza o número: garante que começa com +
   let number = phone.replace(/\s/g,'');
   if(!number.startsWith('+')) number = '+'+number;
   const btn = document.getElementById('callBtn_'+number.replace(/\+/g,''));
   if(btn){ btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>'; }
   try{
-    const res = await fetch('/api/call', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({to: number})
+    if(!twilioDevice){ await initTwilioDevice(); }
+    if(!twilioDevice){ toast('Discador indisponível — verifique as chaves do Twilio no Vercel','error'); return; }
+    const name = document.getElementById('chatHeaderName') ? document.getElementById('chatHeaderName').textContent : number;
+    showCallWidget(name, number);
+    activeCall = await twilioDevice.connect({ params: { To: number } });
+    activeCall.on('accept', ()=>{
+      document.getElementById('cwStatus').textContent = 'Em ligação';
+      document.getElementById('cwStatus').classList.remove('ringing');
+      document.getElementById('cwDialpad').style.display = 'grid';
     });
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.error||'Erro ao ligar');
-    toast('Ligação iniciada para '+number+'!');
+    activeCall.on('disconnect', ()=>{ hideCallWidget(); activeCall=null; });
+    activeCall.on('cancel', ()=>{ hideCallWidget(); activeCall=null; });
+    activeCall.on('reject', ()=>{ toast('Chamada rejeitada','error'); hideCallWidget(); activeCall=null; });
+    activeCall.on('error', (e)=>{ toast('Erro na ligação: '+e.message,'error'); hideCallWidget(); activeCall=null; });
   }catch(e){
     toast('Erro: '+e.message,'error');
+    hideCallWidget();
   }finally{
     if(btn){ btn.disabled=false; btn.innerHTML='<i class="fas fa-phone"></i>'; }
   }
+}
+
+function cwHangup(){ if(activeCall){ activeCall.disconnect(); } hideCallWidget(); }
+function cwSendDigit(d){ if(activeCall){ activeCall.sendDigits(d); } }
+function cwToggleMute(){
+  if(!activeCall) return;
+  const btn = document.getElementById('cwMuteBtn');
+  const muted = !activeCall.isMuted();
+  activeCall.mute(muted);
+  btn.classList.toggle('active', muted);
 }
 
 // ===== SAM SUSHI MODAL PERFIL =====
@@ -3465,5 +3551,29 @@ document.addEventListener('click', function(e) {
 })();
 
 </script>
+<!-- ===== DISCADOR (Twilio Voice) ===== -->
+<div id="callWidget">
+  <div class="cw-header">
+    <span class="cw-title">Ligação</span>
+    <span class="cw-close" onclick="hideCallWidget()">✕</span>
+  </div>
+  <div class="cw-body">
+    <div class="cw-avatar" id="cwAvatar">?</div>
+    <div class="cw-name" id="cwName">—</div>
+    <div class="cw-number" id="cwNumber">—</div>
+    <div class="cw-status ringing" id="cwStatus">Chamando...</div>
+    <div class="cw-dialpad" id="cwDialpad" style="display:none">
+      <div class="cw-key" onclick="cwSendDigit('1')">1</div><div class="cw-key" onclick="cwSendDigit('2')">2</div><div class="cw-key" onclick="cwSendDigit('3')">3</div>
+      <div class="cw-key" onclick="cwSendDigit('4')">4</div><div class="cw-key" onclick="cwSendDigit('5')">5</div><div class="cw-key" onclick="cwSendDigit('6')">6</div>
+      <div class="cw-key" onclick="cwSendDigit('7')">7</div><div class="cw-key" onclick="cwSendDigit('8')">8</div><div class="cw-key" onclick="cwSendDigit('9')">9</div>
+      <div class="cw-key" onclick="cwSendDigit('*')">*</div><div class="cw-key" onclick="cwSendDigit('0')">0</div><div class="cw-key" onclick="cwSendDigit('#')">#</div>
+    </div>
+    <div class="cw-actions">
+      <button class="cw-btn mute" id="cwMuteBtn" onclick="cwToggleMute()" title="Mudo"><i class="fas fa-microphone"></i></button>
+      <button class="cw-btn hangup" onclick="cwHangup()" title="Encerrar"><i class="fas fa-phone-slash"></i></button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
