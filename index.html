@@ -1436,6 +1436,17 @@ function _notifyNewMessage(msg){
 }
 
 function initSupabaseRealtime() {
+  // Recarrega conversas ao recuperar foco da aba (resolve mensagens perdidas quando estava fechado)
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden){
+      try{ loadConversations(); }catch(e){}
+      if(currentChatId) try{ loadMessages(currentChatId); }catch(e){}
+    }
+  });
+  window.addEventListener('focus', function(){
+    try{ loadConversations(); }catch(e){}
+    if(currentChatId) try{ loadMessages(currentChatId); }catch(e){}
+  });
   try {
     const client = window.supabase.createClient(SUPA_URL, SUPA_KEY);
     client.channel('wpp_messages')
@@ -1463,9 +1474,10 @@ function initSupabaseRealtime() {
       .subscribe();
   } catch(e) { console.warn('Realtime error:', e); }
 
-  // Polling a cada 15s: verifica novas mensagens apenas na conversa aberta
+  // Polling a cada 20s: verifica novas mensagens na conversa aberta E na lista
   if(_pollingTimer) clearInterval(_pollingTimer);
   _pollingTimer = setInterval(async function(){
+    try { loadConversations(); } catch(e){}
     if(!currentChatId) return;
     try {
       const res = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
@@ -1479,18 +1491,15 @@ function initSupabaseRealtime() {
         :Array.isArray(data?.messages)?data.messages
         :Array.isArray(data?.records)?data.records
         :Array.isArray(data)?data:[];
-      // Filtro confiável no JS, já que o where.key.remoteJid da Evolution é bugado
       msgs = msgs.filter(m=>m?.key?.remoteJid===currentChatId);
       if(!msgs.length) return;
-      // A Evolution não garante ordenação - pega o maior timestamp do lote
       const latestTs = Math.max(...msgs.map(m=>m.messageTimestamp||0));
       if(_lastMsgTs && latestTs > _lastMsgTs){
         loadMessages(currentChatId);
-        try { loadConversations(); } catch(e){}
       }
       _lastMsgTs = latestTs;
     } catch(e){}
-  }, 15000);
+  }, 20000);
 }
 
 async function doLogin() {
