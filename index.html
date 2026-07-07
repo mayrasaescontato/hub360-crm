@@ -2740,7 +2740,8 @@ function renderConversationList(convs){
     const cid = c.id||c.remoteJid||'';
     const name = c.name||c.pushName||'+'+c.phone||'Desconhecido';
     const phone = c.phone||cid.split('@')[0];
-    const initials = name.split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase()||'?';
+    const isPhoneOnly = /^\+?\d[\d\s]*$/.test(name.trim());
+    const initials = isPhoneOnly ? '' : (name.split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase()||'?');
     const color = _avatarColor(cid);
     const safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
@@ -2792,7 +2793,7 @@ function renderConversationList(convs){
     const isActive = currentChatId===cid;
 
     return '<div class="conv-item'+(unreadNum>0?' unread':'')+(isActive?' active':'')+'" onclick="selectConversation(\''+cid+'\',\''+safeName+'\',\''+phone+'\',this)">'
-      +'<div class="conv-avatar" style="background:'+color+'">'+initials+'</div>'
+      +'<div class="conv-avatar" style="background:'+color+'">'+(initials||'<i class="fas fa-phone" style="font-size:12px"></i>')+'</div>'
       +'<div class="conv-item-body">'
         +'<div class="conv-item-top">'
           +'<div class="conv-item-name">'+name+'</div>'
@@ -2880,7 +2881,7 @@ function selectConversation(cid, name, phone, el){
       +'<div style="font-size:12px;color:var(--gray-400);margin-top:2px">+'+phone+'</div>'
       // Ícones de ação rápida
       +'<div style="display:flex;gap:10px;margin-top:12px">'
-        +'<button title="Ligar" id="callBtn_'+phone.replace(/\+/g,'')+'" onclick="makeCall(\'+'+phone+'\')" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--gray-200);background:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--gray-500)" onmouseover="this.style.background=\'var(--accent)\';this.style.color=\'#fff\';this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.background=\'#fff\';this.style.color=\'var(--gray-500)\';this.style.borderColor=\'var(--gray-200)\'"><i class="fas fa-phone"></i></button>'
+        +'<button title="Ligar" id="callBtn_'+phone.replace(/\+/g,'')+'" onclick="makeCall(\'+'+phone+'\',\''+String(name||'').replace(/'/g,"\\'")+'\')" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--gray-200);background:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--gray-500)" onmouseover="this.style.background=\'var(--accent)\';this.style.color=\'#fff\';this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.background=\'#fff\';this.style.color=\'var(--gray-500)\';this.style.borderColor=\'var(--gray-200)\'"><i class="fas fa-phone"></i></button>'
         +'<button title="Estrelar conversa" onclick="toggleStar(\''+cid+'\')" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--gray-200);background:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--gray-500)" onmouseover="this.style.background=\'var(--accent)\';this.style.color=\'#fff\';this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.background=\'#fff\';this.style.color=\'var(--gray-500)\';this.style.borderColor=\'var(--gray-200)\'"><i class="fas fa-star"></i></button>'
         +'<button title="Marcar não lida" onclick="markChatUnread(\''+cid+'\')" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--gray-200);background:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--gray-500)" onmouseover="this.style.background=\'var(--accent)\';this.style.color=\'#fff\';this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.background=\'#fff\';this.style.color=\'var(--gray-500)\';this.style.borderColor=\'var(--gray-200)\'"><i class="fas fa-envelope"></i></button>'
       +'</div>'
@@ -3432,7 +3433,7 @@ function showCallWidget(name, phone){
 }
 function hideCallWidget(){ document.getElementById('callWidget').style.display = 'none'; }
 
-async function makeCall(phone){
+async function makeCall(phone, contactName){
   if(!phone){ toast('Número de telefone não disponível','error'); return; }
   let number = phone.replace(/\s/g,'');
   if(!number.startsWith('+')) number = '+'+number;
@@ -3441,7 +3442,8 @@ async function makeCall(phone){
   try{
     if(!twilioDevice){ await initTwilioDevice(); }
     if(!twilioDevice){ toast('Discador indisponível — verifique as chaves do Twilio no Vercel','error'); return; }
-    const name = document.getElementById('chatHeaderName') ? document.getElementById('chatHeaderName').textContent : number;
+    try{ await navigator.mediaDevices.getUserMedia({ audio: true }); }catch(micErr){ toast('Permita o microfone para o navegador nas configurações do Safari','error'); if(btn){ btn.disabled=false; btn.innerHTML='<i class="fas fa-phone"></i>'; } return; }
+    const name = (contactName && contactName.trim()) ? contactName.trim() : number;
     showCallWidget(name, number);
     activeCall = await twilioDevice.connect({ params: { To: number } });
     activeCall.on('accept', ()=>{
