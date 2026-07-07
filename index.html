@@ -63,6 +63,24 @@
   .login-btn:active { transform:scale(0.98); }
   .login-error { color:#f87171; font-size:13px; text-align:center; margin-top:8px; display:none; }
 
+  /* ===== WELCOME (seleção de empresa) ===== */
+  #welcomeScreen {
+    display:none; align-items:center; justify-content:center;
+    min-height:100vh; background: linear-gradient(135deg, #0d1f1a 0%, #1a2e27 60%, #243d34 100%);
+  }
+  .welcome-box {
+    background: rgba(255,255,255,0.04); border:1px solid rgba(196,169,125,0.2);
+    border-radius:16px; padding:48px 40px; width:520px; backdrop-filter:blur(20px);
+    box-shadow: 0 32px 80px rgba(0,0,0,0.4);
+  }
+  .welcome-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:12px; }
+  .welcome-card {
+    background:rgba(255,255,255,0.06); border:1px solid rgba(196,169,125,0.25);
+    border-radius:10px; padding:22px 14px; text-align:center; cursor:pointer;
+    color:#F5F0E8; font-weight:600; font-size:14px; transition:background .2s, transform .1s;
+  }
+  .welcome-card:hover { background:rgba(196,169,125,0.18); transform:translateY(-2px); }
+
   /* ===== LAYOUT ===== */
   #appScreen { display:none; }
   .layout { display:flex; height:100vh; overflow:hidden; }
@@ -544,6 +562,22 @@
     </div>
     <button class="login-btn" onclick="doLogin()">Entrar</button>
     <div class="login-error" id="loginError">E-mail ou senha incorretos.</div>
+  </div>
+</div>
+
+<!-- ===== WELCOME (escolha de empresa) ===== -->
+<div id="welcomeScreen">
+  <div class="welcome-box">
+    <div class="login-logo-wrap">
+      <div class="login-logo-text">BEM-VINDA</div>
+      <div class="login-subtitle">Escolha a empresa para continuar</div>
+    </div>
+    <div class="welcome-grid">
+      <div class="welcome-card" onclick="enterCompanyFromWelcome('samsushi','Sam Sushi Art Music')">Sam Sushi Art Music</div>
+      <div class="welcome-card" onclick="enterCompanyFromWelcome('alliance','Alliance Jiu-Jitsu Framingham')">Alliance Jiu-Jitsu Framingham</div>
+      <div class="welcome-card" onclick="enterCompanyFromWelcome('ezmoney','Ez Money USA')">Ez Money USA</div>
+      <div class="welcome-card" onclick="enterCompanyFromWelcome('realprint','Real Print USA')">Real Print USA</div>
+    </div>
   </div>
 </div>
 
@@ -1517,10 +1551,7 @@ async function doLogin() {
     document.getElementById('sbUserName').textContent = email.split('@')[0];
     document.getElementById('sbAvatar').textContent = email[0].toUpperCase();
     document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'block';
-    initApp();
-    initSupabaseRealtime();
-    requestNotificationPermission();
+    document.getElementById('welcomeScreen').style.display = 'flex';
   } catch(e) {
     err.textContent = e.message || 'E-mail ou senha incorretos.';
     err.style.display = 'block';
@@ -1533,9 +1564,25 @@ async function doLogout() {
   try { await supaSignOut(state.token); } catch(e){}
   localStorage.removeItem('hub360_token'); localStorage.removeItem('hub360_user'); state.user = null; state.token = null;
   document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginPass').value = '';
   toast('Você saiu da conta.');
+}
+
+function enterCompanyFromWelcome(id, name){
+  state.currentCompany = id;
+  state.currentCompanyName = name.split(' ').slice(0,2).join(' ');
+  try{ localStorage.setItem('hub360_company', id); localStorage.setItem('hub360_company_name', name); }catch(e){}
+  document.getElementById('welcomeScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('sbCompanyName').innerHTML = `${state.currentCompanyName} <i class="fas fa-chevron-down" style="font-size:10px"></i>`;
+  document.querySelectorAll('.cd-item').forEach(i=>{
+    i.classList.toggle('active', i.getAttribute('onclick')&&i.getAttribute('onclick').includes("'"+id+"'"));
+  });
+  initApp();
+  initSupabaseRealtime();
+  requestNotificationPermission();
 }
 
 function initApp() {
@@ -3409,24 +3456,12 @@ document.addEventListener('click', function(e) {
   if (e.target === document.getElementById('ssClientModal')) closeSSClientModal();
 });
 
-// Restaura sessão salva ao recarregar a página, evitando pedir login de novo
-(function restoreSession(){
+// Login sempre solicitado ao abrir o app: nenhuma sessão é restaurada automaticamente.
+(function clearAutoSession(){
   try{
-    const token = localStorage.getItem('hub360_token');
-    const userRaw = localStorage.getItem('hub360_user');
-    if(token && userRaw){
-      state.user = JSON.parse(userRaw);
-      state.token = token;
-      const email = state.user.email || '';
-      document.getElementById('sbUserName').textContent = email.split('@')[0];
-      document.getElementById('sbAvatar').textContent = (email[0]||'?').toUpperCase();
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('appScreen').style.display = 'block';
-      initApp();
-      initSupabaseRealtime();
-      requestNotificationPermission();
-    }
-  }catch(e){ console.warn('Falha ao restaurar sessão:', e); }
+    localStorage.removeItem('hub360_token');
+    localStorage.removeItem('hub360_user');
+  }catch(e){}
 })();
 
 </script>
