@@ -2749,7 +2749,7 @@ function selectConversation(cid, name, phone, el){
       +'<div style="font-size:12px;color:var(--gray-400);margin-top:2px">+'+phone+'</div>'
       // Ícones de ação rápida
       +'<div style="display:flex;gap:10px;margin-top:12px">'
-        +'<button title="Ligar" onclick="toast(\'Configure o Twilio para ligar\',\'info\')" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--gray-200);background:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--gray-500)" onmouseover="this.style.background=\'var(--accent)\';this.style.color=\'#fff\';this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.background=\'#fff\';this.style.color=\'var(--gray-500)\';this.style.borderColor=\'var(--gray-200)\'"><i class="fas fa-phone"></i></button>'
+        +'<button title="Ligar" id="callBtn_'+phone.replace(/\+/g,'')+'" onclick="makeCall(\'+'+phone+'\')" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--gray-200);background:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--gray-500)" onmouseover="this.style.background=\'var(--accent)\';this.style.color=\'#fff\';this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.background=\'#fff\';this.style.color=\'var(--gray-500)\';this.style.borderColor=\'var(--gray-200)\'"><i class="fas fa-phone"></i></button>'
         +'<button title="Estrelar conversa" onclick="toggleStar(\''+cid+'\')" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--gray-200);background:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--gray-500)" onmouseover="this.style.background=\'var(--accent)\';this.style.color=\'#fff\';this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.background=\'#fff\';this.style.color=\'var(--gray-500)\';this.style.borderColor=\'var(--gray-200)\'"><i class="fas fa-star"></i></button>'
         +'<button title="Marcar não lida" onclick="markChatUnread(\''+cid+'\')" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--gray-200);background:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--gray-500)" onmouseover="this.style.background=\'var(--accent)\';this.style.color=\'#fff\';this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.background=\'#fff\';this.style.color=\'var(--gray-500)\';this.style.borderColor=\'var(--gray-200)\'"><i class="fas fa-envelope"></i></button>'
       +'</div>'
@@ -3272,6 +3272,29 @@ async function sendMediaMessage(input){
       });
     }catch(e){ console.error('Erro ao salvar mídia no Supabase:',e); }
   }catch(e){ toast('Erro ao enviar mídia: '+e.message,'error'); }
+}
+
+async function makeCall(phone){
+  if(!phone){ toast('Número de telefone não disponível','error'); return; }
+  // Normaliza o número: garante que começa com +
+  let number = phone.replace(/\s/g,'');
+  if(!number.startsWith('+')) number = '+'+number;
+  const btn = document.getElementById('callBtn_'+number.replace(/\+/g,''));
+  if(btn){ btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>'; }
+  try{
+    const res = await fetch('/api/call', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({to: number})
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error||'Erro ao ligar');
+    toast('Ligação iniciada para '+number+'!');
+  }catch(e){
+    toast('Erro: '+e.message,'error');
+  }finally{
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="fas fa-phone"></i>'; }
+  }
 }
 
 // ===== SAM SUSHI MODAL PERFIL =====
