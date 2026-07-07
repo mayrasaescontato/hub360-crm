@@ -2854,7 +2854,14 @@ async function loadMessages(chatId){
         let content='';
         let mediaPromiseId='';
         const isMediaType = m.message_type && ['image','video','audio','document','imageMessage','videoMessage','audioMessage','pttMessage','documentMessage'].includes(m.message_type);
-        if(!m.content && isMediaType){
+        if(m.media_url && isMediaType){
+          // Já tem link permanente salvo — usa direto
+          const typeNorm = m.message_type.replace('Message','').toLowerCase();
+          const mType = typeNorm==='image'?'image':typeNorm==='video'?'video':typeNorm==='document'?'document':'audio';
+          mediaPromiseId='med_'+Math.random().toString(36).slice(2);
+          content='<div class="msg-media-ph" id="'+mediaPromiseId+'"><span>Carregando...</span></div>';
+          pendingMedia.push({ id:mediaPromiseId, type:mType, mediaUrl:m.media_url, fileName:m.content||'' });
+        } else if(!m.content && isMediaType){
           // tenta achar correspondente exato ou próximo (±2s) na Evolution
           let match = evoKeyByTs[tsSec] || evoKeyByTs[tsSec+1] || evoKeyByTs[tsSec-1] || evoKeyByTs[tsSec+2] || evoKeyByTs[tsSec-2];
           const typeNorm = m.message_type.replace('Message','').toLowerCase();
@@ -2864,7 +2871,7 @@ async function loadMessages(chatId){
             content='<div class="msg-media-ph" id="'+mediaPromiseId+'"><span>'+icon+' Carregando...</span></div>';
             const mType = typeNorm==='image'?'image':typeNorm==='video'?'video':typeNorm==='document'?'document':'audio';
             const fileName = match.message?.documentMessage?.fileName || '';
-            pendingMedia.push({ id:mediaPromiseId, key:match.key, type: mType, fileName: fileName });
+            pendingMedia.push({ id:mediaPromiseId, key:match.key, type: mType, fileName: fileName, msgId: m.id });
           } else {
             content='<span style="opacity:.6;font-size:12px">'+icon+' (indisponível — link expirado)</span>';
           }
@@ -2944,6 +2951,11 @@ async function loadMessages(chatId){
 async function _loadMediaForMessage(pm){
   const el = document.getElementById(pm.id);
   if(!el) return;
+  // Se já temos um media_url permanente salvo, usa direto sem chamar a Evolution
+  if(pm.mediaUrl){
+    _renderMediaEl(el, pm.mediaUrl, pm.type, pm.fileName||'');
+    return;
+  }
   try{
     const res = await fetch(EVOLUTION_URL+'/chat/getBase64FromMediaMessage/Sam Sushi', {
       method:'POST',
@@ -2956,17 +2968,59 @@ async function _loadMediaForMessage(pm){
     const mimetype = data?.mimetype || (pm.type==='image'?'image/jpeg':pm.type==='video'?'video/mp4':pm.type==='document'?'application/octet-stream':'audio/ogg');
     if(!b64) throw new Error('mídia vazia');
     const src = 'data:'+mimetype+';base64,'+b64;
-    if(pm.type==='image') el.outerHTML = '<img src="'+src+'" onclick="openImageModal(this.src)" style="max-width:280px;border-radius:8px;display:block;cursor:zoom-in" />';
-    else if(pm.type==='video') el.outerHTML = '<video src="'+src+'" controls style="max-width:280px;border-radius:8px;display:block"></video>';
-    else if(pm.type==='document'){
-      const fname = pm.fileName || 'documento';
-      el.outerHTML = '<a href="'+src+'" download="'+fname.replace(/"/g,'')+'" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit"><span style="font-size:20px">📄</span><span style="text-decoration:underline">'+fname+'</span></a>';
-    }
-    else el.outerHTML = '<audio src="'+src+'" controls style="max-width:240px"></audio>';
+    _renderMediaEl(el, src, pm.type, pm.fileName||'');
+    // Upload em background pro Supabase Storage para link permanente
+    _saveMediaToStorage(b64, mimetype, pm).catch(()=>{});
   }catch(e){
     const icon = pm.type==='image'?'📷 Imagem':pm.type==='video'?'🎥 Vídeo':pm.type==='document'?'📄 Documento':'🎵 Áudio';
     el.outerHTML = '<span style="opacity:.6;font-size:12px">'+icon+' (indisponível — link expirado)</span>';
   }
+}
+
+function _renderMediaEl(el, src, type, fileName){
+  if(type==='image') el.outerHTML = '<img src="'+src+'" onclick="openImageModal(this.src)" style="max-width:280px;border-radius:8px;display:block;cursor:zoom-in" />';
+  else if(type==='video') el.outerHTML = '<video src="'+src+'" controls style="max-width:280px;border-radius:8px;display:block"></video>';
+  else if(type==='document'){
+    const fname = (fileName||'documento').replace(/"/g,'');
+    el.outerHTML = '<a href="'+src+'" download="'+fname+'" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit"><span style="font-size:20px">📄</span><span style="text-decoration:underline">'+fname+'</span></a>';
+  }
+  else el.outerHTML = '<audio src="'+src+'" controls style="max-width:240px"></audio>';
+}
+
+async function _saveMediaToStorage(b64, mimetype, pm){
+  try{
+    // Converte base64 pra Blob
+    const byteChars = atob(b64);
+    const byteArr = new Uint8Array(byteChars.length);
+    for(let i=0;i<byteChars.length;i++) byteArr[i]=byteChars.charCodeAt(i);
+    const blob = new Blob([byteArr], {type: mimetype});
+    const ext = mimetype.split('/')[1]?.split(';')[0] || 'bin';
+    const ts = pm.key?.id || Date.now();
+    const path = (pm.key?.remoteJid||'unknown').replace('@','_')+'/'+ts+'.'+ext;
+    // Upload pro Supabase Storage bucket wpp-media
+    const uploadRes = await fetch(
+      SUPABASE_URL+'/storage/v1/object/wpp-media/'+path,
+      {
+        method:'POST',
+        headers:{
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer '+SUPABASE_KEY,
+          'Content-Type': mimetype,
+          'x-upsert': 'true'
+        },
+        body: blob
+      }
+    );
+    if(!uploadRes.ok) return;
+    const publicUrl = SUPABASE_URL+'/storage/v1/object/public/wpp-media/'+path;
+    // Salva media_url na mensagem correspondente no banco
+    if(pm.msgId){
+      await supaFetch('wpp_messages?id=eq.'+pm.msgId, {
+        method:'PATCH',
+        body: JSON.stringify({media_url: publicUrl})
+      });
+    }
+  }catch(e){ console.warn('Storage upload falhou:',e); }
 }
 
 function openImageModal(src){
