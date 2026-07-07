@@ -1036,11 +1036,27 @@
 
         <!-- SMS -->
         <div class="page" id="page-sms">
-          <div class="empty-state">
-            <i class="fas fa-sms"></i>
-            <p style="font-weight:700;font-size:16px;margin-bottom:8px">SMS</p>
-            <p>Envie mensagens SMS para seus alunos e leads.</p>
-            <button class="btn btn-primary" style="margin-top:16px"><i class="fas fa-plus"></i> Novo SMS</button>
+          <div style="display:flex;height:100%;gap:0;background:#fff;border-radius:10px;overflow:hidden;border:1px solid var(--gray-200)">
+            <div style="width:300px;border-right:1px solid var(--gray-200);display:flex;flex-direction:column;flex-shrink:0">
+              <div style="padding:14px 16px;border-bottom:1px solid var(--gray-200)">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                  <div style="font-weight:700;font-size:15px">SMS</div>
+                  <button onclick="newSmsConversation()" style="background:var(--gold);color:#1a2e27;border:none;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer"><i class="fas fa-plus"></i> Novo</button>
+                </div>
+                <input id="smsSearchInput" placeholder="Buscar conversa..." style="width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px" oninput="filterSmsList(this.value)">
+              </div>
+              <div id="smsList" style="flex:1;overflow-y:auto"></div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+              <div id="smsChatHeader" style="padding:14px 16px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;gap:10px;min-height:52px">
+                <div style="color:var(--gray-400);font-size:13px">Selecione uma conversa ou clique em "Novo"</div>
+              </div>
+              <div id="smsMessages" style="flex:1;overflow-y:auto;padding:16px;background:var(--gray-50)"></div>
+              <div style="padding:12px 16px;border-top:1px solid var(--gray-200);display:flex;gap:8px">
+                <input id="smsInput" placeholder="Digite uma mensagem... (Enter para enviar)" style="flex:1;padding:10px 12px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px" onkeypress="if(event.key==='Enter')sendSmsMessage()">
+                <button onclick="sendSmsMessage()" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:0 18px;cursor:pointer"><i class="fas fa-paper-plane"></i></button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1737,6 +1753,7 @@ function showPage(name, el) {
   }
   if (name === 'calendar') initCalendar();
   if (name === 'conversations') loadConversations();
+  if (name === 'sms') loadSmsPage();
   if (name === 'samsushi') loadSamSushiDash();
   if (name === 'reports' || name === 'reports-ads' || name === 'reports-fb') loadReports();
 }
@@ -3417,6 +3434,95 @@ async function sendMediaMessage(input){
 
 let twilioDevice = null;
 let activeCall = null;
+let smsCurrentPhone = null;
+let smsConvos = [];
+
+async function loadSmsPage(){
+  const list = document.getElementById('smsList');
+  if(!list) return;
+  list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray-400);font-size:12px"><div class="spinner" style="margin:0 auto 8px"></div>Carregando...</div>';
+  try{
+    const rows = await supaFetch('sms_messages?company=eq.alliance&order=created_at.desc&limit=500');
+    const map = {};
+    rows.forEach(r=>{
+      if(!map[r.phone]) map[r.phone] = { phone:r.phone, name:r.name||r.phone, last:r };
+    });
+    smsConvos = Object.values(map);
+    renderSmsList();
+  }catch(e){ list.innerHTML = '<div style="padding:20px;text-align:center;color:#f87171;font-size:12px">Erro ao carregar SMS</div>'; }
+}
+
+function renderSmsList(filter=''){
+  const list = document.getElementById('smsList');
+  const items = smsConvos.filter(c=>!filter || c.phone.includes(filter) || (c.name||'').toLowerCase().includes(filter.toLowerCase()));
+  if(!items.length){ list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--gray-400);font-size:12px">Nenhuma conversa de SMS ainda</div>'; return; }
+  list.innerHTML = items.map(c=>{
+    const initials = (c.name||c.phone).replace(/[^A-Za-z ]/g,'').split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
+    const color = _avatarColor(c.phone);
+    const active = c.phone === smsCurrentPhone ? 'background:var(--gray-50)' : '';
+    return '<div onclick="selectSmsConversation(\''+c.phone.replace(/'/g,"\\'")+'\')" style="padding:12px 16px;border-bottom:1px solid var(--gray-100);cursor:pointer;display:flex;gap:10px;align-items:center;'+active+'">'
+      +'<div style="width:38px;height:38px;border-radius:50%;background:'+color+';color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">'+(initials||'<i class="fas fa-sms" style="font-size:13px"></i>')+'</div>'
+      +'<div style="min-width:0;flex:1">'
+        +'<div style="font-weight:600;font-size:13px">'+(c.name||c.phone)+'</div>'
+        +'<div style="font-size:12px;color:var(--gray-400);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(c.last.direction==='out'?'Você: ':'')+(c.last.body||'')+'</div>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+
+function filterSmsList(v){ renderSmsList(v); }
+
+async function selectSmsConversation(phone){
+  smsCurrentPhone = phone;
+  renderSmsList(document.getElementById('smsSearchInput').value);
+  document.getElementById('smsChatHeader').innerHTML = '<div style="font-weight:700;font-size:14px">'+phone+'</div>';
+  const box = document.getElementById('smsMessages');
+  box.innerHTML = '<div style="text-align:center;color:var(--gray-400);font-size:12px">Carregando...</div>';
+  try{
+    const rows = await supaFetch('sms_messages?company=eq.alliance&phone=eq.'+encodeURIComponent(phone)+'&order=created_at.asc&limit=200');
+    box.innerHTML = rows.map(r=>{
+      const mine = r.direction==='out';
+      return '<div style="display:flex;justify-content:'+(mine?'flex-end':'flex-start')+';margin-bottom:8px">'
+        +'<div style="max-width:70%;padding:10px 12px;border-radius:12px;font-size:13px;background:'+(mine?'var(--green)':'#fff')+';color:'+(mine?'#fff':'var(--gray-800)')+';box-shadow:0 1px 2px rgba(0,0,0,.06);white-space:pre-wrap">'
+          +(r.body||'')
+        +'</div>'
+      +'</div>';
+    }).join('') || '<div style="text-align:center;color:var(--gray-400);font-size:12px">Sem mensagens ainda</div>';
+    box.scrollTop = box.scrollHeight;
+  }catch(e){ box.innerHTML = '<div style="color:#f87171;font-size:12px">Erro ao carregar mensagens</div>'; }
+}
+
+async function sendSmsMessage(){
+  const input = document.getElementById('smsInput');
+  const text = input.value.trim();
+  if(!text){ return; }
+  if(!smsCurrentPhone){ toast('Selecione uma conversa ou clique em "Novo" primeiro','error'); return; }
+  input.value='';
+  try{
+    const res = await fetch('/api/sms-send', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ to: smsCurrentPhone, body: text }) });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error||'Erro ao enviar SMS');
+    await supaFetch('sms_messages', { method:'POST', body: JSON.stringify({ company:'alliance', phone: smsCurrentPhone, direction:'out', body: text, status:'sent' }) });
+    await selectSmsConversation(smsCurrentPhone);
+    loadSmsPage();
+  }catch(e){ toast('Erro: '+e.message,'error'); }
+}
+
+function newSmsConversation(){
+  const phone = window.prompt('Número de telefone (com +1...):');
+  if(!phone || !phone.trim()) return;
+  smsCurrentPhone = phone.trim();
+  document.getElementById('smsChatHeader').innerHTML = '<div style="font-weight:700;font-size:14px">'+smsCurrentPhone+'</div>';
+  document.getElementById('smsMessages').innerHTML = '<div style="text-align:center;color:var(--gray-400);font-size:12px">Nova conversa — envie a primeira mensagem abaixo</div>';
+}
+
+setInterval(function(){
+  const pg = document.getElementById('page-sms');
+  if(pg && pg.classList.contains('active')){
+    loadSmsPage();
+    if(smsCurrentPhone) selectSmsConversation(smsCurrentPhone);
+  }
+}, 15000);
 
 async function initTwilioDevice(){
   try{
