@@ -3008,12 +3008,12 @@ async function _saveMediaToStorage(b64, mimetype, pm){
     const path = (pm.key?.remoteJid||'unknown').replace('@','_')+'/'+ts+'.'+ext;
     // Upload pro Supabase Storage bucket wpp-media
     const uploadRes = await fetch(
-      SUPABASE_URL+'/storage/v1/object/wpp-media/'+path,
+      SUPA_URL+'/storage/v1/object/wpp-media/'+path,
       {
         method:'POST',
         headers:{
-          'apikey': SUPABASE_KEY,
-          'Authorization': 'Bearer '+SUPABASE_KEY,
+          'apikey': SUPA_KEY,
+          'Authorization': 'Bearer '+SUPA_KEY,
           'Content-Type': mimetype,
           'x-upsert': 'true'
         },
@@ -3021,7 +3021,7 @@ async function _saveMediaToStorage(b64, mimetype, pm){
       }
     );
     if(!uploadRes.ok) return;
-    const publicUrl = SUPABASE_URL+'/storage/v1/object/public/wpp-media/'+path;
+    const publicUrl = SUPA_URL+'/storage/v1/object/public/wpp-media/'+path;
     // Salva media_url na mensagem correspondente no banco
     if(pm.msgId){
       await supaFetch('wpp_messages?id=eq.'+pm.msgId, {
