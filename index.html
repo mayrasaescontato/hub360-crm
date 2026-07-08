@@ -67,27 +67,20 @@
   /* ===== WELCOME (seleção de empresa) ===== */
   #welcomeScreen {
     display:none; align-items:center; justify-content:center;
-    min-height:100vh;
-    background: url("welcome-bg.png") center center / cover no-repeat;
-    position:relative;
+    min-height:100vh; background:#0d1810; padding:20px;
   }
-  #welcomeScreen::before {
-    content:""; position:absolute; inset:0;
-    background: linear-gradient(180deg, rgba(10,15,13,0.35) 0%, rgba(10,15,13,0.55) 60%, rgba(10,15,13,0.75) 100%);
+  .welcome-stage {
+    position:relative; width:100%; max-width:1618px; margin:0 auto;
+    aspect-ratio: 1618 / 972;
   }
-  .welcome-box {
-    position:relative; z-index:1;
-    background: rgba(10,20,17,0.55); border:1px solid rgba(196,169,125,0.35);
-    border-radius:16px; padding:48px 40px; width:520px; backdrop-filter:blur(12px);
-    box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+  .welcome-stage img { width:100%; height:100%; display:block; object-fit:contain; border-radius:8px; }
+  .gear-hotspot {
+    position:absolute; border-radius:50%; cursor:pointer;
+    transition: box-shadow .2s;
   }
-  .welcome-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:12px; }
-  .welcome-card {
-    background:rgba(255,255,255,0.08); border:1px solid rgba(196,169,125,0.3);
-    border-radius:10px; padding:22px 14px; text-align:center; cursor:pointer;
-    color:#F5F0E8; font-weight:600; font-size:14px; transition:background .2s, transform .1s;
+  .gear-hotspot:hover {
+    box-shadow: 0 0 0 6px rgba(196,169,125,0.35) inset;
   }
-  .welcome-card:hover { background:rgba(196,169,125,0.22); transform:translateY(-2px); }
 
   /* ===== DISCADOR (Twilio Voice) ===== */
   #callWidget {
@@ -657,17 +650,16 @@
 
 <!-- ===== WELCOME (escolha de empresa) ===== -->
 <div id="welcomeScreen">
-  <div class="welcome-box">
-    <div class="login-logo-wrap">
-      <div class="login-logo-text">BEM-VINDO(A)</div>
-      <div class="login-subtitle">Escolha a empresa para continuar</div>
-    </div>
-    <div class="welcome-grid">
-      <div class="welcome-card" onclick="enterCompanyFromWelcome('samsushi','Sam Sushi Art Music')">Sam Sushi Art Music</div>
-      <div class="welcome-card" onclick="enterCompanyFromWelcome('alliance','Alliance Jiu-Jitsu Framingham')">Alliance Jiu-Jitsu Framingham</div>
-      <div class="welcome-card" onclick="enterCompanyFromWelcome('ezmoney','Ez Money USA')">Ez Money USA</div>
-      <div class="welcome-card" onclick="enterCompanyFromWelcome('realprint','Real Print USA')">Real Print USA</div>
-    </div>
+  <div class="welcome-stage">
+    <img src="welcome-gears-bg.jpg" alt="Hub 360 - Escolha a empresa">
+    <div class="gear-hotspot" style="left:29.26%; top:41.30%; width:11.60%; height:19.36%;"
+         onclick="enterCompanyFromWelcome('samsushi','Sam Sushi Art Music')" title="Sam Sushi Art Music"></div>
+    <div class="gear-hotspot" style="left:37.22%; top:62.61%; width:10.25%; height:17.09%;"
+         onclick="enterCompanyFromWelcome('alliance','Alliance Jiu-Jitsu Framingham')" title="Alliance Jiu-Jitsu Framingham"></div>
+    <div class="gear-hotspot" style="left:57.53%; top:41.92%; width:11.36%; height:18.95%;"
+         onclick="enterCompanyFromWelcome('ezmoney','Ez Money USA')" title="Ez Money USA"></div>
+    <div class="gear-hotspot" style="left:65.56%; top:62.51%; width:10.62%; height:17.71%;"
+         onclick="enterCompanyFromWelcome('realprint','Real Print USA')" title="Real Print USA"></div>
   </div>
 </div>
 
