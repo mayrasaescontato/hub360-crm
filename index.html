@@ -638,7 +638,28 @@
   .cdp-btn.primary:hover{background:var(--green-light)}
 
   /* ===== ALUNOS (Cadastro Alliance) ===== */
-  .aluno-avatar { background:var(--green); }
+  .aluno-avatar { background:var(--gold) !important; color:#000 !important; }
+  .aluno-tipo-badge {
+    display:inline-block; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:700;
+    background:#fff; color:#000; border:2px solid var(--gold);
+  }
+  .aluno-obs-note { background:var(--gray-50); border-left:3px solid var(--gold); border-radius:6px; padding:10px 12px; margin-bottom:10px; }
+  .aluno-obs-author { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; margin-right:8px; }
+  .aluno-obs-author.professor { background:#000; color:#fff; }
+  .aluno-obs-author.cs { background:var(--gold); color:#000; }
+  .aluno-obs-date { font-size:10px; color:var(--gray-400); }
+  .aluno-obs-text { font-size:13px; color:var(--gray-900); margin-top:6px; white-space:pre-wrap; line-height:1.4; }
+  .aluno-obs-form { display:flex; flex-direction:column; gap:8px; margin-top:14px; padding-top:14px; border-top:1px dashed var(--gray-200); }
+  .aluno-obs-form select, .aluno-obs-form textarea {
+    border:1px solid var(--gray-200); border-radius:8px; padding:8px 10px; font-size:13px; font-family:inherit; outline:none;
+  }
+  .aluno-obs-form select:focus, .aluno-obs-form textarea:focus { border-color:var(--gold); }
+  .aluno-obs-form textarea { min-height:70px; resize:vertical; }
+  .aluno-obs-btn {
+    align-self:flex-end; background:var(--gold); color:#000; border:none; padding:8px 18px;
+    border-radius:8px; font-weight:800; cursor:pointer; font-size:12px; text-transform:uppercase; letter-spacing:.3px;
+  }
+  .aluno-obs-btn:hover { filter:brightness(0.92); }
 
   .aluno-modal-flex { display:flex; min-height:460px; }
   .aluno-sidebar {
@@ -652,12 +673,12 @@
   }
   .aluno-sidebar-avatar-fallback {
     width:112px; height:112px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-    font-weight:800; font-size:34px; color:#fff; background:#000; border:3px solid var(--gold);
+    font-weight:800; font-size:34px; color:#000; background:var(--gold); border:3px solid var(--gold);
   }
   .aluno-sidebar-name { font-size:17px; font-weight:800; color:#000; margin-top:16px; line-height:1.25; }
   .aluno-sidebar-badge {
     margin-top:8px; display:inline-block; padding:5px 14px; border-radius:20px;
-    background:#000; color:#fff; font-size:11px; font-weight:800;
+    background:#fff; color:#000; font-size:11px; font-weight:800; border:2px solid var(--gold);
     letter-spacing:.5px; text-transform:uppercase;
   }
   .aluno-sidebar-divider { width:100%; height:2px; background:#000; margin:20px 0; }
@@ -2302,13 +2323,16 @@ function renderAlunosTable(q) {
   tbody.innerHTML = rows.map((a, idx) => {
     const name = a.nome_aluno || 'Sem nome';
     const initials = name.split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase() || '?';
-    const tipo = a.tipo_aluno === 'Adult' ? '<span style="background:#000;color:#fff;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">Adulto</span>' : (a.tipo_aluno ? `<span style="background:#000;color:#fff;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">${a.tipo_aluno}</span>` : '<span style="color:var(--gray-300)">—</span>');
+    const avatarHtml = a.foto_url
+      ? `<img class="contact-avatar aluno-avatar" src="${driveImageUrl(a.foto_url)}" style="object-fit:cover" onerror="this.outerHTML='<div class=&quot;contact-avatar aluno-avatar&quot;>${initials}</div>'">`
+      : `<div class="contact-avatar aluno-avatar">${initials}</div>`;
+    const tipo = a.tipo_aluno === 'Adult' ? '<span class="aluno-tipo-badge">Adulto</span>' : (a.tipo_aluno ? `<span class="aluno-tipo-badge">${a.tipo_aluno}</span>` : '<span style="color:var(--gray-300)">—</span>');
     const dataResp = a.data_resposta ? new Date(a.data_resposta).toLocaleDateString('pt-BR') : '—';
     const realIdx = alunosData.indexOf(a);
     return `<tr style="cursor:pointer" onclick="openAlunoModal(${realIdx})">
       <td>
         <div class="contact-name-wrap">
-          <div class="contact-avatar aluno-avatar">${initials}</div>
+          ${avatarHtml}
           <div>
             <div class="contact-name">${name}</div>
             <div class="contact-email-sub">${a.email||''}</div>
@@ -2327,7 +2351,7 @@ function renderAlunosTable(q) {
 function openAlunoModal(idx) {
   const a = alunosData[idx];
   if (!a) return;
-  document.getElementById('alunoModalBody').innerHTML = renderAlunoDetail(a);
+  document.getElementById('alunoModalBody').innerHTML = renderAlunoDetail(a, idx);
   document.getElementById('alunoModal').classList.add('open');
 }
 function closeAlunoModal() { document.getElementById('alunoModal').classList.remove('open'); }
@@ -2340,7 +2364,50 @@ function driveImageUrl(url) {
   return `https://lh3.googleusercontent.com/d/${m[0]}=w400`;
 }
 
-function renderAlunoDetail(a) {
+function parseObs(raw) {
+  if (!raw) return [];
+  try { const arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; } catch(e) { return []; }
+}
+
+function renderObsList(a) {
+  const notes = parseObs(a.observacoes);
+  if (!notes.length) return '<div style="font-size:12px;color:var(--gray-400);margin-bottom:4px">Nenhuma observação registrada ainda.</div>';
+  return notes.slice().reverse().map(n => {
+    const authorClass = n.author === 'CS' ? 'cs' : 'professor';
+    const authorLabel = n.author === 'CS' ? 'CS · Customer Success' : 'Professor';
+    const dateStr = n.date ? new Date(n.date).toLocaleString('pt-BR') : '';
+    const safeText = (n.text||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div class="aluno-obs-note">
+      <span class="aluno-obs-author ${authorClass}">${authorLabel}</span>
+      <span class="aluno-obs-date">${dateStr}</span>
+      <div class="aluno-obs-text">${safeText}</div>
+    </div>`;
+  }).join('');
+}
+
+async function addAlunoNote(idx) {
+  const a = alunosData[idx];
+  if (!a) return;
+  const authorEl = document.getElementById('alunoObsAuthor');
+  const textEl = document.getElementById('alunoObsText');
+  const author = authorEl.value;
+  const text = textEl.value.trim();
+  if (!text) { toast('Escreva a observação antes de salvar','error'); return; }
+  const notes = parseObs(a.observacoes);
+  notes.push({ author, text, date: new Date().toISOString() });
+  const json = JSON.stringify(notes);
+  try {
+    await supaFetch(`alunos_alliance?id=eq.${a.id}`, { method:'PATCH', body: JSON.stringify({ observacoes: json }) });
+    a.observacoes = json;
+    document.getElementById('alunoObsList').innerHTML = renderObsList(a);
+    textEl.value = '';
+    toast('Observação salva!');
+  } catch(e) {
+    toast('Erro ao salvar observação: ' + e.message, 'error');
+  }
+}
+
+function renderAlunoDetail(a, idx) {
   const field = (label, val) => `<div class="aluno-detail-field"><label>${label}</label><span>${val && String(val).trim() ? val : '—'}</span></div>`;
   const isChild = a.tipo_aluno && a.tipo_aluno !== 'Adult';
   const initials = (a.nome_aluno||'?').split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
@@ -2443,6 +2510,18 @@ function renderAlunoDetail(a) {
             ${field('Hobby', a.hobby)}
             ${field('Música Preferida', a.musica_preferida)}
             ${field('Curiosidade', a.curiosidade)}
+          </div>
+        </div>
+        <div class="aluno-detail-section">
+          <div class="aluno-detail-title"><i class="fas fa-note-sticky"></i>Observações Internas</div>
+          <div id="alunoObsList">${renderObsList(a)}</div>
+          <div class="aluno-obs-form">
+            <select id="alunoObsAuthor">
+              <option value="Professor">Professor</option>
+              <option value="CS">CS · Customer Success</option>
+            </select>
+            <textarea id="alunoObsText" placeholder="Escreva uma anotação sobre o aluno..."></textarea>
+            <button class="aluno-obs-btn" onclick="addAlunoNote(${idx})">Adicionar Nota</button>
           </div>
         </div>
       </div>
