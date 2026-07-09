@@ -624,6 +624,19 @@
   .cdp-btn:hover{background:var(--gray-50);border-color:var(--gray-300)}
   .cdp-btn.primary{background:var(--green);color:#fff;border-color:var(--green)}
   .cdp-btn.primary:hover{background:var(--green-light)}
+
+  /* ===== ALUNOS (Cadastro Alliance) ===== */
+  .aluno-avatar { background:var(--green); }
+  .aluno-detail-section { margin-bottom:18px; }
+  .aluno-detail-title {
+    font-size:11px; font-weight:700; color:var(--gray-400); text-transform:uppercase;
+    letter-spacing:1px; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--gray-100);
+  }
+  .aluno-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
+  .aluno-detail-field { font-size:12px; }
+  .aluno-detail-field label { display:block; color:var(--gray-400); font-size:11px; margin-bottom:2px; }
+  .aluno-detail-field span { color:var(--gray-900); font-weight:500; }
+  .aluno-photo { width:64px; height:64px; border-radius:50%; object-fit:cover; border:2px solid var(--gray-200); }
 </style>
 </head>
 <body>
@@ -867,6 +880,45 @@
                 <span id="pageButtons"></span>
                 <button class="page-btn" id="nextBtn" onclick="nextPage()">Próximo →</button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ALUNOS (Cadastro Alliance) -->
+        <div class="page" id="page-alunos">
+          <div class="contacts-page">
+            <div class="contacts-header">
+              <div>
+                <div class="contacts-header-title">Cadastro de Alunos</div>
+              </div>
+              <span class="contacts-count" id="alunosTotalLabel">— Alunos</span>
+              <div style="flex:1"></div>
+              <button class="btn btn-outline" style="font-size:12px;padding:5px 10px" onclick="loadAlunos()"><i class="fas fa-sync"></i> Atualizar</button>
+            </div>
+
+            <div class="contacts-toolbar">
+              <div class="search-wrap">
+                <i class="fas fa-search"></i>
+                <input class="search-input" type="text" id="alunoSearch" placeholder="Buscar por nome, telefone, email..." oninput="searchAlunos()">
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Tipo</th>
+                    <th>Telefone</th>
+                    <th>Faixa Atual</th>
+                    <th>Origem do Lead</th>
+                    <th>Respondido em</th>
+                  </tr>
+                </thead>
+                <tbody id="alunosBody">
+                  <tr><td colspan="6"><div class="loading"><div class="spinner"></div></div></td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -1460,6 +1512,22 @@
   </div>
 </div>
 
+<!-- MODAL PERFIL ALUNO ALLIANCE -->
+<div class="modal-overlay" id="alunoModal">
+  <div class="modal" style="width:640px;max-height:92vh">
+    <div class="modal-header">
+      <div class="modal-title" id="alunoModalTitle">Perfil do Aluno</div>
+      <div class="modal-close" onclick="closeAlunoModal()"><i class="fas fa-times"></i></div>
+    </div>
+    <div class="modal-body" id="alunoModalBody">
+      <!-- preenchido dinamicamente por renderAlunoDetail() -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAlunoModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toastWrap"></div>
 
 <!-- PIPELINE MANAGER MODAL -->
@@ -1741,7 +1809,8 @@ function showPage(name, el) {
     sms:'SMS', automations:'Automações', payments:'Pagamentos', tasks:'Tarefas',
     'reports-ads':'Google Ads', 'reports-fb':'Facebook Ads',
     ezmoney:'Ez Money USA — Painel',
-    samsushi:'Sam Sushi Art Music — Painel'
+    samsushi:'Sam Sushi Art Music — Painel',
+    alunos:'Cadastro de Alunos'
   };
   document.getElementById('topbarTitle').textContent = titles[name] || name;
   const actions = document.getElementById('topbarActions');
@@ -1754,6 +1823,7 @@ function showPage(name, el) {
   if (name === 'conversations') loadConversations();
   if (name === 'sms') loadSmsPage();
   if (name === 'samsushi') loadSamSushiDash();
+  if (name === 'alunos') loadAlunos();
   if (name === 'reports' || name === 'reports-ads' || name === 'reports-fb') loadReports();
 }
 
@@ -1791,6 +1861,7 @@ function renderNav() {
     <div class="sb-item" onclick="showPage('conversations',this)"><i class="fas fa-comments"></i> Conversas</div>
     <div class="sb-item" onclick="showPage('calendar',this)"><i class="fas fa-calendar-alt"></i> Calendários</div>
     <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
+    <div class="sb-item" onclick="showPage('alunos',this)"><i class="fas fa-user-graduate"></i> Cadastro Alunos</div>
     <div class="sb-item" onclick="showPage('pipeline',this);changePipeline('leads')"><i class="fas fa-columns"></i> Oportunidades</div>
     <div class="sb-section">Marketing</div>
     <div class="sb-item" onclick="showPage('campaigns',this)"><i class="fas fa-bullhorn"></i> Campanhas</div>
@@ -2128,6 +2199,174 @@ async function deleteContact(id) {
   catch(e) { toast('Erro ao excluir: '+e.message,'error'); }
 }
 document.getElementById('contactModal').addEventListener('click', function(e){ if(e.target===this) closeContactModal(); });
+
+// ===== ALUNOS (Cadastro Alliance) =====
+let alunosData = [];
+let alunosSearchTimeout;
+
+function searchAlunos() {
+  clearTimeout(alunosSearchTimeout);
+  alunosSearchTimeout = setTimeout(() => { renderAlunosTable(document.getElementById('alunoSearch').value.trim()); }, 300);
+}
+
+async function loadAlunos() {
+  const tbody = document.getElementById('alunosBody');
+  tbody.innerHTML = '<tr><td colspan="6"><div class="loading"><div class="spinner"></div></div></td></tr>';
+  try {
+    const rows = await supaFetch('alunos_alliance?select=*&order=data_resposta.desc');
+    alunosData = rows || [];
+    const lbl = document.getElementById('alunosTotalLabel');
+    if (lbl) lbl.textContent = `${alunosData.length.toLocaleString()} Alunos`;
+    renderAlunosTable(document.getElementById('alunoSearch') ? document.getElementById('alunoSearch').value.trim() : '');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>Erro ao carregar alunos: ${e.message}</p></div></td></tr>`;
+  }
+}
+
+function renderAlunosTable(q) {
+  const tbody = document.getElementById('alunosBody');
+  let rows = alunosData;
+  if (q) {
+    const lq = q.toLowerCase();
+    rows = rows.filter(a =>
+      (a.nome_aluno||'').toLowerCase().includes(lq) ||
+      (a.telefone||'').toLowerCase().includes(lq) ||
+      (a.email||'').toLowerCase().includes(lq)
+    );
+  }
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><i class="fas fa-user-graduate"></i><p>Nenhum aluno encontrado.</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((a, idx) => {
+    const name = a.nome_aluno || 'Sem nome';
+    const initials = name.split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase() || '?';
+    const color = getAvatarColor(name);
+    const tipo = a.tipo_aluno === 'Adult' ? '<span class="badge badge-blue">Adulto</span>' : (a.tipo_aluno ? `<span class="badge badge-purple">${a.tipo_aluno}</span>` : '<span style="color:var(--gray-300)">—</span>');
+    const dataResp = a.data_resposta ? new Date(a.data_resposta).toLocaleDateString('pt-BR') : '—';
+    const realIdx = alunosData.indexOf(a);
+    return `<tr style="cursor:pointer" onclick="openAlunoModal(${realIdx})">
+      <td>
+        <div class="contact-name-wrap">
+          <div class="contact-avatar aluno-avatar" style="background:${color}">${initials}</div>
+          <div>
+            <div class="contact-name">${name}</div>
+            <div class="contact-email-sub">${a.email||''}</div>
+          </div>
+        </div>
+      </td>
+      <td>${tipo}</td>
+      <td style="font-size:13px">${a.telefone||'<span style="color:var(--gray-300)">—</span>'}</td>
+      <td style="font-size:13px">${a.faixa_atual||'<span style="color:var(--gray-300)">—</span>'}</td>
+      <td style="font-size:12px;color:var(--gray-500)">${a.origem_lead||'<span style="color:var(--gray-300)">—</span>'}</td>
+      <td style="font-size:12px;color:var(--gray-500)">${dataResp}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openAlunoModal(idx) {
+  const a = alunosData[idx];
+  if (!a) return;
+  document.getElementById('alunoModalTitle').textContent = a.nome_aluno || 'Perfil do Aluno';
+  document.getElementById('alunoModalBody').innerHTML = renderAlunoDetail(a);
+  document.getElementById('alunoModal').classList.add('open');
+}
+function closeAlunoModal() { document.getElementById('alunoModal').classList.remove('open'); }
+document.getElementById('alunoModal').addEventListener('click', function(e){ if(e.target===this) closeAlunoModal(); });
+
+function renderAlunoDetail(a) {
+  const field = (label, val) => `<div class="aluno-detail-field"><label>${label}</label><span>${val && String(val).trim() ? val : '—'}</span></div>`;
+  const isChild = a.tipo_aluno && a.tipo_aluno !== 'Adult';
+  const initials = (a.nome_aluno||'?').split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
+  const color = getAvatarColor(a.nome_aluno||'?');
+
+  let photoHtml = `<div class="contact-avatar aluno-avatar" style="background:${color};width:64px;height:64px;font-size:20px">${initials}</div>`;
+  if (a.foto_url) {
+    photoHtml = `<a href="${a.foto_url}" target="_blank" rel="noopener"><img class="aluno-photo" src="${a.foto_url}" onerror="this.style.display='none'"></a>`;
+  }
+
+  return `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+      ${photoHtml}
+      <div>
+        <div style="font-size:16px;font-weight:700">${a.nome_aluno||'Sem nome'}</div>
+        <div style="font-size:12px;color:var(--gray-500)">${a.tipo_aluno==='Adult'?'Adulto':(a.tipo_aluno||'—')} ${a.faixa_atual?'· Faixa '+a.faixa_atual:''}</div>
+      </div>
+    </div>
+
+    <div class="aluno-detail-section">
+      <div class="aluno-detail-title">Identificação</div>
+      <div class="aluno-detail-grid">
+        ${field('Data de Nascimento', a.data_nascimento)}
+        ${field('Telefone', a.telefone)}
+        ${field('E-mail', a.email)}
+        ${field('Endereço', a.endereco)}
+        ${field('Instagram', a.instagram)}
+        ${field('Autorização de Imagem', a.autorizacao_imagem)}
+      </div>
+    </div>
+
+    ${isChild ? `
+    <div class="aluno-detail-section">
+      <div class="aluno-detail-title">Dados Escolares (Criança)</div>
+      <div class="aluno-detail-grid">
+        ${field('Escola', a.escola)}
+        ${field('Ano Escolar', a.ano_escolar)}
+        ${field('Turno', a.turno)}
+        ${field('Condição de Desenvolvimento', a.condicao_desenvolvimento)}
+      </div>
+    </div>
+    <div class="aluno-detail-section">
+      <div class="aluno-detail-title">Responsável</div>
+      <div class="aluno-detail-grid">
+        ${field('Nome do Responsável', a.nome_responsavel)}
+        ${field('Telefone do Responsável', a.telefone_responsavel)}
+        ${field('Instagram do Responsável', a.instagram_responsavel)}
+        ${field('Parentesco', a.parentesco)}
+      </div>
+    </div>` : `
+    <div class="aluno-detail-section">
+      <div class="aluno-detail-title">Dados Profissionais (Adulto)</div>
+      <div class="aluno-detail-grid">
+        ${field('Profissão', a.profissao)}
+        ${field('Impacto no Trabalho', a.impacto_trabalho)}
+        ${field('Local de Trabalho', a.local_trabalho)}
+      </div>
+    </div>`}
+
+    <div class="aluno-detail-section">
+      <div class="aluno-detail-title">Jiu-Jitsu</div>
+      <div class="aluno-detail-grid">
+        ${field('Início na Alliance', a.inicio_alliance)}
+        ${field('Faixa Atual', a.faixa_atual)}
+        ${field('Academia Anterior', a.academia_anterior)}
+        ${field('Objetivo', a.objetivo_jiujitsu)}
+        ${field('Dias/Horários', a.dias_horarios)}
+        ${field('Técnica Facilidade', a.tecnica_facilidade)}
+        ${field('Técnica Dificuldade', a.tecnica_dificuldade)}
+      </div>
+    </div>
+
+    <div class="aluno-detail-section">
+      <div class="aluno-detail-title">Origem</div>
+      <div class="aluno-detail-grid">
+        ${field('Origem do Lead', a.origem_lead)}
+        ${field('Respondido em', a.data_resposta ? new Date(a.data_resposta).toLocaleString('pt-BR') : '')}
+      </div>
+    </div>
+
+    <div class="aluno-detail-section">
+      <div class="aluno-detail-title">Curiosidades</div>
+      <div class="aluno-detail-grid">
+        ${field('Comida Preferida', a.comida_preferida)}
+        ${field('Sonho', a.sonho)}
+        ${field('Hobby', a.hobby)}
+        ${field('Música Preferida', a.musica_preferida)}
+        ${field('Curiosidade', a.curiosidade)}
+      </div>
+    </div>
+  `;
+}
 
 // ===== CALENDAR =====
 function initCalendar() {
