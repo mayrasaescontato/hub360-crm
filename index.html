@@ -34,12 +34,12 @@
 
   /* ===== TEMA ALLIANCE (identidade visual própria — preto + dourado oficial alliancebjjframingham.com) ===== */
   .theme-alliance {
-    --green: #0d0d0d;
+    --green: #000000;
     --green-mid: #1a1a1a;
     --green-light: #2b2b2b;
     --gold: #FFBD00;
-    --gold-dark: #d9a000;
-    --gold-light: #ffd54d;
+    --gold-dark: #FFBD00;
+    --gold-light: #FFBD00;
     --gold-rgb: 255,189,0;
   }
 
@@ -648,12 +648,11 @@
   }
   .aluno-sidebar-photo {
     width:112px; height:112px; border-radius:50%; object-fit:cover;
-    border:3px solid var(--gold); box-shadow:0 6px 16px rgba(var(--gold-rgb),.35);
+    border:3px solid var(--gold);
   }
   .aluno-sidebar-avatar-fallback {
     width:112px; height:112px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-    font-weight:800; font-size:34px; color:#fff; border:3px solid var(--gold);
-    box-shadow:0 6px 16px rgba(var(--gold-rgb),.35);
+    font-weight:800; font-size:34px; color:#fff; background:#000; border:3px solid var(--gold);
   }
   .aluno-sidebar-name { font-size:17px; font-weight:800; color:#000; margin-top:16px; line-height:1.25; }
   .aluno-sidebar-badge {
@@ -2305,14 +2304,13 @@ function renderAlunosTable(q) {
   tbody.innerHTML = rows.map((a, idx) => {
     const name = a.nome_aluno || 'Sem nome';
     const initials = name.split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase() || '?';
-    const color = getAvatarColor(name);
-    const tipo = a.tipo_aluno === 'Adult' ? '<span class="badge badge-blue">Adulto</span>' : (a.tipo_aluno ? `<span class="badge badge-purple">${a.tipo_aluno}</span>` : '<span style="color:var(--gray-300)">—</span>');
+    const tipo = a.tipo_aluno === 'Adult' ? '<span style="background:#000;color:#fff;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">Adulto</span>' : (a.tipo_aluno ? `<span style="background:#000;color:#fff;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700">${a.tipo_aluno}</span>` : '<span style="color:var(--gray-300)">—</span>');
     const dataResp = a.data_resposta ? new Date(a.data_resposta).toLocaleDateString('pt-BR') : '—';
     const realIdx = alunosData.indexOf(a);
     return `<tr style="cursor:pointer" onclick="openAlunoModal(${realIdx})">
       <td>
         <div class="contact-name-wrap">
-          <div class="contact-avatar aluno-avatar" style="background:${color}">${initials}</div>
+          <div class="contact-avatar aluno-avatar">${initials}</div>
           <div>
             <div class="contact-name">${name}</div>
             <div class="contact-email-sub">${a.email||''}</div>
@@ -2348,12 +2346,11 @@ function renderAlunoDetail(a) {
   const field = (label, val) => `<div class="aluno-detail-field"><label>${label}</label><span>${val && String(val).trim() ? val : '—'}</span></div>`;
   const isChild = a.tipo_aluno && a.tipo_aluno !== 'Adult';
   const initials = (a.nome_aluno||'?').split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
-  const color = getAvatarColor(a.nome_aluno||'?');
 
-  let photoHtml = `<div class="aluno-sidebar-avatar-fallback" style="background:${color}">${initials}</div>`;
+  let photoHtml = `<div class="aluno-sidebar-avatar-fallback">${initials}</div>`;
   if (a.foto_url) {
     const imgSrc = driveImageUrl(a.foto_url);
-    photoHtml = `<a href="${a.foto_url}" target="_blank" rel="noopener" title="Ver foto original"><img class="aluno-sidebar-photo" src="${imgSrc}" onerror="this.parentElement.outerHTML='<div class=&quot;aluno-sidebar-avatar-fallback&quot; style=&quot;background:${color}&quot;>${initials}</div>'"></a>`;
+    photoHtml = `<a href="${a.foto_url}" target="_blank" rel="noopener" title="Ver foto original"><img class="aluno-sidebar-photo" src="${imgSrc}" onerror="this.parentElement.outerHTML='<div class=&quot;aluno-sidebar-avatar-fallback&quot;>${initials}</div>'"></a>`;
   }
 
   const metaRow = (icon, label, val) => (val && String(val).trim()) ? `
