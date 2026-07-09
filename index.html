@@ -15,6 +15,7 @@
     --gold: #C4A97D;
     --gold-dark: #a8904a;
     --gold-light: #d4bc96;
+    --gold-rgb: 196,169,125;
     --white: #ffffff;
     --gray-50: #f9fafb;
     --gray-100: #f3f4f6;
@@ -39,6 +40,7 @@
     --gold: #FFBD00;
     --gold-dark: #d9a000;
     --gold-light: #ffd54d;
+    --gold-rgb: 255,189,0;
   }
 
   /* ===== LOGIN ===== */
@@ -640,26 +642,26 @@
 
   .aluno-modal-flex { display:flex; min-height:460px; }
   .aluno-sidebar {
-    width:220px; flex-shrink:0; background:linear-gradient(180deg,#f8f5ef 0%,#f3ede0 100%);
-    padding:32px 22px; text-align:center; border-right:1px solid rgba(196,169,125,.25);
+    width:220px; flex-shrink:0; background:#fff;
+    padding:32px 22px; text-align:center; border-right:3px solid var(--gold);
     display:flex; flex-direction:column; align-items:center;
   }
   .aluno-sidebar-photo {
     width:112px; height:112px; border-radius:50%; object-fit:cover;
-    border:3px solid var(--gold); box-shadow:0 6px 16px rgba(196,169,125,.35);
+    border:3px solid var(--gold); box-shadow:0 6px 16px rgba(var(--gold-rgb),.35);
   }
   .aluno-sidebar-avatar-fallback {
     width:112px; height:112px; border-radius:50%; display:flex; align-items:center; justify-content:center;
     font-weight:800; font-size:34px; color:#fff; border:3px solid var(--gold);
-    box-shadow:0 6px 16px rgba(196,169,125,.35);
+    box-shadow:0 6px 16px rgba(var(--gold-rgb),.35);
   }
   .aluno-sidebar-name { font-size:17px; font-weight:800; color:var(--green); margin-top:16px; line-height:1.25; }
   .aluno-sidebar-badge {
     margin-top:8px; display:inline-block; padding:4px 12px; border-radius:20px;
-    background:rgba(196,169,125,.2); color:var(--gold-dark); font-size:11px; font-weight:700;
+    background:rgba(var(--gold-rgb),.18); color:var(--gold-dark); font-size:11px; font-weight:700;
     letter-spacing:.3px;
   }
-  .aluno-sidebar-divider { width:100%; height:1px; background:rgba(196,169,125,.3); margin:20px 0; }
+  .aluno-sidebar-divider { width:100%; height:1px; background:rgba(var(--gold-rgb),.4); margin:20px 0; }
   .aluno-sidebar-meta { width:100%; text-align:left; }
   .aluno-sidebar-meta-row { display:flex; align-items:flex-start; gap:8px; margin-bottom:12px; font-size:12px; }
   .aluno-sidebar-meta-row i { color:var(--gold-dark); font-size:12px; width:14px; margin-top:2px; flex-shrink:0; }
@@ -672,7 +674,7 @@
   .aluno-detail-title {
     font-size:11px; font-weight:800; color:var(--gold-dark); text-transform:uppercase;
     letter-spacing:1.2px; margin-bottom:12px; padding-bottom:7px;
-    border-bottom:2px solid rgba(196,169,125,.3); display:flex; align-items:center; gap:7px;
+    border-bottom:2px solid rgba(var(--gold-rgb),.35); display:flex; align-items:center; gap:7px;
   }
   .aluno-detail-title i { font-size:11px; }
   .aluno-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -2335,6 +2337,13 @@ function openAlunoModal(idx) {
 function closeAlunoModal() { document.getElementById('alunoModal').classList.remove('open'); }
 document.getElementById('alunoModal').addEventListener('click', function(e){ if(e.target===this) closeAlunoModal(); });
 
+function driveImageUrl(url) {
+  if (!url) return '';
+  const m = String(url).match(/[-\w]{25,}/);
+  if (!m) return url;
+  return `https://lh3.googleusercontent.com/d/${m[0]}=w400`;
+}
+
 function renderAlunoDetail(a) {
   const field = (label, val) => `<div class="aluno-detail-field"><label>${label}</label><span>${val && String(val).trim() ? val : '—'}</span></div>`;
   const isChild = a.tipo_aluno && a.tipo_aluno !== 'Adult';
@@ -2343,7 +2352,8 @@ function renderAlunoDetail(a) {
 
   let photoHtml = `<div class="aluno-sidebar-avatar-fallback" style="background:${color}">${initials}</div>`;
   if (a.foto_url) {
-    photoHtml = `<a href="${a.foto_url}" target="_blank" rel="noopener" title="Ver foto original"><img class="aluno-sidebar-photo" src="${a.foto_url}" onerror="this.parentElement.outerHTML='<div class=&quot;aluno-sidebar-avatar-fallback&quot; style=&quot;background:${color}&quot;>${initials}</div>'"></a>`;
+    const imgSrc = driveImageUrl(a.foto_url);
+    photoHtml = `<a href="${a.foto_url}" target="_blank" rel="noopener" title="Ver foto original"><img class="aluno-sidebar-photo" src="${imgSrc}" onerror="this.parentElement.outerHTML='<div class=&quot;aluno-sidebar-avatar-fallback&quot; style=&quot;background:${color}&quot;>${initials}</div>'"></a>`;
   }
 
   const metaRow = (icon, label, val) => (val && String(val).trim()) ? `
