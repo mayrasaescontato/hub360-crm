@@ -31,6 +31,16 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: 'Segoe UI', system-ui, sans-serif; background:#f0f2f0; color:var(--gray-900); }
 
+  /* ===== TEMA ALLIANCE (identidade visual própria — preto + dourado oficial alliancebjjframingham.com) ===== */
+  .theme-alliance {
+    --green: #0d0d0d;
+    --green-mid: #1a1a1a;
+    --green-light: #2b2b2b;
+    --gold: #FFBD00;
+    --gold-dark: #d9a000;
+    --gold-light: #ffd54d;
+  }
+
   /* ===== LOGIN ===== */
   #loginScreen {
     display:flex; align-items:center; justify-content:center;
@@ -627,15 +637,54 @@
 
   /* ===== ALUNOS (Cadastro Alliance) ===== */
   .aluno-avatar { background:var(--green); }
-  .aluno-detail-section { margin-bottom:18px; }
-  .aluno-detail-title {
-    font-size:11px; font-weight:700; color:var(--gray-400); text-transform:uppercase;
-    letter-spacing:1px; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--gray-100);
+
+  .aluno-modal-flex { display:flex; min-height:460px; }
+  .aluno-sidebar {
+    width:220px; flex-shrink:0; background:linear-gradient(180deg,#f8f5ef 0%,#f3ede0 100%);
+    padding:32px 22px; text-align:center; border-right:1px solid rgba(196,169,125,.25);
+    display:flex; flex-direction:column; align-items:center;
   }
-  .aluno-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
-  .aluno-detail-field { font-size:12px; }
-  .aluno-detail-field label { display:block; color:var(--gray-400); font-size:11px; margin-bottom:2px; }
-  .aluno-detail-field span { color:var(--gray-900); font-weight:500; }
+  .aluno-sidebar-photo {
+    width:112px; height:112px; border-radius:50%; object-fit:cover;
+    border:3px solid var(--gold); box-shadow:0 6px 16px rgba(196,169,125,.35);
+  }
+  .aluno-sidebar-avatar-fallback {
+    width:112px; height:112px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:34px; color:#fff; border:3px solid var(--gold);
+    box-shadow:0 6px 16px rgba(196,169,125,.35);
+  }
+  .aluno-sidebar-name { font-size:17px; font-weight:800; color:var(--green); margin-top:16px; line-height:1.25; }
+  .aluno-sidebar-badge {
+    margin-top:8px; display:inline-block; padding:4px 12px; border-radius:20px;
+    background:rgba(196,169,125,.2); color:var(--gold-dark); font-size:11px; font-weight:700;
+    letter-spacing:.3px;
+  }
+  .aluno-sidebar-divider { width:100%; height:1px; background:rgba(196,169,125,.3); margin:20px 0; }
+  .aluno-sidebar-meta { width:100%; text-align:left; }
+  .aluno-sidebar-meta-row { display:flex; align-items:flex-start; gap:8px; margin-bottom:12px; font-size:12px; }
+  .aluno-sidebar-meta-row i { color:var(--gold-dark); font-size:12px; width:14px; margin-top:2px; flex-shrink:0; }
+  .aluno-sidebar-meta-row div { color:var(--gray-700); }
+  .aluno-sidebar-meta-row .meta-label { display:block; font-size:10px; color:var(--gray-400); text-transform:uppercase; letter-spacing:.4px; margin-bottom:1px; }
+
+  .aluno-content { flex:1; padding:26px 30px; overflow-y:auto; max-height:75vh; }
+  .aluno-detail-section { margin-bottom:22px; }
+  .aluno-detail-section:last-child { margin-bottom:0; }
+  .aluno-detail-title {
+    font-size:11px; font-weight:800; color:var(--gold-dark); text-transform:uppercase;
+    letter-spacing:1.2px; margin-bottom:12px; padding-bottom:7px;
+    border-bottom:2px solid rgba(196,169,125,.3); display:flex; align-items:center; gap:7px;
+  }
+  .aluno-detail-title i { font-size:11px; }
+  .aluno-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .aluno-detail-field {
+    font-size:12px; background:var(--gray-50); border:1px solid var(--gray-100);
+    border-radius:8px; padding:9px 12px;
+  }
+  .aluno-detail-field label {
+    display:block; color:var(--gray-400); font-size:10px; text-transform:uppercase;
+    letter-spacing:.4px; margin-bottom:3px; font-weight:600;
+  }
+  .aluno-detail-field span { color:var(--gray-900); font-weight:600; font-size:13px; }
   .aluno-photo { width:64px; height:64px; border-radius:50%; object-fit:cover; border:2px solid var(--gray-200); }
 </style>
 </head>
@@ -1514,12 +1563,12 @@
 
 <!-- MODAL PERFIL ALUNO ALLIANCE -->
 <div class="modal-overlay" id="alunoModal">
-  <div class="modal" style="width:640px;max-height:92vh">
-    <div class="modal-header">
-      <div class="modal-title" id="alunoModalTitle">Perfil do Aluno</div>
+  <div class="modal" style="width:760px;max-width:95vw;max-height:92vh">
+    <div class="modal-header" style="border-bottom:2px solid rgba(196,169,125,.3)">
+      <div class="modal-title" id="alunoModalTitle" style="color:var(--green)"><i class="fas fa-user-graduate" style="color:var(--gold-dark);margin-right:8px"></i>Perfil do Aluno</div>
       <div class="modal-close" onclick="closeAlunoModal()"><i class="fas fa-times"></i></div>
     </div>
-    <div class="modal-body" id="alunoModalBody">
+    <div class="modal-body" id="alunoModalBody" style="padding:0">
       <!-- preenchido dinamicamente por renderAlunoDetail() -->
     </div>
     <div class="modal-footer">
@@ -1736,12 +1785,22 @@ async function doLogout() {
   toast('Você saiu da conta.');
 }
 
+function applyCompanyTheme(co) {
+  const appEl = document.getElementById('appScreen');
+  if (!appEl) return;
+  appEl.classList.remove('theme-alliance');
+  if (co === 'alliance') appEl.classList.add('theme-alliance');
+  // Outras empresas (Sam Sushi, Ez Money, Real Print) ainda usam a identidade padrão do Hub360
+  // até terem suas próprias paletas definidas.
+}
+
 function enterCompanyFromWelcome(id, name){
   state.currentCompany = id;
   state.currentCompanyName = name.split(' ').slice(0,2).join(' ');
   try{ localStorage.setItem('hub360_company', id); localStorage.setItem('hub360_company_name', name); }catch(e){}
   document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('appScreen').style.display = 'block';
+  applyCompanyTheme(id);
   document.getElementById('sbCompanyName').innerHTML = `${state.currentCompanyName} <i class="fas fa-chevron-down" style="font-size:10px"></i>`;
   document.querySelectorAll('.cd-item').forEach(i=>{
     i.classList.toggle('active', i.getAttribute('onclick')&&i.getAttribute('onclick').includes("'"+id+"'"));
@@ -1766,12 +1825,14 @@ function initApp() {
     if(savedCo && savedName){
       state.currentCompany = savedCo;
       state.currentCompanyName = savedName.split(' ').slice(0,2).join(' ');
+      applyCompanyTheme(savedCo);
       document.getElementById('sbCompanyName').innerHTML = `${state.currentCompanyName} <i class="fas fa-chevron-down" style="font-size:10px"></i>`;
       document.querySelectorAll('.cd-item').forEach(i=>{
         i.classList.toggle('active', i.getAttribute('onclick')&&i.getAttribute('onclick').includes("'"+savedCo+"'"));
       });
     }
   }catch(e){}
+  applyCompanyTheme(state.currentCompany);
   renderNav();
   const firstItem = document.querySelector('#sidebarNav .sb-item');
   let navEl = null;
@@ -1833,6 +1894,7 @@ function selectCompany(id, name, e) {
   e.stopPropagation();
   state.currentCompany = id; state.currentCompanyName = name.split(' ').slice(0,2).join(' ');
   try{ localStorage.setItem('hub360_company', id); localStorage.setItem('hub360_company_name', name); }catch(err){}
+  applyCompanyTheme(id);
   document.getElementById('sbCompanyName').innerHTML = `${state.currentCompanyName} <i class="fas fa-chevron-down" style="font-size:10px"></i>`;
   document.querySelectorAll('.cd-item').forEach(i => i.classList.remove('active'));
   e.currentTarget.classList.add('active');
@@ -2267,7 +2329,6 @@ function renderAlunosTable(q) {
 function openAlunoModal(idx) {
   const a = alunosData[idx];
   if (!a) return;
-  document.getElementById('alunoModalTitle').textContent = a.nome_aluno || 'Perfil do Aluno';
   document.getElementById('alunoModalBody').innerHTML = renderAlunoDetail(a);
   document.getElementById('alunoModal').classList.add('open');
 }
@@ -2280,89 +2341,105 @@ function renderAlunoDetail(a) {
   const initials = (a.nome_aluno||'?').split(' ').map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
   const color = getAvatarColor(a.nome_aluno||'?');
 
-  let photoHtml = `<div class="contact-avatar aluno-avatar" style="background:${color};width:64px;height:64px;font-size:20px">${initials}</div>`;
+  let photoHtml = `<div class="aluno-sidebar-avatar-fallback" style="background:${color}">${initials}</div>`;
   if (a.foto_url) {
-    photoHtml = `<a href="${a.foto_url}" target="_blank" rel="noopener"><img class="aluno-photo" src="${a.foto_url}" onerror="this.style.display='none'"></a>`;
+    photoHtml = `<a href="${a.foto_url}" target="_blank" rel="noopener" title="Ver foto original"><img class="aluno-sidebar-photo" src="${a.foto_url}" onerror="this.parentElement.outerHTML='<div class=&quot;aluno-sidebar-avatar-fallback&quot; style=&quot;background:${color}&quot;>${initials}</div>'"></a>`;
   }
 
+  const metaRow = (icon, label, val) => (val && String(val).trim()) ? `
+      <div class="aluno-sidebar-meta-row">
+        <i class="fas ${icon}"></i>
+        <div><span class="meta-label">${label}</span>${val}</div>
+      </div>` : '';
+
   return `
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
-      ${photoHtml}
-      <div>
-        <div style="font-size:16px;font-weight:700">${a.nome_aluno||'Sem nome'}</div>
-        <div style="font-size:12px;color:var(--gray-500)">${a.tipo_aluno==='Adult'?'Adulto':(a.tipo_aluno||'—')} ${a.faixa_atual?'· Faixa '+a.faixa_atual:''}</div>
+    <div class="aluno-modal-flex">
+      <div class="aluno-sidebar">
+        ${photoHtml}
+        <div class="aluno-sidebar-name">${a.nome_aluno||'Sem nome'}</div>
+        <div class="aluno-sidebar-badge">${isChild ? (a.tipo_aluno||'Criança') : 'Adulto'}${a.faixa_atual ? ' · Faixa '+a.faixa_atual : ''}</div>
+        <div class="aluno-sidebar-divider"></div>
+        <div class="aluno-sidebar-meta">
+          ${metaRow('fa-phone','Telefone', a.telefone)}
+          ${metaRow('fa-envelope','E-mail', a.email)}
+          ${metaRow('fa-cake-candles','Nascimento', a.data_nascimento)}
+          ${metaRow('fa-calendar-check','Início na Alliance', a.inicio_alliance)}
+          ${metaRow('fa-bullhorn','Origem', a.origem_lead)}
+        </div>
       </div>
-    </div>
 
-    <div class="aluno-detail-section">
-      <div class="aluno-detail-title">Identificação</div>
-      <div class="aluno-detail-grid">
-        ${field('Data de Nascimento', a.data_nascimento)}
-        ${field('Telefone', a.telefone)}
-        ${field('E-mail', a.email)}
-        ${field('Endereço', a.endereco)}
-        ${field('Instagram', a.instagram)}
-        ${field('Autorização de Imagem', a.autorizacao_imagem)}
-      </div>
-    </div>
+      <div class="aluno-content">
+        <div class="aluno-detail-section">
+          <div class="aluno-detail-title"><i class="fas fa-id-card"></i>Identificação</div>
+          <div class="aluno-detail-grid">
+            ${field('Data de Nascimento', a.data_nascimento)}
+            ${field('Telefone', a.telefone)}
+            ${field('E-mail', a.email)}
+            ${field('Endereço', a.endereco)}
+            ${field('Instagram', a.instagram)}
+            ${field('Autorização de Imagem', a.autorizacao_imagem)}
+          </div>
+        </div>
 
-    ${isChild ? `
-    <div class="aluno-detail-section">
-      <div class="aluno-detail-title">Dados Escolares (Criança)</div>
-      <div class="aluno-detail-grid">
-        ${field('Escola', a.escola)}
-        ${field('Ano Escolar', a.ano_escolar)}
-        ${field('Turno', a.turno)}
-        ${field('Condição de Desenvolvimento', a.condicao_desenvolvimento)}
-      </div>
-    </div>
-    <div class="aluno-detail-section">
-      <div class="aluno-detail-title">Responsável</div>
-      <div class="aluno-detail-grid">
-        ${field('Nome do Responsável', a.nome_responsavel)}
-        ${field('Telefone do Responsável', a.telefone_responsavel)}
-        ${field('Instagram do Responsável', a.instagram_responsavel)}
-        ${field('Parentesco', a.parentesco)}
-      </div>
-    </div>` : `
-    <div class="aluno-detail-section">
-      <div class="aluno-detail-title">Dados Profissionais (Adulto)</div>
-      <div class="aluno-detail-grid">
-        ${field('Profissão', a.profissao)}
-        ${field('Impacto no Trabalho', a.impacto_trabalho)}
-        ${field('Local de Trabalho', a.local_trabalho)}
-      </div>
-    </div>`}
+        ${isChild ? `
+        <div class="aluno-detail-section">
+          <div class="aluno-detail-title"><i class="fas fa-school"></i>Dados Escolares</div>
+          <div class="aluno-detail-grid">
+            ${field('Escola', a.escola)}
+            ${field('Ano Escolar', a.ano_escolar)}
+            ${field('Turno', a.turno)}
+            ${field('Condição de Desenvolvimento', a.condicao_desenvolvimento)}
+          </div>
+        </div>
+        <div class="aluno-detail-section">
+          <div class="aluno-detail-title"><i class="fas fa-people-roof"></i>Responsável</div>
+          <div class="aluno-detail-grid">
+            ${field('Nome do Responsável', a.nome_responsavel)}
+            ${field('Telefone do Responsável', a.telefone_responsavel)}
+            ${field('Instagram do Responsável', a.instagram_responsavel)}
+            ${field('Parentesco', a.parentesco)}
+          </div>
+        </div>` : `
+        <div class="aluno-detail-section">
+          <div class="aluno-detail-title"><i class="fas fa-briefcase"></i>Dados Profissionais</div>
+          <div class="aluno-detail-grid">
+            ${field('Profissão', a.profissao)}
+            ${field('Impacto no Trabalho', a.impacto_trabalho)}
+            ${field('Local de Trabalho', a.local_trabalho)}
+          </div>
+        </div>`}
 
-    <div class="aluno-detail-section">
-      <div class="aluno-detail-title">Jiu-Jitsu</div>
-      <div class="aluno-detail-grid">
-        ${field('Início na Alliance', a.inicio_alliance)}
-        ${field('Faixa Atual', a.faixa_atual)}
-        ${field('Academia Anterior', a.academia_anterior)}
-        ${field('Objetivo', a.objetivo_jiujitsu)}
-        ${field('Dias/Horários', a.dias_horarios)}
-        ${field('Técnica Facilidade', a.tecnica_facilidade)}
-        ${field('Técnica Dificuldade', a.tecnica_dificuldade)}
-      </div>
-    </div>
+        <div class="aluno-detail-section">
+          <div class="aluno-detail-title"><i class="fas fa-user-graduate"></i>Jiu-Jitsu</div>
+          <div class="aluno-detail-grid">
+            ${field('Início na Alliance', a.inicio_alliance)}
+            ${field('Faixa Atual', a.faixa_atual)}
+            ${field('Academia Anterior', a.academia_anterior)}
+            ${field('Objetivo', a.objetivo_jiujitsu)}
+            ${field('Dias/Horários', a.dias_horarios)}
+            ${field('Técnica Facilidade', a.tecnica_facilidade)}
+            ${field('Técnica Dificuldade', a.tecnica_dificuldade)}
+          </div>
+        </div>
 
-    <div class="aluno-detail-section">
-      <div class="aluno-detail-title">Origem</div>
-      <div class="aluno-detail-grid">
-        ${field('Origem do Lead', a.origem_lead)}
-        ${field('Respondido em', a.data_resposta ? new Date(a.data_resposta).toLocaleString('pt-BR') : '')}
-      </div>
-    </div>
+        <div class="aluno-detail-section">
+          <div class="aluno-detail-title"><i class="fas fa-bullhorn"></i>Origem</div>
+          <div class="aluno-detail-grid">
+            ${field('Origem do Lead', a.origem_lead)}
+            ${field('Respondido em', a.data_resposta ? new Date(a.data_resposta).toLocaleString('pt-BR') : '')}
+          </div>
+        </div>
 
-    <div class="aluno-detail-section">
-      <div class="aluno-detail-title">Curiosidades</div>
-      <div class="aluno-detail-grid">
-        ${field('Comida Preferida', a.comida_preferida)}
-        ${field('Sonho', a.sonho)}
-        ${field('Hobby', a.hobby)}
-        ${field('Música Preferida', a.musica_preferida)}
-        ${field('Curiosidade', a.curiosidade)}
+        <div class="aluno-detail-section">
+          <div class="aluno-detail-title"><i class="fas fa-star"></i>Curiosidades</div>
+          <div class="aluno-detail-grid">
+            ${field('Comida Preferida', a.comida_preferida)}
+            ${field('Sonho', a.sonho)}
+            ${field('Hobby', a.hobby)}
+            ${field('Música Preferida', a.musica_preferida)}
+            ${field('Curiosidade', a.curiosidade)}
+          </div>
+        </div>
       </div>
     </div>
   `;
