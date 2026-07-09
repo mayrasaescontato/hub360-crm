@@ -49,14 +49,14 @@
     min-height:100vh; background: linear-gradient(135deg, #0d1f1a 0%, #1a2e27 60%, #243d34 100%);
   }
   .login-box {
-    background: rgba(255,255,255,0.04); border:1px solid rgba(196,169,125,0.2);
+    background: rgba(255,255,255,0.04); border:1px solid rgba(var(--gold-rgb),0.2);
     border-radius:16px; padding:48px 40px; width:400px; backdrop-filter:blur(20px);
     box-shadow: 0 32px 80px rgba(0,0,0,0.4);
   }
   .login-logo-wrap { text-align:center; margin-bottom:32px; }
   .login-logo-text {
     font-size:28px; font-weight:800; color:var(--gold); letter-spacing:2px;
-    text-shadow:0 0 20px rgba(196,169,125,0.4);
+    text-shadow:0 0 20px rgba(var(--gold-rgb),0.4);
   }
   .login-subtitle { color:rgba(255,255,255,0.5); font-size:13px; margin-top:4px; }
   .login-field { margin-bottom:16px; }
@@ -91,13 +91,13 @@
     transition: box-shadow .2s;
   }
   .gear-hotspot:hover {
-    box-shadow: 0 0 0 6px rgba(196,169,125,0.35) inset;
+    box-shadow: 0 0 0 6px rgba(var(--gold-rgb),0.35) inset;
   }
 
   /* ===== DISCADOR (Twilio Voice) ===== */
   #callWidget {
     display:none; position:fixed; bottom:20px; right:20px; width:300px;
-    background:#1a2e27; border:1px solid rgba(196,169,125,0.35); border-radius:14px;
+    background:#1a2e27; border:1px solid rgba(var(--gold-rgb),0.35); border-radius:14px;
     box-shadow:0 20px 50px rgba(0,0,0,0.4); z-index:9999; color:#F5F0E8; overflow:hidden;
     font-family:'Segoe UI', system-ui, sans-serif;
   }
@@ -124,7 +124,7 @@
     background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px;
     padding:10px 0; font-size:15px; font-weight:600; cursor:pointer; color:#F5F0E8;
   }
-  #callWidget .cw-key:hover { background:rgba(196,169,125,0.2); }
+  #callWidget .cw-key:hover { background:rgba(var(--gold-rgb),0.2); }
   #callWidget .cw-actions { display:flex; gap:10px; justify-content:center; margin-top:6px; }
   #callWidget .cw-btn {
     width:48px; height:48px; border-radius:50%; border:none; cursor:pointer;
@@ -144,7 +144,7 @@
   #dialFab:hover { background:var(--gold-light); }
   #manualDialer {
     display:none; position:fixed; bottom:20px; right:20px; width:280px;
-    background:#1a2e27; border:1px solid rgba(196,169,125,0.35); border-radius:14px;
+    background:#1a2e27; border:1px solid rgba(var(--gold-rgb),0.35); border-radius:14px;
     box-shadow:0 20px 50px rgba(0,0,0,0.4); z-index:9999; color:#F5F0E8; overflow:hidden;
     font-family:'Segoe UI', system-ui, sans-serif;
   }
@@ -164,7 +164,7 @@
     background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px;
     padding:12px 0; font-size:16px; font-weight:600; cursor:pointer; color:#F5F0E8; text-align:center;
   }
-  #manualDialer .md-key:hover { background:rgba(196,169,125,0.2); }
+  #manualDialer .md-key:hover { background:rgba(var(--gold-rgb),0.2); }
   #manualDialer .md-actions { display:flex; gap:10px; }
   #manualDialer .md-call {
     flex:1; background:#16a34a; color:#fff; border:none; border-radius:8px; padding:12px; font-weight:700;
@@ -206,7 +206,7 @@
 
   .company-dropdown {
     display:none; position:absolute; left:0; top:100%; width:100%;
-    background:#0f1f1a; border:1px solid rgba(196,169,125,0.2); z-index:200;
+    background:#0f1f1a; border:1px solid rgba(var(--gold-rgb),0.2); z-index:200;
     box-shadow:0 8px 24px rgba(0,0,0,0.5);
   }
   .company-dropdown.open { display:block; }
@@ -214,8 +214,8 @@
     padding:10px 16px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.05);
     transition:background .15s;
   }
-  .cd-item:hover { background:rgba(196,169,125,0.1); }
-  .cd-item.active { background:rgba(196,169,125,0.15); }
+  .cd-item:hover { background:rgba(var(--gold-rgb),0.1); }
+  .cd-item.active { background:rgba(var(--gold-rgb),0.15); }
   .cd-item-name { font-size:13px; color:#fff; font-weight:500; }
   .cd-item-sub { font-size:11px; color:rgba(255,255,255,0.4); }
 
@@ -227,7 +227,7 @@
     font-size:13px; font-weight:500; border-left:3px solid transparent;
   }
   .sb-item:hover { background:rgba(255,255,255,0.06); color:#fff; }
-  .sb-item.active { background:rgba(196,169,125,0.15); color:var(--gold); border-left-color:var(--gold); }
+  .sb-item.active { background:rgba(var(--gold-rgb),0.15); color:var(--gold); border-left-color:var(--gold); }
   .sb-item i { width:16px; text-align:center; font-size:13px; }
 
   .sb-bottom { padding:12px 16px; border-top:1px solid rgba(255,255,255,0.08); }
@@ -1285,10 +1285,10 @@
               <div class="chat-input-area" style="position:relative">
                 <input type="file" id="mediaFileInput" style="display:none" onchange="sendMediaMessage(this)">
                 <div id="mediaMenu" style="display:none;position:absolute;bottom:56px;left:8px;background:var(--sidebar-bg);border:1px solid var(--gray-200);border-radius:12px;padding:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:100">
-                  <div onclick="openMediaPicker('image/*')" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-radius:8px;color:var(--text-primary);font-size:13px" onmouseover="this.style.background='rgba(196,169,125,.15)'" onmouseout="this.style.background='none'"><i class="fas fa-image" style="color:#C4A97D;width:18px"></i> Imagem / Foto</div>
-                  <div onclick="openMediaPicker('video/*')" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-radius:8px;color:var(--text-primary);font-size:13px" onmouseover="this.style.background='rgba(196,169,125,.15)'" onmouseout="this.style.background='none'"><i class="fas fa-video" style="color:#C4A97D;width:18px"></i> Vídeo</div>
-                  <div onclick="startAudioRecording()" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-radius:8px;color:var(--text-primary);font-size:13px" onmouseover="this.style.background='rgba(196,169,125,.15)'" onmouseout="this.style.background='none'"><i class="fas fa-microphone" style="color:#C4A97D;width:18px"></i> Gravar áudio</div>
-                  <div onclick="openMediaPicker('.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv')" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-radius:8px;color:var(--text-primary);font-size:13px" onmouseover="this.style.background='rgba(196,169,125,.15)'" onmouseout="this.style.background='none'"><i class="fas fa-file-alt" style="color:#C4A97D;width:18px"></i> Documento</div>
+                  <div onclick="openMediaPicker('image/*')" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-radius:8px;color:var(--text-primary);font-size:13px" onmouseover="this.style.background='rgba(var(--gold-rgb),.15)'" onmouseout="this.style.background='none'"><i class="fas fa-image" style="color:var(--gold);width:18px"></i> Imagem / Foto</div>
+                  <div onclick="openMediaPicker('video/*')" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-radius:8px;color:var(--text-primary);font-size:13px" onmouseover="this.style.background='rgba(var(--gold-rgb),.15)'" onmouseout="this.style.background='none'"><i class="fas fa-video" style="color:var(--gold);width:18px"></i> Vídeo</div>
+                  <div onclick="startAudioRecording()" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-radius:8px;color:var(--text-primary);font-size:13px" onmouseover="this.style.background='rgba(var(--gold-rgb),.15)'" onmouseout="this.style.background='none'"><i class="fas fa-microphone" style="color:var(--gold);width:18px"></i> Gravar áudio</div>
+                  <div onclick="openMediaPicker('.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv')" style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-radius:8px;color:var(--text-primary);font-size:13px" onmouseover="this.style.background='rgba(var(--gold-rgb),.15)'" onmouseout="this.style.background='none'"><i class="fas fa-file-alt" style="color:var(--gold);width:18px"></i> Documento</div>
                 </div>
                 <!-- Barra de gravação (substitui input enquanto grava) -->
                 <div id="audioRecordingBar" style="display:none;flex:1;align-items:center;gap:10px">
@@ -1565,7 +1565,7 @@
 <!-- MODAL PERFIL ALUNO ALLIANCE -->
 <div class="modal-overlay" id="alunoModal">
   <div class="modal" style="width:760px;max-width:95vw;max-height:92vh">
-    <div class="modal-header" style="border-bottom:2px solid rgba(196,169,125,.3)">
+    <div class="modal-header" style="border-bottom:3px solid var(--gold)">
       <div class="modal-title" id="alunoModalTitle" style="color:var(--green)"><i class="fas fa-user-graduate" style="color:var(--gold-dark);margin-right:8px"></i>Perfil do Aluno</div>
       <div class="modal-close" onclick="closeAlunoModal()"><i class="fas fa-times"></i></div>
     </div>
@@ -1787,10 +1787,8 @@ async function doLogout() {
 }
 
 function applyCompanyTheme(co) {
-  const appEl = document.getElementById('appScreen');
-  if (!appEl) return;
-  appEl.classList.remove('theme-alliance');
-  if (co === 'alliance') appEl.classList.add('theme-alliance');
+  document.body.classList.remove('theme-alliance');
+  if (co === 'alliance') document.body.classList.add('theme-alliance');
   // Outras empresas (Sam Sushi, Ez Money, Real Print) ainda usam a identidade padrão do Hub360
   // até terem suas próprias paletas definidas.
 }
