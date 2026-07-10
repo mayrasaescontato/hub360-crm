@@ -1485,6 +1485,7 @@
       </div>
     </div>
     <div class="modal-footer">
+      <button class="btn btn-danger" id="oppDeleteBtn" style="display:none;margin-right:auto" onclick="deleteOpp()"><i class="fas fa-trash"></i> Excluir</button>
       <button class="btn btn-outline" onclick="closeOppModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveOpp()"><i class="fas fa-save"></i> Salvar</button>
     </div>
@@ -2867,6 +2868,7 @@ function openNewOpp() {
   toggleGuardianField();
   toggleLossReasonField();
   document.getElementById('oppNotesSection').style.display = 'none';
+  document.getElementById('oppDeleteBtn').style.display = 'none';
   document.getElementById('oppModal').classList.add('open');
 }
 
@@ -2889,7 +2891,24 @@ function openEditOpp(id) {
   toggleLossReasonField();
   document.getElementById('oppNotesSection').style.display = 'block';
   document.getElementById('oppNotesList').innerHTML = renderOppNotesList(o.notesRaw);
+  document.getElementById('oppDeleteBtn').style.display = 'inline-flex';
   document.getElementById('oppModal').classList.add('open');
+}
+
+async function deleteOpp() {
+  const id = document.getElementById('oppEditId').value;
+  if (!id) return;
+  const o = state.opps.find(x => String(x.id) === String(id));
+  const name = o ? o.contact : 'este lead';
+  if (!confirm(`Excluir "${name}" permanentemente? Essa ação não pode ser desfeita.`)) return;
+  try {
+    await supaFetch(`opportunities?id=eq.${id}`, { method:'DELETE' });
+    toast('Lead excluído!');
+    closeOppModal();
+    loadOpps();
+  } catch(e) {
+    toast('Erro ao excluir: ' + e.message, 'error');
+  }
 }
 
 function closeOppModal() { document.getElementById('oppModal').classList.remove('open'); }
