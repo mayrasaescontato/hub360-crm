@@ -1706,17 +1706,26 @@ function _notifyNewMessage(msg){
   }catch(e){ console.warn('Erro ao notificar:', e); }
 }
 
+function _isConversationsPageActive(){
+  const p = document.getElementById('page-conversations');
+  return !!(p && p.classList.contains('active'));
+}
+
 function initSupabaseRealtime() {
   // Recarrega conversas ao recuperar foco da aba (resolve mensagens perdidas quando estava fechado)
+  // Só roda se a página de Conversas estiver de fato aberta — evita recarregar em segundo plano
+  // enquanto o usuário está em outras telas (Contatos, Cadastro Alunos, etc), o que causava lentidão.
   document.addEventListener('visibilitychange', function(){
-    if(!document.hidden){
+    if(!document.hidden && _isConversationsPageActive()){
       try{ loadConversations(); }catch(e){}
       if(currentChatId) try{ loadMessages(currentChatId); }catch(e){}
     }
   });
   window.addEventListener('focus', function(){
-    try{ loadConversations(); }catch(e){}
-    if(currentChatId) try{ loadMessages(currentChatId); }catch(e){}
+    if(_isConversationsPageActive()){
+      try{ loadConversations(); }catch(e){}
+      if(currentChatId) try{ loadMessages(currentChatId); }catch(e){}
+    }
   });
   try {
     const client = window.supabase.createClient(SUPA_URL, SUPA_KEY);
@@ -1740,14 +1749,17 @@ function initSupabaseRealtime() {
         if(!fromMe && document.hidden){
           _notifyNewMessage(msg);
         }
-        setTimeout(function(){ try{ loadConversations(); }catch(e){} }, 1000);
+        if(_isConversationsPageActive()){
+          setTimeout(function(){ try{ loadConversations(); }catch(e){} }, 1000);
+        }
       })
       .subscribe();
   } catch(e) { console.warn('Realtime error:', e); }
 
-  // Polling a cada 20s: verifica novas mensagens na conversa aberta E na lista
+  // Polling a cada 20s: verifica novas mensagens — só roda com a página de Conversas aberta
   if(_pollingTimer) clearInterval(_pollingTimer);
   _pollingTimer = setInterval(async function(){
+    if(!_isConversationsPageActive()) return;
     try { loadConversations(); } catch(e){}
     if(!currentChatId) return;
     try {
