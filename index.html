@@ -1406,35 +1406,69 @@
 
 <!-- MODAL OPORTUNIDADE -->
 <div class="modal-overlay" id="oppModal">
-  <div class="modal">
+  <div class="modal" style="width:560px;max-height:92vh">
     <div class="modal-header">
       <div class="modal-title" id="oppModalTitle">Adicionar Oportunidade</div>
       <div class="modal-close" onclick="closeOppModal()"><i class="fas fa-times"></i></div>
     </div>
     <div class="modal-body">
-      <div class="form-group"><label>Nome do Contato *</label><input type="text" id="oppContactName" placeholder="Nome completo"></div>
-      <div class="form-group">
-        <label>Estágio</label>
-        <select id="oppStage">
-          <option value="new_lead">Novo Lead</option>
-          <option value="followup">Acompanhamento</option>
-          <option value="trial">Aula de Teste</option>
-          <option value="waiting">Espera</option>
-          <option value="recovery">Recuperação</option>
-          <option value="reactivation">Acompanhamento da reativação</option>
-          <option value="won">Fechado Ganhou 💰</option>
-          <option value="lost">Fechado Perdido ❌</option>
-          <option value="member">Membro</option>
-        </select>
+      <input type="hidden" id="oppEditId">
+      <div class="form-row">
+        <div class="form-group"><label>Nome do Contato *</label><input type="text" id="oppContactName" placeholder="Nome completo"></div>
+        <div class="form-group"><label>Telefone</label><input type="text" id="oppPhone" placeholder="+1 (508) 000-0000"></div>
       </div>
-      <div class="form-group"><label>Valor (US$)</label><input type="number" id="oppValue" placeholder="199.00" step="0.01"></div>
-      <div class="form-group">
-        <label>Status</label>
-        <select id="oppStatus">
-          <option value="open">Aberto</option>
-          <option value="won">Ganhou</option>
-          <option value="lost">Perdido</option>
-        </select>
+      <div class="form-group"><label>E-mail</label><input type="email" id="oppEmail" placeholder="email@exemplo.com"></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Origem do Lead</label>
+          <select id="oppOrigin">
+            <option value="">Selecionar...</option>
+            <option value="Site">Site</option>
+            <option value="Instagram">Instagram</option>
+            <option value="Facebook">Facebook</option>
+            <option value="Google">Google</option>
+            <option value="Indicação">Indicação</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Estágio</label>
+          <select id="oppStage">
+            <option value="new_lead">Novo Lead</option>
+            <option value="followup">Acompanhamento</option>
+            <option value="trial">Aula de Teste</option>
+            <option value="waiting">Espera</option>
+            <option value="recovery">Recuperação</option>
+            <option value="reactivation">Acompanhamento da reativação</option>
+            <option value="won">Fechado Ganhou 💰</option>
+            <option value="lost">Fechado Perdido ❌</option>
+            <option value="member">Membro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Valor (US$)</label><input type="number" id="oppValue" placeholder="199.00" step="0.01"></div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="oppStatus" onchange="toggleLossReasonField()">
+            <option value="open">Aberto</option>
+            <option value="won">Ganhou</option>
+            <option value="lost">Perdido</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" id="oppLossReasonWrap" style="display:none">
+        <label>Motivo da Desistência / Perda</label>
+        <textarea id="oppLossReason" placeholder="Ex: mudou de cidade, sem dinheiro no momento, trocou de esporte, achou caro, problema de horário..."></textarea>
+      </div>
+
+      <div id="oppNotesSection" style="display:none;margin-top:8px;padding-top:16px;border-top:1px solid var(--gray-100)">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:8px">Histórico / Observações</label>
+        <div id="oppNotesList" style="max-height:180px;overflow-y:auto;margin-bottom:10px"></div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="oppNoteText" placeholder="Escrever uma anotação..." style="flex:1;padding:8px 10px;border:1px solid var(--gray-200);border-radius:7px;font-size:13px" onkeypress="if(event.key==='Enter'){event.preventDefault();addOppNote();}">
+          <button class="btn btn-outline" style="font-size:12px" onclick="addOppNote()"><i class="fas fa-plus"></i> Adicionar</button>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -2626,6 +2660,11 @@ async function loadOpps() {
       id: o.id,
       contact: o.contact,
       initials: o.initials || o.contact.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(),
+      phone: o.phone || '',
+      email: o.email || '',
+      origin: o.origin || '',
+      loss_reason: o.loss_reason || '',
+      notesRaw: o.notes || null,
       stage: o.stage,
       value: o.value || 199,
       status: o.status || 'open',
@@ -2732,7 +2771,7 @@ function renderOppCard(c) {
   const b6 = `<div class="opp-action-btn"><i class="fas fa-calendar"></i></div>`;
 
   return `
-    <div class="opp-card">
+    <div class="opp-card" onclick="openEditOpp('${c.id}')">
       <div class="opp-card-top">
         <div>
           <div class="opp-card-name">${c.contact}${langBadge}</div>
@@ -2749,34 +2788,112 @@ function renderOppCard(c) {
     </div>`;
 }
 
+function toggleLossReasonField(){
+  const status = document.getElementById('oppStatus').value;
+  document.getElementById('oppLossReasonWrap').style.display = status === 'lost' ? 'block' : 'none';
+}
+
+// ===== NOTAS/HISTÓRICO DO LEAD =====
+function parseOppNotes(raw) {
+  if (!raw) return [];
+  try { const arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; } catch(e) { return []; }
+}
+function renderOppNotesList(raw) {
+  const notes = parseOppNotes(raw);
+  if (!notes.length) return '<div style="font-size:12px;color:var(--gray-400)">Nenhuma anotação ainda.</div>';
+  return notes.slice().reverse().map(n => {
+    const dateStr = n.date ? new Date(n.date).toLocaleString('pt-BR') : '';
+    const safeText = (n.text||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div style="background:var(--gray-50);border-left:3px solid var(--green);border-radius:6px;padding:8px 10px;margin-bottom:8px">
+      <div style="font-size:10px;color:var(--gray-400);margin-bottom:3px">${dateStr}</div>
+      <div style="font-size:13px;color:var(--gray-900)">${safeText}</div>
+    </div>`;
+  }).join('');
+}
+async function addOppNote() {
+  const id = document.getElementById('oppEditId').value;
+  const textEl = document.getElementById('oppNoteText');
+  const text = textEl.value.trim();
+  if (!text) return;
+  if (!id) { toast('Salve a oportunidade antes de adicionar anotações','error'); return; }
+  const opp = state.opps.find(o => String(o.id) === String(id));
+  const notes = parseOppNotes(opp ? opp.notesRaw : null);
+  notes.push({ text, date: new Date().toISOString() });
+  const json = JSON.stringify(notes);
+  try {
+    await supaFetch(`opportunities?id=eq.${id}`, { method:'PATCH', body: JSON.stringify({ notes: json }) });
+    if (opp) opp.notesRaw = json;
+    document.getElementById('oppNotesList').innerHTML = renderOppNotesList(json);
+    textEl.value = '';
+  } catch(e) {
+    toast('Erro ao salvar anotação: ' + e.message, 'error');
+  }
+}
+
 // Opp modal
 function openNewOpp() {
   document.getElementById('oppModalTitle').textContent = 'Adicionar Oportunidade';
-  ['oppContactName'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('oppEditId').value = '';
+  ['oppContactName','oppPhone','oppEmail','oppNoteText'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('oppOrigin').value = '';
   document.getElementById('oppStage').value = 'new_lead';
   document.getElementById('oppValue').value = '199';
   document.getElementById('oppStatus').value = 'open';
+  document.getElementById('oppLossReason').value = '';
+  toggleLossReasonField();
+  document.getElementById('oppNotesSection').style.display = 'none';
   document.getElementById('oppModal').classList.add('open');
 }
+
+function openEditOpp(id) {
+  const o = state.opps.find(x => String(x.id) === String(id));
+  if (!o) return;
+  document.getElementById('oppModalTitle').textContent = 'Editar Lead — ' + o.contact;
+  document.getElementById('oppEditId').value = o.id;
+  document.getElementById('oppContactName').value = o.contact || '';
+  document.getElementById('oppPhone').value = o.phone || '';
+  document.getElementById('oppEmail').value = o.email || '';
+  document.getElementById('oppOrigin').value = o.origin || '';
+  document.getElementById('oppStage').value = o.stage || 'new_lead';
+  document.getElementById('oppValue').value = o.value || 0;
+  document.getElementById('oppStatus').value = o.status || 'open';
+  document.getElementById('oppLossReason').value = o.loss_reason || '';
+  toggleLossReasonField();
+  document.getElementById('oppNotesSection').style.display = 'block';
+  document.getElementById('oppNotesList').innerHTML = renderOppNotesList(o.notesRaw);
+  document.getElementById('oppModal').classList.add('open');
+}
+
 function closeOppModal() { document.getElementById('oppModal').classList.remove('open'); }
 async function saveOpp() {
   const name = document.getElementById('oppContactName').value.trim();
   if (!name) { toast('Nome é obrigatório','error'); return; }
+  const editId = document.getElementById('oppEditId').value;
+  const status = document.getElementById('oppStatus').value;
   const langEl = document.getElementById('oppLang');
   const data = {
     contact: name,
     initials: name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(),
+    phone: document.getElementById('oppPhone').value.trim() || null,
+    email: document.getElementById('oppEmail').value.trim() || null,
+    origin: document.getElementById('oppOrigin').value || null,
     stage: document.getElementById('oppStage').value,
     value: parseFloat(document.getElementById('oppValue').value)||0,
-    status: document.getElementById('oppStatus').value,
+    status,
+    loss_reason: status === 'lost' ? (document.getElementById('oppLossReason').value.trim() || null) : null,
     lang: langEl ? langEl.value || null : null,
-    company: state.currentCompany === 'ezmoney' ? 'ezmoney' : 'alliance',
-    msgs_count: 0, notes_count: 0, tasks_count: 0
   };
   try {
-    await supaFetch('opportunities', { method:'POST', body:JSON.stringify(data) });
+    if (editId) {
+      await supaFetch(`opportunities?id=eq.${editId}`, { method:'PATCH', body:JSON.stringify(data) });
+      toast('Lead atualizado!');
+    } else {
+      data.company = state.currentCompany === 'ezmoney' ? 'ezmoney' : 'alliance';
+      data.msgs_count = 0; data.notes_count = 0; data.tasks_count = 0;
+      await supaFetch('opportunities', { method:'POST', body:JSON.stringify(data) });
+      toast('Lead criado!');
+    }
     closeOppModal();
-    toast('Oportunidade criada!');
     loadOpps();
   } catch(e) {
     toast('Erro ao salvar: ' + e.message, 'error');
