@@ -1717,13 +1717,13 @@ function initSupabaseRealtime() {
   // enquanto o usuário está em outras telas (Contatos, Cadastro Alunos, etc), o que causava lentidão.
   document.addEventListener('visibilitychange', function(){
     if(!document.hidden && _isConversationsPageActive()){
-      try{ loadConversations(); }catch(e){}
+      try{ loadConversations(true); }catch(e){}
       if(currentChatId) try{ loadMessages(currentChatId); }catch(e){}
     }
   });
   window.addEventListener('focus', function(){
     if(_isConversationsPageActive()){
-      try{ loadConversations(); }catch(e){}
+      try{ loadConversations(true); }catch(e){}
       if(currentChatId) try{ loadMessages(currentChatId); }catch(e){}
     }
   });
@@ -3034,6 +3034,7 @@ async function loadConversations(isBackgroundRefresh){
   if(!isBackgroundRefresh){
     list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando...</div></div>';
   }
+  const _previousConversations = allConversations || [];
   try {
     if(!isBackgroundRefresh){
       await _loadCustomNamesFromSupabase();
@@ -3164,11 +3165,25 @@ async function loadConversations(isBackgroundRefresh){
     // 7. Ordena por última mensagem mais recente
     allConversations.sort((a,b) => (b.lastTs||0) - (a.lastTs||0));
 
+    // Proteção: se essa foi uma atualização de fundo (a cada 20s / volta de aba) e ela não trouxe
+    // nenhuma conversa, mas já tínhamos uma lista carregada antes, mantém a lista antiga na tela
+    // em vez de apagar tudo — evita a tela "piscar vazia" por uma falha temporária de rede.
+    if (isBackgroundRefresh && allConversations.length === 0 && _previousConversations.length > 0) {
+      allConversations = _previousConversations;
+      return;
+    }
+
     const unreadTotal = allConversations.filter(c=>c.unreadCount>0).length;
     const badge = document.getElementById('unreadTabCount');
     if(badge) badge.textContent = unreadTotal > 99 ? '99+' : unreadTotal;
     renderConversationList(allConversations);
   } catch(e) {
+    // Em atualizações de fundo, não apaga a lista que já estava na tela por causa de um erro
+    // temporário de rede — só loga no console e tenta de novo no próximo ciclo.
+    if (isBackgroundRefresh && _previousConversations.length > 0) {
+      console.warn('Atualização de fundo das conversas falhou, mantendo lista anterior:', e);
+      return;
+    }
     list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px"><i class="fas fa-exclamation-circle" style="font-size:24px;margin-bottom:8px;display:block;color:#f87171"></i>Erro ao carregar conversas.<br><small>'+e.message+'</small><br><br><button onclick="loadConversations()" style="margin-top:8px;padding:6px 12px;border:1px solid var(--gray-200);border-radius:6px;font-size:12px;cursor:pointer">Tentar novamente</button></div>';
   }
 }
