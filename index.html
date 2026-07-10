@@ -4333,12 +4333,35 @@ document.addEventListener('click', function(e) {
   if (e.target === document.getElementById('ssClientModal')) closeSSClientModal();
 });
 
-// Login sempre solicitado ao abrir o app: nenhuma sessão é restaurada automaticamente.
-(function clearAutoSession(){
+// Restaura sessão salva ao abrir/recarregar a página — evita ter que logar de novo toda hora.
+// Se já tinha login E empresa escolhida, volta direto pra dentro da empresa.
+// Se só tinha login (sem empresa escolhida ainda), vai pra tela de escolher empresa.
+(function restoreSession(){
   try{
-    localStorage.removeItem('hub360_token');
-    localStorage.removeItem('hub360_user');
-  }catch(e){}
+    const savedToken = localStorage.getItem('hub360_token');
+    const savedUserRaw = localStorage.getItem('hub360_user');
+    if (!savedToken || !savedUserRaw) return; // sem sessão salva, fica na tela de login normalmente
+    const savedUser = JSON.parse(savedUserRaw);
+    state.token = savedToken;
+    state.user = savedUser;
+    const email = savedUser.email || '';
+    document.getElementById('sbUserName').textContent = email.split('@')[0] || 'Admin';
+    document.getElementById('sbAvatar').textContent = (email[0]||'A').toUpperCase();
+    document.getElementById('loginScreen').style.display = 'none';
+    const savedCo = localStorage.getItem('hub360_company');
+    const savedCoName = localStorage.getItem('hub360_company_name');
+    if (savedCo && savedCoName) {
+      document.getElementById('welcomeScreen').style.display = 'none';
+      document.getElementById('appScreen').style.display = 'block';
+      applyCompanyTheme(savedCo);
+      initApp();
+      initSupabaseRealtime();
+      requestNotificationPermission();
+      initTwilioDevice();
+    } else {
+      document.getElementById('welcomeScreen').style.display = 'flex';
+    }
+  }catch(e){ console.warn('Falha ao restaurar sessão:', e); }
 })();
 
 </script>
