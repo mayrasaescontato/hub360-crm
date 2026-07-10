@@ -1750,7 +1750,7 @@ function initSupabaseRealtime() {
           _notifyNewMessage(msg);
         }
         if(_isConversationsPageActive()){
-          setTimeout(function(){ try{ loadConversations(); }catch(e){} }, 1000);
+          setTimeout(function(){ try{ loadConversations(true); }catch(e){} }, 1000);
         }
       })
       .subscribe();
@@ -1760,7 +1760,7 @@ function initSupabaseRealtime() {
   if(_pollingTimer) clearInterval(_pollingTimer);
   _pollingTimer = setInterval(async function(){
     if(!_isConversationsPageActive()) return;
-    try { loadConversations(); } catch(e){}
+    try { loadConversations(true); } catch(e){}
     if(!currentChatId) return;
     try {
       const res = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
@@ -3017,7 +3017,7 @@ function setConvTab(tab, el){
   renderConversationList(allConversations);
 }
 
-async function loadConversations(){
+async function loadConversations(isBackgroundRefresh){
   if(state.currentCompany !== 'samsushi'){
     document.getElementById('convInstanceLabel').textContent = state.currentCompanyName || 'Não conectado';
     const list = document.getElementById('convList');
@@ -3029,15 +3029,24 @@ async function loadConversations(){
   }
   document.getElementById('convInstanceLabel').textContent = 'Sam Sushi';
   const list = document.getElementById('convList');
-  list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando...</div></div>';
+  // Em atualizações automáticas de fundo, não mostra o spinner de "Carregando..." nem refaz
+  // buscas pesadas que já foram feitas — evita a tela piscando/recarregando a cada 20s.
+  if(!isBackgroundRefresh){
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)"><div class="spinner"></div><div style="font-size:12px;margin-top:8px">Carregando...</div></div>';
+  }
   try {
-    await _loadCustomNamesFromSupabase();
-    await _loadManualUnreadFromSupabase();
-    // 1. Busca lista completa na Evolution API
+    if(!isBackgroundRefresh){
+      await _loadCustomNamesFromSupabase();
+      await _loadManualUnreadFromSupabase();
+    }
+    // 1. Busca lista na Evolution API — na primeira carga busca tudo (até 8 páginas),
+    // em atualizações automáticas de fundo busca só as 2 primeiras páginas (mais recentes),
+    // que é o que realmente muda a cada 20s.
     let evoChats = [];
     try {
       const pageSize = 200;
-      for (let page = 0; page < 8; page++) {
+      const maxPages = isBackgroundRefresh ? 2 : 8;
+      for (let page = 0; page < maxPages; page++) {
         const res = await fetch(EVOLUTION_URL+'/chat/findChats/Sam Sushi', {
           method:'POST',
           headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
@@ -3111,9 +3120,17 @@ async function loadConversations(){
     });
 
     // 6. Resolve nomes (prioridade: nome customizado > contato Supabase > pushName Evolution > telefone)
+    // Otimização: monta um mapa de telefone->contato uma única vez (O(n)) em vez de
+    // comparar cada conversa com cada um dos contatos (O(n×m) — muito lento com 700+ contatos).
+    const contactPhoneMap = new Map();
+    contacts.forEach(ct => {
+      if (!ct.phone) return;
+      const key = ct.phone.replace(/\D/g,'').slice(-10);
+      if (key && !contactPhoneMap.has(key)) contactPhoneMap.set(key, ct);
+    });
     allConversations = Array.from(convMap.values()).map(c => {
       const customName = _getCustomName(c.phone);
-      const contact = contacts.find(ct => ct.phone && ct.phone.replace(/\D/g,'').endsWith(c.phone.replace(/\D/g,'')));
+      const contact = contactPhoneMap.get((c.phone||'').replace(/\D/g,'').slice(-10));
       const name = customName || (contact ? (contact.first_name+' '+(contact.last_name||'')).trim() : (c.pushName||'+'+c.phone));
       return { ...c, name, hasSupabase: !!c.lastSupaMsg, _hasContact: !!contact };
     });
