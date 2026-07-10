@@ -519,7 +519,7 @@
   .toast {
     padding:12px 18px; border-radius:10px; font-size:13px; font-weight:600;
     box-shadow:0 8px 24px rgba(0,0,0,0.15); animation:slideIn .3s ease;
-    display:flex; align-items:center; gap:8px;
+    display:flex; align-items:center; gap:8px; max-width:480px; word-break:break-word;
   }
   .toast-success { background:#1a2e27; color:#fff; }
   .toast-error { background:#ef4444; color:#fff; }
@@ -1715,9 +1715,11 @@ function toast(msg, type='success') {
   const wrap = document.getElementById('toastWrap');
   const el = document.createElement('div');
   el.className = `toast toast-${type}`;
-  el.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':'exclamation-circle'}"></i> ${msg}`;
+  const closeBtn = type==='error' ? '<i class="fas fa-times" style="cursor:pointer;margin-left:10px;opacity:.8" onclick="this.closest(\'.toast\').remove()"></i>' : '';
+  el.innerHTML = `<i class="fas fa-${type==='success'?'check-circle':'exclamation-circle'}"></i> <span style="flex:1">${msg}</span>${closeBtn}`;
   wrap.appendChild(el);
-  setTimeout(() => el.remove(), 3500);
+  // Erros ficam na tela até serem fechados manualmente (dá tempo de ler/printar). Sucessos somem sozinhos.
+  if (type !== 'error') setTimeout(() => el.remove(), 3500);
 }
 
 let _lastMsgTs = 0;
