@@ -1415,9 +1415,22 @@
       <input type="hidden" id="oppEditId">
       <div class="form-row">
         <div class="form-group"><label>Nome do Contato *</label><input type="text" id="oppContactName" placeholder="Nome completo"></div>
-        <div class="form-group"><label>Telefone</label><input type="text" id="oppPhone" placeholder="+1 (508) 000-0000"></div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="oppLeadType" onchange="toggleGuardianField()">
+            <option value="Adulto">Adulto</option>
+            <option value="Criança">Criança</option>
+          </select>
+        </div>
       </div>
-      <div class="form-group"><label>E-mail</label><input type="email" id="oppEmail" placeholder="email@exemplo.com"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Telefone</label><input type="text" id="oppPhone" placeholder="+1 (508) 000-0000"></div>
+        <div class="form-group"><label>E-mail</label><input type="email" id="oppEmail" placeholder="email@exemplo.com"></div>
+      </div>
+      <div class="form-group" id="oppGuardianWrap" style="display:none">
+        <label>Nome do Responsável</label>
+        <input type="text" id="oppGuardianName" placeholder="Nome do pai/mãe/responsável">
+      </div>
       <div class="form-row">
         <div class="form-group">
           <label>Origem do Lead</label>
@@ -2663,6 +2676,8 @@ async function loadOpps() {
       phone: o.phone || '',
       email: o.email || '',
       origin: o.origin || '',
+      lead_type: o.lead_type || 'Adulto',
+      guardian_name: o.guardian_name || '',
       loss_reason: o.loss_reason || '',
       notesRaw: o.notes || null,
       stage: o.stage,
@@ -2749,6 +2764,7 @@ function renderOppCard(c) {
   const isEzMoney = c.stage && c.stage.startsWith('em_');
   const langFlag = c.lang === 'EN' ? '🇺🇸' : c.lang === 'ES' ? '🇲🇽' : c.lang === 'PT' ? '🇧🇷' : '';
   const langBadge = langFlag ? `<span style="font-size:14px;margin-left:4px" title="${c.lang||''}">${langFlag}</span>` : '';
+  const childBadge = c.lead_type === 'Criança' ? `<span style="font-size:12px;margin-left:4px" title="Criança">👶</span>` : '';
 
   let channelBtns = '';
   if (isEzMoney) {
@@ -2774,7 +2790,7 @@ function renderOppCard(c) {
     <div class="opp-card" onclick="openEditOpp('${c.id}')">
       <div class="opp-card-top">
         <div>
-          <div class="opp-card-name">${c.contact}${langBadge}</div>
+          <div class="opp-card-name">${c.contact}${childBadge}${langBadge}</div>
           ${statusBadge && c.status!=='open' ? '' : ''}
         </div>
         <div class="opp-card-avatar" style="background:${initBg}">${c.initials}</div>
@@ -2786,6 +2802,11 @@ function renderOppCard(c) {
       <div class="opp-card-row"><span class="opp-card-label">Criado em:</span> <span style="font-size:11px">${c.created}</span></div>
       <div class="opp-card-actions">${b1}${b2}${b3}${b4}${b5}${b6}</div>
     </div>`;
+}
+
+function toggleGuardianField(){
+  const type = document.getElementById('oppLeadType').value;
+  document.getElementById('oppGuardianWrap').style.display = type === 'Criança' ? 'block' : 'none';
 }
 
 function toggleLossReasonField(){
@@ -2834,12 +2855,14 @@ async function addOppNote() {
 function openNewOpp() {
   document.getElementById('oppModalTitle').textContent = 'Adicionar Oportunidade';
   document.getElementById('oppEditId').value = '';
-  ['oppContactName','oppPhone','oppEmail','oppNoteText'].forEach(id => document.getElementById(id).value='');
+  ['oppContactName','oppPhone','oppEmail','oppNoteText','oppGuardianName'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('oppLeadType').value = 'Adulto';
   document.getElementById('oppOrigin').value = '';
   document.getElementById('oppStage').value = 'new_lead';
   document.getElementById('oppValue').value = '199';
   document.getElementById('oppStatus').value = 'open';
   document.getElementById('oppLossReason').value = '';
+  toggleGuardianField();
   toggleLossReasonField();
   document.getElementById('oppNotesSection').style.display = 'none';
   document.getElementById('oppModal').classList.add('open');
@@ -2851,6 +2874,8 @@ function openEditOpp(id) {
   document.getElementById('oppModalTitle').textContent = 'Editar Lead — ' + o.contact;
   document.getElementById('oppEditId').value = o.id;
   document.getElementById('oppContactName').value = o.contact || '';
+  document.getElementById('oppLeadType').value = o.lead_type || 'Adulto';
+  document.getElementById('oppGuardianName').value = o.guardian_name || '';
   document.getElementById('oppPhone').value = o.phone || '';
   document.getElementById('oppEmail').value = o.email || '';
   document.getElementById('oppOrigin').value = o.origin || '';
@@ -2858,6 +2883,7 @@ function openEditOpp(id) {
   document.getElementById('oppValue').value = o.value || 0;
   document.getElementById('oppStatus').value = o.status || 'open';
   document.getElementById('oppLossReason').value = o.loss_reason || '';
+  toggleGuardianField();
   toggleLossReasonField();
   document.getElementById('oppNotesSection').style.display = 'block';
   document.getElementById('oppNotesList').innerHTML = renderOppNotesList(o.notesRaw);
@@ -2874,6 +2900,8 @@ async function saveOpp() {
   const data = {
     contact: name,
     initials: name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(),
+    lead_type: document.getElementById('oppLeadType').value,
+    guardian_name: document.getElementById('oppLeadType').value === 'Criança' ? (document.getElementById('oppGuardianName').value.trim() || null) : null,
     phone: document.getElementById('oppPhone').value.trim() || null,
     email: document.getElementById('oppEmail').value.trim() || null,
     origin: document.getElementById('oppOrigin').value || null,
