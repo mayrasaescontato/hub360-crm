@@ -131,7 +131,7 @@
         if (!phone) throw new Error('Lead sem telefone cadastrado');
 
         const dataFormatada = formatTrialDate(lead.trial_date);
-        const body = `Oi ${lead.contact}! Aqui é o Saul, da Alliance Jiu-Jitsu Framingham 🥋 Recebemos sua inscrição na aula experimental GRÁTIS${dataFormatada ? ', agendada para ' + dataFormatada : ''}. Responda: 1 - Confirmo presença ✅ / 2 - Quero mudar dia/horário 📅. Aguardamos seu retorno!`;
+        const body = `Oi ${lead.contact}!\n\nAqui é o Saul, da Alliance Jiu-Jitsu Framingham 🥋\n\nRecebemos sua inscrição na aula experimental GRÁTIS${dataFormatada ? ', agendada para ' + dataFormatada : ''}.\n\nResponda:\n1 - Confirmo presença ✅\n2 - Quero mudar dia/horário 📅\n\nAguardamos seu retorno!`;
 
         goToSms(phone, body);
       } catch (e) {
