@@ -840,7 +840,27 @@
               <div class="stat-sub">Contatos com telefone</div>
             </div>
           </div>
-          <div class="dash-grid">
+
+          <div id="allianceFunnelSection" style="display:none;margin-top:24px">
+            <div class="card-header" style="margin-bottom:12px">
+              <div class="card-title" style="font-size:16px">Funil de Leads — Alliance</div>
+            </div>
+            <div class="stats-grid" id="funnelStatsGrid">
+              <div class="loading"><div class="spinner"></div></div>
+            </div>
+            <div class="dash-grid" style="margin-top:16px">
+              <div class="card">
+                <div class="card-header"><div class="card-title">Origem dos Leads</div></div>
+                <div class="card-body" id="funnelOriginBody"><div class="loading"><div class="spinner"></div></div></div>
+              </div>
+              <div class="card">
+                <div class="card-header"><div class="card-title">Motivos de Desistência da Aula</div></div>
+                <div class="card-body" id="funnelLossBody"><div class="loading"><div class="spinner"></div></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="dash-grid" style="margin-top:24px">
             <div class="card">
               <div class="card-header">
                 <div class="card-title">Contatos Recentes</div>
@@ -2134,6 +2154,79 @@ async function loadDashboard() {
         </div>
       </div>`).join('');
   } catch(e) { toast('Erro ao carregar dashboard: ' + e.message, 'error'); }
+
+  const funnelSection = document.getElementById('allianceFunnelSection');
+  if (state.currentCompany === 'alliance') {
+    funnelSection.style.display = 'block';
+    loadAllianceFunnel();
+  } else if (funnelSection) {
+    funnelSection.style.display = 'none';
+  }
+}
+
+async function loadAllianceFunnel() {
+  try {
+    const opps = await supaFetch(`opportunities?select=stage,status,trial_outcome,trial_date,origin,loss_reason,created_at&company=eq.alliance&limit=5000`);
+    const total = opps.length;
+    const count = (fn) => opps.filter(fn).length;
+
+    const scheduled   = count(o => !!o.trial_date);
+    const confirmed   = count(o => o.trial_outcome === 'confirmado');
+    const rescheduled = count(o => o.trial_outcome === 'reagendado');
+    const attended    = count(o => o.trial_outcome === 'compareceu');
+    const noShow      = count(o => o.trial_outcome === 'nao_compareceu');
+    const gaveUp      = count(o => o.trial_outcome === 'desistiu');
+    const awaiting    = count(o => !!o.trial_date && !o.trial_outcome);
+    const won         = count(o => o.stage === 'won');
+    const lost        = count(o => o.stage === 'lost');
+    const closedFirstTry = count(o => o.stage === 'won' && o.trial_outcome === 'compareceu');
+    const conversionRate = attended ? Math.round((closedFirstTry/attended)*100) : 0;
+
+    const cards = [
+      { label:'Novos Leads', value: total, color:'#dbeafe', icon:'fa-user-plus', iconColor:'#1d4ed8' },
+      { label:'Agendaram Aula', value: scheduled, color:'#dcfce7', icon:'fa-calendar-check', iconColor:'#166534' },
+      { label:'Confirmaram', value: confirmed, color:'#dcfce7', icon:'fa-check-circle', iconColor:'#166534' },
+      { label:'Reagendaram', value: rescheduled, color:'#fef9c3', icon:'fa-calendar-alt', iconColor:'#854d0e' },
+      { label:'Compareceram', value: attended, color:'#dcfce7', icon:'fa-walking', iconColor:'#166534' },
+      { label:'Não Compareceram', value: noShow, color:'#fee2e2', icon:'fa-user-times', iconColor:'#b91c1c' },
+      { label:'Desistiram', value: gaveUp, color:'#fee2e2', icon:'fa-times-circle', iconColor:'#b91c1c' },
+      { label:'Aguardando', value: awaiting, color:'#f3f4f6', icon:'fa-hourglass-half', iconColor:'#6b7280' },
+      { label:'Fecharam de Primeira', value: closedFirstTry, color:'#dcfce7', icon:'fa-trophy', iconColor:'#166534' },
+      { label:'Fechados (total)', value: won, color:'#dcfce7', icon:'fa-dollar-sign', iconColor:'#166534' },
+      { label:'Perdidos', value: lost, color:'#fee2e2', icon:'fa-ban', iconColor:'#b91c1c' },
+      { label:'Conversão 1ª Aula', value: conversionRate+'%', color:'#fce7f3', icon:'fa-chart-line', iconColor:'#9d174d' },
+    ];
+    document.getElementById('funnelStatsGrid').innerHTML = cards.map(c => `
+      <div class="stat-card">
+        <div class="stat-icon" style="background:${c.color}"><i class="fas ${c.icon}" style="color:${c.iconColor}"></i></div>
+        <div class="stat-label">${c.label}</div>
+        <div class="stat-value">${c.value}</div>
+      </div>`).join('');
+
+    const originCounts = {};
+    opps.forEach(o => { const key = o.origin || 'Não informado'; originCounts[key] = (originCounts[key]||0)+1; });
+    const originSorted = Object.entries(originCounts).sort((a,b)=>b[1]-a[1]);
+    document.getElementById('funnelOriginBody').innerHTML = originSorted.length
+      ? originSorted.map(([origin,c]) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100)">
+          <span style="font-size:13px">${origin}</span>
+          <span style="font-size:13px;font-weight:700">${c} &nbsp;<span style="color:var(--gray-400);font-weight:400">(${Math.round(c/total*100)}%)</span></span>
+        </div>`).join('')
+      : '<div class="empty-state"><p>Sem dados ainda.</p></div>';
+
+    const lossCounts = {};
+    opps.forEach(o => { if (o.loss_reason) { const key = o.loss_reason.trim(); lossCounts[key] = (lossCounts[key]||0)+1; } });
+    const lossSorted = Object.entries(lossCounts).sort((a,b)=>b[1]-a[1]);
+    document.getElementById('funnelLossBody').innerHTML = lossSorted.length
+      ? lossSorted.map(([reason,c]) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100)">
+          <span style="font-size:13px">${reason}</span>
+          <span style="font-size:13px;font-weight:700">${c}</span>
+        </div>`).join('')
+      : '<div class="empty-state"><p>Nenhum motivo registrado ainda.</p></div>';
+  } catch(e) {
+    toast('Erro ao carregar funil de leads: ' + e.message, 'error');
+  }
 }
 
 // ===== CONTACTS =====
