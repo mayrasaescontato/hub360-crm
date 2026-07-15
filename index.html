@@ -445,6 +445,9 @@
     position:relative;
   }
   .opp-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); border-color:var(--gray-300); }
+  .opp-card[draggable="true"] { cursor:grab; }
+  .opp-card.dragging { opacity:0.4; cursor:grabbing; }
+  .kanban-col-body.drag-over { background:var(--gray-50); outline:2px dashed var(--gold); outline-offset:-4px; border-radius:8px; }
   .opp-card-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:8px; }
   .opp-card-name { font-size:13px; font-weight:700; color:var(--gray-900); }
   .opp-card-avatar {
@@ -2766,9 +2769,69 @@ function renderKanban() {
           </div>
           <i class="fas fa-chevron-left" style="color:var(--gray-300);font-size:11px;cursor:pointer"></i>
         </div>
-        <div class="kanban-col-body">${cardsHTML}</div>
+        <div class="kanban-col-body" data-stage="${s.id}" ondragover="handleColDragOver(event)" ondragleave="handleColDragLeave(event)" ondrop="handleColDrop(event)">${cardsHTML}</div>
       </div>`;
   }).join('');
+}
+
+let draggedOppId = null;
+
+function handleCardDragStart(ev, id) {
+  draggedOppId = id;
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.target.classList.add('dragging');
+}
+
+function handleCardDragEnd(ev) {
+  ev.target.classList.remove('dragging');
+  draggedOppId = null;
+}
+
+function handleColDragOver(ev) {
+  ev.preventDefault();
+  ev.currentTarget.classList.add('drag-over');
+}
+
+function handleColDragLeave(ev) {
+  ev.currentTarget.classList.remove('drag-over');
+}
+
+async function handleColDrop(ev) {
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('drag-over');
+  const newStage = ev.currentTarget.dataset.stage;
+  const id = draggedOppId;
+  draggedOppId = null;
+  if (!id || !newStage) return;
+
+  const opp = state.opps.find(o => o.id === id);
+  if (!opp || opp.stage === newStage) return;
+
+  const prevStage = opp.stage;
+  opp.stage = newStage;
+  if (newStage === 'won') opp.status = 'won';
+  else if (newStage === 'lost') opp.status = 'lost';
+  else opp.status = 'open';
+  state.oppsFiltered = [...state.opps];
+  renderKanban();
+
+  try {
+    const payload = { stage: newStage, status: opp.status };
+    await supaFetch(`opportunities?id=eq.${id}`, { method:'PATCH', body: JSON.stringify(payload) });
+    toast(`Movido para "${Object.values(STAGES).flat().find(s=>s.id===newStage)?.label||newStage}"`);
+    if (newStage === 'lost') {
+      openEditOpp(id);
+      setTimeout(() => document.getElementById('oppLossReason')?.focus(), 200);
+    } else if (newStage === 'trial' && !opp.trial_date) {
+      openEditOpp(id);
+      setTimeout(() => document.getElementById('oppTrialDate')?.focus(), 200);
+    }
+  } catch(e) {
+    opp.stage = prevStage;
+    state.oppsFiltered = [...state.opps];
+    renderKanban();
+    toast('Erro ao mover oportunidade', 'error');
+  }
 }
 
 function renderOppCard(c) {
@@ -2807,7 +2870,7 @@ function renderOppCard(c) {
   const b6 = `<div class="opp-action-btn"><i class="fas fa-calendar"></i></div>`;
 
   return `
-    <div class="opp-card" onclick="openEditOpp('${c.id}')">
+    <div class="opp-card" draggable="true" ondragstart="handleCardDragStart(event,'${c.id}')" ondragend="handleCardDragEnd(event)" onclick="openEditOpp('${c.id}')">
       <div class="opp-card-top">
         <div>
           <div class="opp-card-name">${c.contact}${childBadge}${langBadge}</div>
