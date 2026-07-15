@@ -1478,6 +1478,17 @@
         <label>Data/Horário da Aula Experimental</label>
         <input type="datetime-local" id="oppTrialDate">
       </div>
+      <div class="form-group">
+        <label>Resultado da Aula Experimental</label>
+        <select id="oppTrialOutcome">
+          <option value="">Aguardando confirmação</option>
+          <option value="confirmado">Confirmado</option>
+          <option value="reagendado">Reagendado</option>
+          <option value="compareceu">Compareceu</option>
+          <option value="nao_compareceu">Não compareceu</option>
+          <option value="desistiu">Desistiu</option>
+        </select>
+      </div>
 
       <div id="oppNotesSection" style="display:none;margin-top:8px;padding-top:16px;border-top:1px solid var(--gray-100)">
         <label style="display:block;font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:8px">Histórico / Observações</label>
@@ -2687,6 +2698,7 @@ async function loadOpps() {
       guardian_name: o.guardian_name || '',
       loss_reason: o.loss_reason || '',
       trial_date: o.trial_date || '',
+      trial_outcome: o.trial_outcome || '',
       notesRaw: o.notes || null,
       stage: o.stage,
       value: o.value || 199,
@@ -2871,6 +2883,7 @@ function openNewOpp() {
   document.getElementById('oppStatus').value = 'open';
   document.getElementById('oppLossReason').value = '';
   document.getElementById('oppTrialDate').value = '';
+  document.getElementById('oppTrialOutcome').value = '';
   toggleGuardianField();
   toggleLossReasonField();
   document.getElementById('oppNotesSection').style.display = 'none';
@@ -2894,6 +2907,7 @@ function openEditOpp(id) {
   document.getElementById('oppStatus').value = o.status || 'open';
   document.getElementById('oppLossReason').value = o.loss_reason || '';
   document.getElementById('oppTrialDate').value = o.trial_date ? o.trial_date.slice(0,16) : '';
+  document.getElementById('oppTrialOutcome').value = o.trial_outcome || '';
   toggleGuardianField();
   toggleLossReasonField();
   document.getElementById('oppNotesSection').style.display = 'block';
@@ -2938,6 +2952,7 @@ async function saveOpp() {
     status,
     loss_reason: status === 'lost' ? (document.getElementById('oppLossReason').value.trim() || null) : null,
     trial_date: document.getElementById('oppTrialDate').value ? new Date(document.getElementById('oppTrialDate').value).toISOString() : null,
+    trial_outcome: document.getElementById('oppTrialOutcome').value || null,
     lang: langEl ? langEl.value || null : null,
   };
   try {
