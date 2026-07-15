@@ -1474,6 +1474,10 @@
         <label>Motivo da Desistência / Perda</label>
         <textarea id="oppLossReason" placeholder="Ex: mudou de cidade, sem dinheiro no momento, trocou de esporte, achou caro, problema de horário..."></textarea>
       </div>
+      <div class="form-group">
+        <label>Data/Horário da Aula Experimental</label>
+        <input type="datetime-local" id="oppTrialDate">
+      </div>
 
       <div id="oppNotesSection" style="display:none;margin-top:8px;padding-top:16px;border-top:1px solid var(--gray-100)">
         <label style="display:block;font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:8px">Histórico / Observações</label>
@@ -2682,6 +2686,7 @@ async function loadOpps() {
       lead_type: o.lead_type || 'Adulto',
       guardian_name: o.guardian_name || '',
       loss_reason: o.loss_reason || '',
+      trial_date: o.trial_date || '',
       notesRaw: o.notes || null,
       stage: o.stage,
       value: o.value || 199,
@@ -2865,6 +2870,7 @@ function openNewOpp() {
   document.getElementById('oppValue').value = '199';
   document.getElementById('oppStatus').value = 'open';
   document.getElementById('oppLossReason').value = '';
+  document.getElementById('oppTrialDate').value = '';
   toggleGuardianField();
   toggleLossReasonField();
   document.getElementById('oppNotesSection').style.display = 'none';
@@ -2887,6 +2893,7 @@ function openEditOpp(id) {
   document.getElementById('oppValue').value = o.value || 0;
   document.getElementById('oppStatus').value = o.status || 'open';
   document.getElementById('oppLossReason').value = o.loss_reason || '';
+  document.getElementById('oppTrialDate').value = o.trial_date ? o.trial_date.slice(0,16) : '';
   toggleGuardianField();
   toggleLossReasonField();
   document.getElementById('oppNotesSection').style.display = 'block';
@@ -2930,6 +2937,7 @@ async function saveOpp() {
     value: parseFloat(document.getElementById('oppValue').value)||0,
     status,
     loss_reason: status === 'lost' ? (document.getElementById('oppLossReason').value.trim() || null) : null,
+    trial_date: document.getElementById('oppTrialDate').value ? new Date(document.getElementById('oppTrialDate').value).toISOString() : null,
     lang: langEl ? langEl.value || null : null,
   };
   try {
