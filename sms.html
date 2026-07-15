@@ -56,9 +56,9 @@
 <body>
   <div class="card">
     <div class="icon">💬</div>
-    <h1>Abrindo Mensagens...</h1>
-    <p>Enviando SMS para <span class="phone" id="phoneDisplay"></span></p>
-    <a href="#" class="btn" id="smsLink">Abrir SMS agora</a>
+    <h1 id="titleText">Carregando...</h1>
+    <p id="subtitleText">Buscando dados do aluno</p>
+    <a href="#" class="btn" id="smsLink" style="display:none">Abrir SMS agora</a>
 
     <div class="error" id="errorBox">
       <p style="margin-bottom:8px;"><strong>Não abriu automaticamente?</strong></p>
@@ -68,47 +68,92 @@
   </div>
 
 <script>
+  const SUPA_URL = 'https://mvktoymgeapkpsvfmbfl.supabase.co';
+  const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12a3RveW1nZWFwa3BzdmZtYmZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMjA4NTEsImV4cCI6MjA5NDc5Njg1MX0._RQsWc2jR4kSuALw5jHl7T2Q-bgjvDrSQdmjwCD8dWA';
+
   function getParam(name) {
     const params = new URLSearchParams(window.location.search);
     return params.get(name) || '';
   }
 
-  const phone = getParam('to').trim();
-  const body = getParam('body').trim();
-
-  document.getElementById('phoneDisplay').textContent = phone || '(número não informado)';
-  document.getElementById('phoneManual').textContent = phone || '(número não informado)';
-
   function buildSmsUri(phone, body) {
     const ua = navigator.userAgent || navigator.vendor || window.opera;
     const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
     const encodedBody = encodeURIComponent(body);
-
     if (isIOS) {
-      // iOS usa "&" antes do body
       return body ? `sms:${phone}&body=${encodedBody}` : `sms:${phone}`;
     } else {
-      // Android usa "?" antes do body
       return body ? `sms:${phone}?body=${encodedBody}` : `sms:${phone}`;
     }
   }
 
-  if (phone) {
+  function showFallback(phone) {
+    document.getElementById('phoneManual').textContent = phone || '(número não informado)';
+    document.getElementById('errorBox').classList.add('show');
+  }
+
+  function formatTrialDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2,'0');
+    const min = String(d.getMinutes()).padStart(2,'0');
+    return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+  }
+
+  function goToSms(phone, body) {
+    document.getElementById('titleText').textContent = 'Abrindo Mensagens...';
+    document.getElementById('subtitleText').innerHTML = `Enviando SMS para <span class="phone">${phone}</span>`;
     const smsUri = buildSmsUri(phone, body);
     const link = document.getElementById('smsLink');
     link.href = smsUri;
-
-    // Tenta abrir automaticamente
+    link.style.display = 'inline-block';
     window.location.href = smsUri;
-
-    // Se depois de 1.5s ainda estiver na página, mostra fallback
-    setTimeout(function() {
-      document.getElementById('errorBox').classList.add('show');
-    }, 1500);
-  } else {
-    document.getElementById('smsLink').style.display = 'none';
-    document.getElementById('errorBox').classList.add('show');
+    setTimeout(function() { showFallback(phone); }, 1500);
   }
+
+  async function init() {
+    const id = getParam('id');
+
+    if (id) {
+      try {
+        const res = await fetch(`${SUPA_URL}/rest/v1/opportunities?id=eq.${encodeURIComponent(id)}&select=contact,phone,trial_date`, {
+          headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}` }
+        });
+        if (!res.ok) throw new Error('Falha ao buscar lead');
+        const rows = await res.json();
+        if (!rows.length) throw new Error('Lead não encontrado');
+        const lead = rows[0];
+        const phone = (lead.phone || '').trim();
+        if (!phone) throw new Error('Lead sem telefone cadastrado');
+
+        const dataFormatada = formatTrialDate(lead.trial_date);
+        const body = `Oi ${lead.contact}! Aqui é o Saul, da Alliance Jiu-Jitsu Framingham 🥋 Recebemos sua inscrição na aula experimental GRÁTIS${dataFormatada ? ', agendada para ' + dataFormatada : ''}. Responda: 1 - Confirmo presença ✅ / 2 - Quero mudar dia/horário 📅. Aguardamos seu retorno!`;
+
+        goToSms(phone, body);
+      } catch (e) {
+        document.getElementById('titleText').textContent = 'Não foi possível carregar';
+        document.getElementById('subtitleText').textContent = e.message || 'Tente novamente em instantes.';
+        showFallback('');
+      }
+      return;
+    }
+
+    const phone = getParam('to').trim();
+    const body = getParam('body').trim();
+    if (phone) {
+      goToSms(phone, body);
+    } else {
+      document.getElementById('titleText').textContent = 'Link inválido';
+      document.getElementById('subtitleText').textContent = 'Nenhum aluno informado.';
+      showFallback('');
+    }
+  }
+
+  init();
 </script>
 </body>
 </html>
