@@ -2134,16 +2134,16 @@ function renderNav() {
 // ===== DASHBOARD =====
 async function loadDashboard() {
   try {
-    const countRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':'0-0' } });
+    const countRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${SUPA_KEY}`, 'Prefer':'count=exact', 'Range':'0-0' } });
     const total = parseInt(countRes.headers.get('Content-Range')?.split('/')[1] || 0);
     state.total = total;
     document.getElementById('statTotal').textContent = total.toLocaleString();
     document.getElementById('repTotal').textContent = total.toLocaleString();
-    const emailRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&email=not.is.null`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':'0-0' } });
+    const emailRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&email=not.is.null`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${SUPA_KEY}`, 'Prefer':'count=exact', 'Range':'0-0' } });
     const emailCount = parseInt(emailRes.headers.get('Content-Range')?.split('/')[1] || 0);
     document.getElementById('statEmail').textContent = emailCount.toLocaleString();
     document.getElementById('repEmail').textContent = emailCount.toLocaleString();
-    const phoneRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&phone=not.is.null`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':'0-0' } });
+    const phoneRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&phone=not.is.null`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${SUPA_KEY}`, 'Prefer':'count=exact', 'Range':'0-0' } });
     const phoneCount = parseInt(phoneRes.headers.get('Content-Range')?.split('/')[1] || 0);
     document.getElementById('statPhone').textContent = phoneCount.toLocaleString();
     document.getElementById('repPhone').textContent = phoneCount.toLocaleString();
@@ -2359,7 +2359,7 @@ async function loadContacts() {
 
   try {
     const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
-      headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token}`, 'Prefer':'count=exact', 'Range':`${from}-${to}` }
+      headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${SUPA_KEY}`, 'Prefer':'count=exact', 'Range':`${from}-${to}` }
     });
     const total = parseInt(res.headers.get('Content-Range')?.split('/')[1] || 0);
     const contacts = await res.json();
@@ -2730,11 +2730,11 @@ function initCalendar() {
 // ===== REPORTS =====
 async function loadReports() {
   try {
-    const countRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id`,{headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${state.token}`,'Prefer':'count=exact','Range':'0-0'}});
+    const countRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id`,{headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`,'Prefer':'count=exact','Range':'0-0'}});
     const total = parseInt(countRes.headers.get('Content-Range')?.split('/')[1]||0);
-    const emailRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&email=not.is.null`,{headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${state.token}`,'Prefer':'count=exact','Range':'0-0'}});
+    const emailRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&email=not.is.null`,{headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`,'Prefer':'count=exact','Range':'0-0'}});
     const emailCount = parseInt(emailRes.headers.get('Content-Range')?.split('/')[1]||0);
-    const phoneRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&phone=not.is.null`,{headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${state.token}`,'Prefer':'count=exact','Range':'0-0'}});
+    const phoneRes = await fetch(`${SUPA_URL}/rest/v1/contacts?select=id&phone=not.is.null`,{headers:{'apikey':SUPA_KEY,'Authorization':`Bearer ${SUPA_KEY}`,'Prefer':'count=exact','Range':'0-0'}});
     const phoneCount = parseInt(phoneRes.headers.get('Content-Range')?.split('/')[1]||0);
     document.getElementById('repTotal').textContent = total.toLocaleString();
     document.getElementById('repEmail').textContent = emailCount.toLocaleString();
@@ -4565,17 +4565,32 @@ document.addEventListener('click', function(e) {
 // Se já tinha login E empresa escolhida, volta direto pra dentro da empresa.
 // Se só tinha login (sem empresa escolhida ainda), vai pra tela de escolher empresa.
 (function restoreSession(){
-  try{
-    const savedToken = localStorage.getItem('hub360_token');
-    const savedUserRaw = localStorage.getItem('hub360_user');
-    if (!savedToken || !savedUserRaw) return; // sem sessão salva, fica na tela de login normalmente
-    const savedUser = JSON.parse(savedUserRaw);
-    state.token = savedToken;
-    state.user = savedUser;
+  const savedToken = localStorage.getItem('hub360_token');
+  const savedUserRaw = localStorage.getItem('hub360_user');
+  if (!savedToken || !savedUserRaw) return; // sem sessão salva, fica na tela de login normalmente
+
+  let savedUser;
+  try { savedUser = JSON.parse(savedUserRaw); } catch(e) { savedUser = {}; }
+  state.token = savedToken;
+  state.user = savedUser;
+
+  // A partir daqui, a sessão já é considerada válida — cada passo abaixo roda isolado
+  // (try/catch individual) para que um erro pontual de DOM/timing nunca deixe a pessoa
+  // presa na tela de login com uma sessão que na verdade era válida.
+  try {
     const email = savedUser.email || '';
-    document.getElementById('sbUserName').textContent = email.split('@')[0] || 'Admin';
-    document.getElementById('sbAvatar').textContent = (email[0]||'A').toUpperCase();
-    document.getElementById('loginScreen').style.display = 'none';
+    const nameEl = document.getElementById('sbUserName');
+    const avatarEl = document.getElementById('sbAvatar');
+    if (nameEl) nameEl.textContent = email.split('@')[0] || 'Admin';
+    if (avatarEl) avatarEl.textContent = (email[0]||'A').toUpperCase();
+  } catch(e){ console.warn('Falha ao popular nome do usuário (sessão continua válida):', e); }
+
+  try {
+    const loginEl = document.getElementById('loginScreen');
+    if (loginEl) loginEl.style.display = 'none';
+  } catch(e){ console.warn('Falha ao esconder tela de login (sessão continua válida):', e); }
+
+  try {
     const savedCo = localStorage.getItem('hub360_company');
     const savedCoName = localStorage.getItem('hub360_company_name');
     if (savedCo && savedCoName) {
@@ -4589,7 +4604,14 @@ document.addEventListener('click', function(e) {
     } else {
       document.getElementById('welcomeScreen').style.display = 'flex';
     }
-  }catch(e){ console.warn('Falha ao restaurar sessão:', e); }
+  } catch(e){
+    console.warn('Falha ao restaurar tela do app — tentando fallback direto:', e);
+    // Fallback: mesmo se algo falhou acima, garante que a pessoa não fica presa no login
+    try {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('welcomeScreen').style.display = 'flex';
+    } catch(e2){}
+  }
 })();
 
 </script>
