@@ -2106,6 +2106,17 @@ function selectCompany(id, name, e) {
   currentChatId = null;
   const convListEl = document.getElementById('convList');
   if (convListEl) convListEl.innerHTML = '';
+  // A lista da esquerda já era limpa aqui, mas a conversa aberta no painel da direita
+  // (nome, telefone, histórico de mensagens) ficava intacta na tela — mesmo bug de
+  // vazamento de dados entre empresas, só que na outra metade da tela.
+  const chatHeaderName = document.getElementById('chatHeaderName');
+  const chatHeaderPhone = document.getElementById('chatHeaderPhone');
+  const chatMessagesEl = document.getElementById('chatMessages');
+  const convContactDetails = document.getElementById('convContactDetails');
+  if (chatHeaderName) chatHeaderName.textContent = 'Selecione uma conversa';
+  if (chatHeaderPhone) chatHeaderPhone.textContent = '';
+  if (chatMessagesEl) chatMessagesEl.innerHTML = '';
+  if (convContactDetails) convContactDetails.innerHTML = '<div style="text-align:center;color:var(--gray-300);font-size:12px;padding:30px 16px">Nenhum contato selecionado</div>';
   applyCompanyTheme(id);
   document.getElementById('sbCompanyName').innerHTML = `${state.currentCompanyName} <i class="fas fa-chevron-down" style="font-size:10px"></i>`;
   document.querySelectorAll('.cd-item').forEach(i => i.classList.remove('active'));
