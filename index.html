@@ -1918,6 +1918,26 @@ function initSupabaseRealtime() {
   }, 20000);
 }
 
+// Segunda camada de persistência da sessão: além do localStorage, salva também em cookie
+// (mecanismo de armazenamento diferente). Se algo limpar um dos dois, o outro ainda segura
+// a sessão — reduz drasticamente a chance de a pessoa cair na tela de login à toa.
+function _setSessionCookie(name, value){
+  try {
+    const days = 30;
+    const expires = new Date(Date.now() + days*24*60*60*1000).toUTCString();
+    document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires};path=/;SameSite=Lax`;
+  } catch(e){}
+}
+function _getSessionCookie(name){
+  try {
+    const match = document.cookie.split('; ').find(row => row.startsWith(name+'='));
+    return match ? decodeURIComponent(match.split('=').slice(1).join('=')) : null;
+  } catch(e){ return null; }
+}
+function _clearSessionCookie(name){
+  try { document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax`; } catch(e){}
+}
+
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const pass = document.getElementById('loginPass').value;
@@ -1930,6 +1950,8 @@ async function doLogin() {
     state.user = data.user; state.token = data.access_token;
     localStorage.setItem('hub360_token', data.access_token);
     localStorage.setItem('hub360_user', JSON.stringify(data.user));
+    _setSessionCookie('hub360_token', data.access_token);
+    _setSessionCookie('hub360_user', JSON.stringify(data.user));
     document.getElementById('sbUserName').textContent = email.split('@')[0];
     document.getElementById('sbAvatar').textContent = email[0].toUpperCase();
     document.getElementById('loginScreen').style.display = 'none';
@@ -1945,6 +1967,7 @@ document.getElementById('loginPass').addEventListener('keypress', e => { if (e.k
 async function doLogout() {
   try { await supaSignOut(state.token); } catch(e){}
   localStorage.removeItem('hub360_token'); localStorage.removeItem('hub360_user'); state.user = null; state.token = null;
+  _clearSessionCookie('hub360_token'); _clearSessionCookie('hub360_user');
   document.getElementById('appScreen').style.display = 'none';
   document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
@@ -4617,14 +4640,29 @@ document.addEventListener('click', function(e) {
 // Se já tinha login E empresa escolhida, volta direto pra dentro da empresa.
 // Se só tinha login (sem empresa escolhida ainda), vai pra tela de escolher empresa.
 (function restoreSession(){
-  const savedToken = localStorage.getItem('hub360_token');
-  const savedUserRaw = localStorage.getItem('hub360_user');
-  if (!savedToken || !savedUserRaw) return; // sem sessão salva, fica na tela de login normalmente
+  let savedToken = localStorage.getItem('hub360_token');
+  let savedUserRaw = localStorage.getItem('hub360_user');
+
+  // Se o localStorage foi limpo (config do navegador, etc.) mas o cookie sobreviveu,
+  // restaura dali e já regrava no localStorage — próxima vez volta a funcionar normal.
+  if (!savedToken || !savedUserRaw) {
+    const cookieToken = _getSessionCookie('hub360_token');
+    const cookieUserRaw = _getSessionCookie('hub360_user');
+    if (cookieToken && cookieUserRaw) {
+      savedToken = cookieToken; savedUserRaw = cookieUserRaw;
+      try { localStorage.setItem('hub360_token', savedToken); localStorage.setItem('hub360_user', savedUserRaw); } catch(e){}
+    }
+  }
+
+  if (!savedToken || !savedUserRaw) return; // sem sessão salva em nenhum dos dois, fica na tela de login normalmente
 
   let savedUser;
   try { savedUser = JSON.parse(savedUserRaw); } catch(e) { savedUser = {}; }
   state.token = savedToken;
   state.user = savedUser;
+  // Renova a validade do cookie a cada visita — janela deslizante de 30 dias em vez de fixa.
+  _setSessionCookie('hub360_token', savedToken);
+  _setSessionCookie('hub360_user', savedUserRaw);
 
   // A partir daqui, a sessão já é considerada válida — cada passo abaixo roda isolado
   // (try/catch individual) para que um erro pontual de DOM/timing nunca deixe a pessoa
