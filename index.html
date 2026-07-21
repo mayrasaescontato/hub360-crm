@@ -1716,6 +1716,19 @@
 const SUPA_URL = 'https://mvktoymgeapkpsvfmbfl.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12a3RveW1nZWFwa3BzdmZtYmZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMjA4NTEsImV4cCI6MjA5NDc5Njg1MX0._RQsWc2jR4kSuALw5jHl7T2Q-bgjvDrSQdmjwCD8dWA';
 
+// Evolution API às vezes fica lenta/sem responder em horário de pico (restaurante cheio).
+// Sem limite de tempo, isso deixava o CRM girando pra sempre. Com timeout, desiste depois
+// de alguns segundos e segue com o que já tinha, em vez de travar a tela.
+async function fetchWithTimeout(url, opts={}, timeoutMs=8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...opts, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function supaFetch(path, opts={}) {
   const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
     ...opts,
@@ -1781,6 +1794,7 @@ function requestNotificationPermission(){
 }
 
 function _notifyNewMessage(msg){
+  _playNotifySound();
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   try{
     const phone = (msg.remote_jid||'').split('@')[0];
@@ -1796,6 +1810,26 @@ function _notifyNewMessage(msg){
       new Notification(title, { body, icon: '/favicon.ico', tag: msg.remote_jid });
     }
   }catch(e){ console.warn('Erro ao notificar:', e); }
+}
+
+// Toca um bipe curto (Web Audio, sem precisar de arquivo de áudio) sempre que chega mensagem nova
+// enquanto a pessoa está trabalhando em outra parte do CRM — garante que ela perceba mesmo sem
+// olhar pra tela, mesmo se a permissão de notificação do navegador não tiver sido concedida.
+function _playNotifySound(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.15].forEach(delay => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.15, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.12);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.13);
+    });
+  }catch(e){ console.warn('Erro ao tocar som de notificação:', e); }
 }
 
 function _isConversationsPageActive(){
@@ -1838,7 +1872,10 @@ function initSupabaseRealtime() {
           }
         }
         // Notificação do sistema: só para mensagens recebidas e quando a aba está minimizada/sem foco
-        if(!fromMe && document.hidden){
+        // Antes só notificava com a aba minimizada. Agora também notifica se a pessoa está
+        // dentro do CRM mas em outra página (Contatos, Oportunidades etc.) — é o caso do
+        // "estou trabalhando em outra tela e um cliente manda mensagem".
+        if(!fromMe && (document.hidden || !_isConversationsPageActive())){
           _notifyNewMessage(msg);
         }
         if(_isConversationsPageActive()){
@@ -1859,7 +1896,7 @@ function initSupabaseRealtime() {
     try { loadConversations(true); } catch(e){}
     if(!currentChatId) return;
     try {
-      const res = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
+      const res = await fetchWithTimeout(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
         method:'POST',
         headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
         body:JSON.stringify({where:{},limit:200,page:1})
@@ -2022,6 +2059,13 @@ function selectCompany(id, name, e) {
   e.stopPropagation();
   state.currentCompany = id; state.currentCompanyName = name.split(' ').slice(0,2).join(' ');
   try{ localStorage.setItem('hub360_company', id); localStorage.setItem('hub360_company_name', name); }catch(err){}
+  // Limpa qualquer conversa de WhatsApp já carregada na tela — evita que dados de uma empresa
+  // (ex: Sam Sushi) fiquem visíveis por engano depois de trocar para outra (ex: Alliance),
+  // mesmo antes da trava de segurança em loadConversations() entrar em ação.
+  allConversations = [];
+  currentChatId = null;
+  const convListEl = document.getElementById('convList');
+  if (convListEl) convListEl.innerHTML = '';
   applyCompanyTheme(id);
   document.getElementById('sbCompanyName').innerHTML = `${state.currentCompanyName} <i class="fas fa-chevron-down" style="font-size:10px"></i>`;
   document.querySelectorAll('.cd-item').forEach(i => i.classList.remove('active'));
@@ -3410,11 +3454,11 @@ async function loadConversations(isBackgroundRefresh){
         const pageSize = 200;
         const maxPages = isBackgroundRefresh ? 1 : 8;
         for (let page = 0; page < maxPages; page++) {
-          const res = await fetch(EVOLUTION_URL+'/chat/findChats/Sam Sushi', {
+          const res = await fetchWithTimeout(EVOLUTION_URL+'/chat/findChats/Sam Sushi', {
             method:'POST',
             headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
             body: JSON.stringify({ limit: pageSize, offset: page * pageSize })
-          });
+          }, 8000);
           if(!res.ok) break;
           const chunk = await res.json();
           const arr = Array.isArray(chunk) ? chunk : [];
@@ -3556,6 +3600,13 @@ async function loadConversations(isBackgroundRefresh){
 
     // 7. Ordena por última mensagem mais recente
     allConversations.sort((a,b) => (b.lastTs||0) - (a.lastTs||0));
+
+    // Trava de segurança crítica: essa função é assíncrona e pode levar vários segundos
+    // (Evolution API + Supabase). Se a pessoa trocar de empresa ENQUANTO essa chamada do
+    // Sam Sushi ainda está em andamento, ela não pode terminar depois e sobrescrever a tela
+    // com dados de outra empresa — isso já aconteceu (conversas do Sam Sushi aparecendo com
+    // "Alliance" selecionada). Reconfirma a empresa atual bem no fim, antes de tocar no DOM.
+    if (state.currentCompany !== 'samsushi') return;
 
     // Proteção: se essa foi uma atualização de fundo (a cada 20s / volta de aba) e ela não trouxe
     // nenhuma conversa, mas já tínhamos uma lista carregada antes, mantém a lista antiga na tela
@@ -3800,7 +3851,7 @@ async function loadMessages(chatId){
           // (retorna resultados incompletos/incorretos). Busca sem filtro e filtra no JS.
           let allEvoMsgs = [];
           let totalPages = 1;
-          let evoPage1 = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
+          let evoPage1 = await fetchWithTimeout(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
             method:'POST',
             headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
             body:JSON.stringify({where:{},limit:200,page:1})
@@ -3817,7 +3868,7 @@ async function loadMessages(chatId){
           // Busca páginas adicionais (até no máximo 8, por segurança - sem filtro traz mais mensagens no total)
           for(let p=2; p<=Math.min(totalPages,8); p++){
             try{
-              const evoResP = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
+              const evoResP = await fetchWithTimeout(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
                 method:'POST',
                 headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
                 body:JSON.stringify({where:{},limit:200,page:p})
@@ -3892,7 +3943,7 @@ async function loadMessages(chatId){
     }
 
     // 2. Fallback: Evolution API
-    const evoRes = await fetch(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
+    const evoRes = await fetchWithTimeout(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
       method:'POST',
       headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
       body:JSON.stringify({where:{key:{remoteJid:chatId}},limit:60})
