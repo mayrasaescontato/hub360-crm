@@ -1948,10 +1948,8 @@ async function doLogin() {
   try {
     const data = await supaAuth(email, pass);
     state.user = data.user; state.token = data.access_token;
-    localStorage.setItem('hub360_token', data.access_token);
-    localStorage.setItem('hub360_user', JSON.stringify(data.user));
-    _setSessionCookie('hub360_token', data.access_token);
-    _setSessionCookie('hub360_user', JSON.stringify(data.user));
+    // Propositalmente NÃO salva token/usuário em localStorage nem cookie — o CRM deve
+    // sempre pedir login de novo ao reabrir, nunca entrar sozinho com sessão antiga.
     document.getElementById('sbUserName').textContent = email.split('@')[0];
     document.getElementById('sbAvatar').textContent = email[0].toUpperCase();
     document.getElementById('loginScreen').style.display = 'none';
@@ -1966,8 +1964,7 @@ document.getElementById('loginPass').addEventListener('keypress', e => { if (e.k
 
 async function doLogout() {
   try { await supaSignOut(state.token); } catch(e){}
-  localStorage.removeItem('hub360_token'); localStorage.removeItem('hub360_user'); state.user = null; state.token = null;
-  _clearSessionCookie('hub360_token'); _clearSessionCookie('hub360_user');
+  state.user = null; state.token = null;
   document.getElementById('appScreen').style.display = 'none';
   document.getElementById('welcomeScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
@@ -4639,70 +4636,9 @@ document.addEventListener('click', function(e) {
 // Restaura sessão salva ao abrir/recarregar a página — evita ter que logar de novo toda hora.
 // Se já tinha login E empresa escolhida, volta direto pra dentro da empresa.
 // Se só tinha login (sem empresa escolhida ainda), vai pra tela de escolher empresa.
-(function restoreSession(){
-  let savedToken = localStorage.getItem('hub360_token');
-  let savedUserRaw = localStorage.getItem('hub360_user');
-
-  // Se o localStorage foi limpo (config do navegador, etc.) mas o cookie sobreviveu,
-  // restaura dali e já regrava no localStorage — próxima vez volta a funcionar normal.
-  if (!savedToken || !savedUserRaw) {
-    const cookieToken = _getSessionCookie('hub360_token');
-    const cookieUserRaw = _getSessionCookie('hub360_user');
-    if (cookieToken && cookieUserRaw) {
-      savedToken = cookieToken; savedUserRaw = cookieUserRaw;
-      try { localStorage.setItem('hub360_token', savedToken); localStorage.setItem('hub360_user', savedUserRaw); } catch(e){}
-    }
-  }
-
-  if (!savedToken || !savedUserRaw) return; // sem sessão salva em nenhum dos dois, fica na tela de login normalmente
-
-  let savedUser;
-  try { savedUser = JSON.parse(savedUserRaw); } catch(e) { savedUser = {}; }
-  state.token = savedToken;
-  state.user = savedUser;
-  // Renova a validade do cookie a cada visita — janela deslizante de 30 dias em vez de fixa.
-  _setSessionCookie('hub360_token', savedToken);
-  _setSessionCookie('hub360_user', savedUserRaw);
-
-  // A partir daqui, a sessão já é considerada válida — cada passo abaixo roda isolado
-  // (try/catch individual) para que um erro pontual de DOM/timing nunca deixe a pessoa
-  // presa na tela de login com uma sessão que na verdade era válida.
-  try {
-    const email = savedUser.email || '';
-    const nameEl = document.getElementById('sbUserName');
-    const avatarEl = document.getElementById('sbAvatar');
-    if (nameEl) nameEl.textContent = email.split('@')[0] || 'Admin';
-    if (avatarEl) avatarEl.textContent = (email[0]||'A').toUpperCase();
-  } catch(e){ console.warn('Falha ao popular nome do usuário (sessão continua válida):', e); }
-
-  try {
-    const loginEl = document.getElementById('loginScreen');
-    if (loginEl) loginEl.style.display = 'none';
-  } catch(e){ console.warn('Falha ao esconder tela de login (sessão continua válida):', e); }
-
-  try {
-    const savedCo = localStorage.getItem('hub360_company');
-    const savedCoName = localStorage.getItem('hub360_company_name');
-    if (savedCo && savedCoName) {
-      document.getElementById('welcomeScreen').style.display = 'none';
-      document.getElementById('appScreen').style.display = 'block';
-      applyCompanyTheme(savedCo);
-      initApp();
-      initSupabaseRealtime();
-      requestNotificationPermission();
-      initTwilioDevice();
-    } else {
-      document.getElementById('welcomeScreen').style.display = 'flex';
-    }
-  } catch(e){
-    console.warn('Falha ao restaurar tela do app — tentando fallback direto:', e);
-    // Fallback: mesmo se algo falhou acima, garante que a pessoa não fica presa no login
-    try {
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('welcomeScreen').style.display = 'flex';
-    } catch(e2){}
-  }
-})();
+// Login automático foi removido de propósito: por decisão explícita, o CRM deve sempre
+// pedir e-mail/senha ao abrir, nunca entrar sozinho usando sessão salva de antes.
+// (function restoreSession(){ ... })(); — desativada.
 
 </script>
 <!-- ===== BOTÃO FLUTUANTE PARA DISCADOR MANUAL ===== -->
