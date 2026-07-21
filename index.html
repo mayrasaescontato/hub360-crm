@@ -1787,6 +1787,7 @@ if ('serviceWorker' in navigator) {
 }
 
 function requestNotificationPermission(){
+  _unlockNotifyAudio();
   if (!('Notification' in window)) return;
   if (Notification.permission === 'default') {
     Notification.requestPermission();
@@ -1804,10 +1805,10 @@ function _notifyNewMessage(msg){
     const body = isMedia ? '📎 Nova mídia recebida' : (msg.content || 'Nova mensagem');
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.ready.then(reg => {
-        reg.showNotification(title, { body, icon: '/favicon.ico', tag: msg.remote_jid });
+        reg.showNotification(title, { body, icon: '/favicon.ico', tag: msg.remote_jid, requireInteraction: true });
       });
     } else {
-      new Notification(title, { body, icon: '/favicon.ico', tag: msg.remote_jid });
+      new Notification(title, { body, icon: '/favicon.ico', tag: msg.remote_jid, requireInteraction: true });
     }
   }catch(e){ console.warn('Erro ao notificar:', e); }
 }
@@ -1815,19 +1816,38 @@ function _notifyNewMessage(msg){
 // Toca um bipe curto (Web Audio, sem precisar de arquivo de áudio) sempre que chega mensagem nova
 // enquanto a pessoa está trabalhando em outra parte do CRM — garante que ela perceba mesmo sem
 // olhar pra tela, mesmo se a permissão de notificação do navegador não tiver sido concedida.
+// Mantém um único AudioContext vivo (criado/destravado assim que a pessoa interage com o
+// CRM, logo no login) em vez de criar um novo a cada mensagem — isso evita que o navegador
+// bloqueie o som por política de autoplay quando a pessoa está em outra aba/janela.
+let _notifyAudioCtx = null;
+function _unlockNotifyAudio(){
+  try{
+    if (!_notifyAudioCtx) _notifyAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_notifyAudioCtx.state === 'suspended') _notifyAudioCtx.resume();
+  }catch(e){}
+}
+
 function _playNotifySound(){
   try{
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    [0, 0.15].forEach(delay => {
+    _unlockNotifyAudio();
+    const ctx = _notifyAudioCtx;
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    // Alerta de 3 bipes bem mais alto e num tom de duas notas (tipo "campainha"), pra dar
+    // pra ouvir numa sala com conversa, mesmo com o CRM em segundo plano.
+    const notes = [880, 660, 880];
+    notes.forEach((freq, i) => {
+      const delay = i * 0.22;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.15, ctx.currentTime + delay);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.12);
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.9, ctx.currentTime + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + 0.2);
       osc.connect(gain); gain.connect(ctx.destination);
       osc.start(ctx.currentTime + delay);
-      osc.stop(ctx.currentTime + delay + 0.13);
+      osc.stop(ctx.currentTime + delay + 0.21);
     });
   }catch(e){ console.warn('Erro ao tocar som de notificação:', e); }
 }
