@@ -3449,23 +3449,24 @@ async function loadConversations(isBackgroundRefresh){
     // em paralelo (Promise.all) em vez de sequencial, já que são independentes entre si.
     // Isso corta o tempo de carregamento em ~3x nas atualizações de fundo.
     const fetchEvoChats = (async () => {
+      // Buscava página por página, uma esperando a outra terminar — no pior caso (Evolution
+      // lenta), 8 páginas × 8s de timeout cada = quase 1 minuto de espera. Agora todas as
+      // páginas são pedidas ao mesmo tempo: o tempo total fica limitado a ~8s (um timeout),
+      // não 8 timeouts somados.
+      const pageSize = 200;
+      const maxPages = isBackgroundRefresh ? 1 : 8;
+      const pagePromises = Array.from({length: maxPages}, (_, page) =>
+        fetchWithTimeout(EVOLUTION_URL+'/chat/findChats/Sam Sushi', {
+          method:'POST',
+          headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+          body: JSON.stringify({ limit: pageSize, offset: page * pageSize })
+        }, 8000)
+          .then(res => res.ok ? res.json() : [])
+          .catch(() => [])
+      );
+      const pages = await Promise.all(pagePromises);
       let evoChats = [];
-      try {
-        const pageSize = 200;
-        const maxPages = isBackgroundRefresh ? 1 : 8;
-        for (let page = 0; page < maxPages; page++) {
-          const res = await fetchWithTimeout(EVOLUTION_URL+'/chat/findChats/Sam Sushi', {
-            method:'POST',
-            headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-            body: JSON.stringify({ limit: pageSize, offset: page * pageSize })
-          }, 8000);
-          if(!res.ok) break;
-          const chunk = await res.json();
-          const arr = Array.isArray(chunk) ? chunk : [];
-          evoChats = evoChats.concat(arr);
-          if (arr.length < pageSize) break;
-        }
-      } catch(e){}
+      pages.forEach(chunk => { if (Array.isArray(chunk)) evoChats = evoChats.concat(chunk); });
       return evoChats;
     })();
 
