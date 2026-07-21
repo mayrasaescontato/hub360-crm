@@ -860,7 +860,7 @@
             </div>
           </div>
 
-          <div class="dash-grid" style="margin-top:24px">
+          <div class="dash-grid" style="margin-top:24px" id="dashBottomGrid">
             <div class="card">
               <div class="card-header">
                 <div class="card-title">Contatos Recentes</div>
@@ -870,7 +870,7 @@
                 <div class="loading"><div class="spinner"></div></div>
               </div>
             </div>
-            <div class="card">
+            <div class="card" id="dashCompaniesCard">
               <div class="card-header"><div class="card-title">Empresas</div></div>
               <div class="card-body">
                 <div style="display:flex;flex-direction:column;gap:10px">
@@ -898,6 +898,10 @@
               </div>
             </div>
           </div>
+          <style>
+            body.theme-alliance #dashCompaniesCard { display:none; }
+            body.theme-alliance #dashBottomGrid { grid-template-columns: 1fr; }
+          </style>
         </div>
 
         <!-- CONTACTS -->
@@ -1838,7 +1842,11 @@ function initSupabaseRealtime() {
           _notifyNewMessage(msg);
         }
         if(_isConversationsPageActive()){
-          setTimeout(function(){ try{ loadConversations(true); }catch(e){} }, 1000);
+          // Debounce: em rajadas de mensagens (hora do rush do restaurante), várias
+          // notificações chegam em poucos segundos — sem isso, cada uma disparava uma
+          // recarga pesada da lista, empilhando chamadas e travando a tela.
+          clearTimeout(_convRefreshDebounce);
+          _convRefreshDebounce = setTimeout(function(){ try{ loadConversations(true); }catch(e){} }, 2000);
         }
       })
       .subscribe();
@@ -3256,6 +3264,10 @@ const EVOLUTION_URL = 'https://evolution-api-production-7eff.up.railway.app';
 const EVOLUTION_KEY = 'Hub360@Evolution2026';
 let currentChatId = null;
 let allConversations = [];
+let _isLoadingConversations = false;
+let _contactsCache = null;
+let _contactsCacheTs = 0;
+let _convRefreshDebounce = null;
 let convTabActive = 'unread';
 
 function _lsGet(k){ try{ return new Set(JSON.parse(localStorage.getItem(k)||'[]')); }catch(e){ return new Set(); } }
@@ -3374,6 +3386,10 @@ async function loadConversations(isBackgroundRefresh){
   }
   document.getElementById('convInstanceLabel').textContent = 'Sam Sushi';
   const list = document.getElementById('convList');
+  // Evita empilhar atualizações: se uma atualização de fundo já está em andamento
+  // (rede lenta, horário de pico), pula esse ciclo em vez de rodar em paralelo e piorar a lentidão.
+  if (isBackgroundRefresh && _isLoadingConversations) return;
+  _isLoadingConversations = true;
   // Em atualizações automáticas de fundo, não mostra o spinner de "Carregando..." nem refaz
   // buscas pesadas que já foram feitas — evita a tela piscando/recarregando a cada 20s.
   if(!isBackgroundRefresh){
@@ -3385,36 +3401,57 @@ async function loadConversations(isBackgroundRefresh){
       await _loadCustomNamesFromSupabase();
       await _loadManualUnreadFromSupabase();
     }
-    // 1. Busca lista na Evolution API — na primeira carga busca tudo (até 8 páginas),
-    // em atualizações automáticas de fundo busca só as 2 primeiras páginas (mais recentes),
-    // que é o que realmente muda a cada 20s.
-    let evoChats = [];
-    try {
-      const pageSize = 200;
-      const maxPages = isBackgroundRefresh ? 2 : 8;
-      for (let page = 0; page < maxPages; page++) {
-        const res = await fetch(EVOLUTION_URL+'/chat/findChats/Sam Sushi', {
-          method:'POST',
-          headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-          body: JSON.stringify({ limit: pageSize, offset: page * pageSize })
-        });
-        if(!res.ok) break;
-        const chunk = await res.json();
-        const arr = Array.isArray(chunk) ? chunk : [];
-        evoChats = evoChats.concat(arr);
-        if (arr.length < pageSize) break;
-      }
-    } catch(e){}
+    // 1. Busca lista na Evolution API, mensagens recentes do Supabase e contatos —
+    // em paralelo (Promise.all) em vez de sequencial, já que são independentes entre si.
+    // Isso corta o tempo de carregamento em ~3x nas atualizações de fundo.
+    const fetchEvoChats = (async () => {
+      let evoChats = [];
+      try {
+        const pageSize = 200;
+        const maxPages = isBackgroundRefresh ? 1 : 8;
+        for (let page = 0; page < maxPages; page++) {
+          const res = await fetch(EVOLUTION_URL+'/chat/findChats/Sam Sushi', {
+            method:'POST',
+            headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+            body: JSON.stringify({ limit: pageSize, offset: page * pageSize })
+          });
+          if(!res.ok) break;
+          const chunk = await res.json();
+          const arr = Array.isArray(chunk) ? chunk : [];
+          evoChats = evoChats.concat(arr);
+          if (arr.length < pageSize) break;
+        }
+      } catch(e){}
+      return evoChats;
+    })();
 
-    // 2. Busca mensagens recentes no Supabase
-    let supaMsgs = [];
-    try {
-      supaMsgs = await supaFetch('wpp_messages?select=remote_jid,content,from_me,timestamp,message_type&order=timestamp.desc&limit=5000');
-    } catch(e){}
+    const fetchSupaMsgs = (async () => {
+      try {
+        // Atualizações de fundo só precisam das mensagens mais recentes (delta),
+        // não da tabela inteira — reduz de 5000 para 800 linhas por ciclo de 20s.
+        const limit = isBackgroundRefresh ? 800 : 5000;
+        return await supaFetch(`wpp_messages?select=remote_jid,content,from_me,timestamp,message_type&order=timestamp.desc&limit=${limit}`);
+      } catch(e){ return []; }
+    })();
 
-    // 3. Monta mapa do Supabase por JID
+    const fetchContacts = (async () => {
+      // Contatos raramente mudam — cacheia por 3 minutos em vez de buscar 1000 linhas
+      // do Supabase a cada 20s (era o maior peso das atualizações de fundo).
+      const now = Date.now();
+      if (_contactsCache && (now - _contactsCacheTs) < 180000) return _contactsCache;
+      try {
+        const c = await supaFetch('contacts?select=first_name,last_name,phone&limit=1000');
+        _contactsCache = c; _contactsCacheTs = now;
+        return c;
+      } catch(e){ return _contactsCache || []; }
+    })();
+
+    let [evoChats, supaMsgs, contacts] = await Promise.all([fetchEvoChats, fetchSupaMsgs, fetchContacts]);
+    supaMsgs = supaMsgs || []; contacts = contacts || [];
+
+    // Monta mapa do Supabase por JID (mensagem mais recente de cada conversa)
     const supaMap = new Map();
-    (supaMsgs||[]).forEach(m => {
+    supaMsgs.forEach(m => {
       const jid = m.remote_jid;
       if (!jid || !jid.includes('@s.whatsapp.net')) return;
       if (!supaMap.has(jid)) supaMap.set(jid, m);
@@ -3424,12 +3461,22 @@ async function loadConversations(isBackgroundRefresh){
       }
     });
 
-    // 4. Busca nomes de contatos
-    let contacts = [];
-    try { contacts = await supaFetch('contacts?select=first_name,last_name,phone&limit=1000'); } catch(e){}
-
     // 5. Combina: começa com Evolution, enriquece com Supabase
     const convMap = new Map();
+
+    // Em atualizações de fundo, o payload buscado agora é só um "delta" (chats/mensagens
+    // recentes) para ser leve. Por isso pré-popula com a lista anterior inteira, e as
+    // conversas que tiveram atividade nesse ciclo são sobrescritas com dados frescos logo
+    // abaixo — as demais mantêm o que já estava na tela, sem sumir da lista.
+    if (isBackgroundRefresh && _previousConversations.length) {
+      _previousConversations.forEach(c => {
+        convMap.set(c.remoteJid, {
+          id: c.remoteJid, remoteJid: c.remoteJid, phone: c.phone,
+          pushName: c.pushName||'', lastMessage: c.lastMessage||null,
+          lastSupaMsg: c.lastSupaMsg||null, lastTs: c.lastTs||0, unreadCount: c.unreadCount||0
+        });
+      });
+    }
 
     // Adiciona chats da Evolution
     evoChats.forEach(c => {
@@ -3530,6 +3577,8 @@ async function loadConversations(isBackgroundRefresh){
       return;
     }
     list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px"><i class="fas fa-exclamation-circle" style="font-size:24px;margin-bottom:8px;display:block;color:#f87171"></i>Erro ao carregar conversas.<br><small>'+e.message+'</small><br><br><button onclick="loadConversations()" style="margin-top:8px;padding:6px 12px;border:1px solid var(--gray-200);border-radius:6px;font-size:12px;cursor:pointer">Tentar novamente</button></div>';
+  } finally {
+    _isLoadingConversations = false;
   }
 }
 
