@@ -3888,11 +3888,29 @@ function selectConversation(cid, name, phone, el){
 
 async function loadMessages(chatId){
   if(!chatId) return;
+  // Trava contra condição de corrida: se o usuário trocar de conversa ou de empresa
+  // enquanto esta busca ainda está em andamento (ex: Evolution demorando), o resultado
+  // antigo NÃO pode sobrescrever a tela depois. É isso que causava mensagens de uma
+  // empresa "vazando" para outra: a busca da conversa antiga terminava tarde e escrevia
+  // por cima do painel já limpo.
+  const _openedChatId = chatId;
+  const _stillCurrent = () => currentChatId === _openedChatId;
+  window._msgCache = window._msgCache || {};
+  const _cached = window._msgCache[chatId];
+  if(_cached && (Date.now()-_cached.ts) < 120000){
+    if(!_stillCurrent()) return;
+    const box0=document.getElementById('chatMessages');
+    box0.innerHTML=_cached.html;
+    box0.scrollTop=box0.scrollHeight;
+    (_cached.pendingMedia||[]).forEach(pm=>_loadMediaForMessage(pm));
+    return;
+  }
   const box=document.getElementById('chatMessages');
   box.innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try {
     // 1. Tenta Supabase primeiro
     const supaMsgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(chatId)+'&order=timestamp.asc&limit=500');
+    if(!_stillCurrent()) return;
     if(supaMsgs && supaMsgs.length){
       // Se houver mensagens de mídia sem conteúdo, busca os keys reais na Evolution para decodificar depois
       const hasMedia = supaMsgs.some(m=>!m.content && m.message_type && m.message_type!=='conversation');
@@ -3901,47 +3919,62 @@ async function loadMessages(chatId){
         try{
           // O filtro 'where.key.remoteJid' do findMessages é bugado nesta versão da Evolution
           // (retorna resultados incompletos/incorretos). Busca sem filtro e filtra no JS.
-          let allEvoMsgs = [];
-          let totalPages = 1;
-          let evoPage1 = await fetchWithTimeout(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
-            method:'POST',
-            headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-            body:JSON.stringify({where:{},limit:200,page:1})
-          });
-          if(evoPage1.ok){
-            const data1=await evoPage1.json();
-            totalPages = data1?.messages?.pages || 1;
-            const msgs1=Array.isArray(data1?.messages?.records)?data1.messages.records
-              :Array.isArray(data1?.messages)?data1.messages
-              :Array.isArray(data1?.records)?data1.records
-              :Array.isArray(data1)?data1:[];
-            allEvoMsgs = allEvoMsgs.concat(msgs1);
-          }
-          // Busca páginas adicionais (até no máximo 8, por segurança - sem filtro traz mais mensagens no total)
-          for(let p=2; p<=Math.min(totalPages,8); p++){
-            try{
-              const evoResP = await fetchWithTimeout(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
-                method:'POST',
-                headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-                body:JSON.stringify({where:{},limit:200,page:p})
-              });
-              if(evoResP.ok){
-                const dataP=await evoResP.json();
+          const _mediaFetchPromise = (async () => {
+            let allEvoMsgs = [];
+            let totalPages = 1;
+            const evoPage1 = await fetchWithTimeout(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
+              method:'POST',
+              headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+              body:JSON.stringify({where:{},limit:200,page:1})
+            });
+            if(evoPage1.ok){
+              const data1=await evoPage1.json();
+              totalPages = data1?.messages?.pages || 1;
+              const msgs1=Array.isArray(data1?.messages?.records)?data1.messages.records
+                :Array.isArray(data1?.messages)?data1.messages
+                :Array.isArray(data1?.records)?data1.records
+                :Array.isArray(data1)?data1:[];
+              allEvoMsgs = allEvoMsgs.concat(msgs1);
+            }
+            // Páginas adicionais (até 8, por segurança) buscadas EM PARALELO — antes era sequencial
+            // (até 8 páginas × 8s de timeout cada = quase 1 minuto de espera).
+            const pageNums = [];
+            for(let p=2; p<=Math.min(totalPages,8); p++) pageNums.push(p);
+            if(pageNums.length){
+              const pageResults = await Promise.all(pageNums.map(p=>
+                fetchWithTimeout(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
+                  method:'POST',
+                  headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
+                  body:JSON.stringify({where:{},limit:200,page:p})
+                }).then(r=>r.ok?r.json():null).catch(()=>null)
+              ));
+              pageResults.forEach(dataP=>{
+                if(!dataP) return;
                 const msgsP=Array.isArray(dataP?.messages?.records)?dataP.messages.records
                   :Array.isArray(dataP?.messages)?dataP.messages
                   :Array.isArray(dataP?.records)?dataP.records
                   :Array.isArray(dataP)?dataP:[];
                 allEvoMsgs = allEvoMsgs.concat(msgsP);
-              }
-            }catch(e){}
+              });
+            }
+            return allEvoMsgs;
+          })();
+          // Timeout geral de 15s: se a Evolution demorar demais, segue sem pareamento de mídia
+          // em vez de travar a tela "Carregando..." indefinidamente.
+          const _timeoutPromise = new Promise(resolve=>setTimeout(()=>resolve('TIMEOUT'), 15000));
+          const _mediaResult = await Promise.race([_mediaFetchPromise, _timeoutPromise]);
+          if(!_stillCurrent()) return;
+          if(_mediaResult !== 'TIMEOUT' && Array.isArray(_mediaResult)){
+            // NÃO filtra por remoteJid aqui: contatos Android frequentemente chegam com JID @lid
+            // (bug conhecido da Evolution/Baileys), diferente do @s.whatsapp.net salvo no Supabase.
+            // O casamento real e seguro é feito por timestamp (±2s) mais abaixo.
+            _mediaResult.forEach(em=>{
+              const ts=em.messageTimestamp;
+              if(ts) evoKeyByTs[ts]={ key:em.key, message:em.message||{} };
+            });
+          } else if(_mediaResult === 'TIMEOUT'){
+            console.warn('Busca de mídia na Evolution excedeu 15s — seguindo sem pareamento.');
           }
-          // NÃO filtra por remoteJid aqui: contatos Android frequentemente chegam com JID @lid
-          // (bug conhecido da Evolution/Baileys), diferente do @s.whatsapp.net salvo no Supabase.
-          // O casamento real e seguro é feito por timestamp (±2s) mais abaixo.
-          allEvoMsgs.forEach(em=>{
-            const ts=em.messageTimestamp;
-            if(ts) evoKeyByTs[ts]={ key:em.key, message:em.message||{} };
-          });
         }catch(e){ console.error('Erro ao buscar mídia Evolution:', e); }
       }
       const now=new Date(); let html=''; let lastDate=''; const pendingMedia=[];
@@ -3989,8 +4022,10 @@ async function loadMessages(chatId){
           +'<div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content
           +'<div class="msg-time">'+time+ticks+'</div></div></div>';
       });
+      if(!_stillCurrent()) return;
       box.innerHTML=html; box.scrollTop=box.scrollHeight;
       pendingMedia.forEach(pm=>_loadMediaForMessage(pm));
+      window._msgCache[chatId] = { ts: Date.now(), html: html, pendingMedia: pendingMedia };
       return;
     }
 
@@ -4000,6 +4035,7 @@ async function loadMessages(chatId){
       headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
       body:JSON.stringify({where:{key:{remoteJid:chatId}},limit:60})
     });
+    if(!_stillCurrent()) return;
     if(evoRes.ok){
       const data=await evoRes.json();
       const msgs=Array.isArray(data?.messages?.records)?data.messages.records
@@ -4043,14 +4079,18 @@ async function loadMessages(chatId){
             +'<div class="msg-bubble '+(fromMe?'from-me':'from-them')+'">'+content
             +'<div class="msg-time">'+time+ticks+'</div></div></div>';
         });
+        if(!_stillCurrent()) return;
         box.innerHTML=html; box.scrollTop=box.scrollHeight;
         pendingMedia.forEach(pm=>_loadMediaForMessage(pm));
+        window._msgCache[chatId] = { ts: Date.now(), html: html, pendingMedia: pendingMedia };
         return;
       }
     }
 
+    if(!_stillCurrent()) return;
     box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:13px">Nenhuma mensagem encontrada</div>';
   } catch(e){
+    if(!_stillCurrent()) return;
     box.innerHTML='<div style="text-align:center;padding:40px;color:var(--gray-400);font-size:12px">Erro: '+e.message+'</div>';
   }
 }
