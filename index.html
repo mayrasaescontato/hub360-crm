@@ -3425,6 +3425,32 @@ function editChatName(){
 }
 let starredChats = _lsGet('h360_starred');
 let readChats    = _lsGet('h360_read');
+// Controle de leitura próprio do CRM — necessário porque o contador de "não lida" do
+// WhatsApp não serve: assim que alguém abre a conversa direto no WhatsApp Web/celular
+// (o que aconteceu nos testes), o WhatsApp sincroniza como lida em todos os lugares
+// ligados à conta, inclusive na Evolution API, e o CRM nunca veria como não lida.
+// Guarda por conversa o horário da última mensagem que já foi vista no CRM.
+function _getReadTs(cid){ try{ const v=localStorage.getItem('h360_readts_'+cid); return v===null?0:parseInt(v); }catch(e){ return 0; } }
+function _setReadTs(cid, ts){ try{ localStorage.setItem('h360_readts_'+cid, String(ts||Date.now())); }catch(e){} }
+function _hasReadTs(cid){ try{ return localStorage.getItem('h360_readts_'+cid)!==null; }catch(e){ return false; } }
+// Roda uma única vez (por navegador): marca como "já vistas até agora" as conversas que já
+// tinham resposta nossa como última mensagem — essas nunca contariam como não lida de
+// qualquer forma. NÃO mexe nas conversas cuja última mensagem é do cliente sem resposta:
+// essas devem aparecer como não lida desde já, porque genuinamente ainda não foram atendidas.
+function _seedReadBaselineOnce(convs){
+  try{
+    if(localStorage.getItem('h360_readts_baseline_v1')) return;
+    convs.forEach(c=>{
+      const cid = c.id||c.remoteJid;
+      if(!cid || _hasReadTs(cid)) return;
+      const lastIsFromMe = c.lastSupaMsg
+        ? (c.lastSupaMsg.from_me==='true'||c.lastSupaMsg.from_me===true)
+        : !!(c.lastMessage && c.lastMessage.key && c.lastMessage.key.fromMe);
+      if(lastIsFromMe) _setReadTs(cid, c.lastTs||Date.now());
+    });
+    localStorage.setItem('h360_readts_baseline_v1','1');
+  }catch(e){}
+}
 
 async function _setUnreadFlag(phone, unread){
   const digits = (phone||'').replace(/\D/g,'');
@@ -3446,7 +3472,15 @@ async function _loadManualUnreadFromSupabase(){
   }catch(e){ console.error('Erro ao carregar status de leitura:', e); _manualUnreadPhones = new Set(); }
 }
 
-function _isUnread(c){ return ((c.unreadCount > 0) || _manualUnreadPhones.has((c.phone||'').replace(/\D/g,''))) && !readChats.has(c.id||c.remoteJid||''); }
+function _isUnread(c){
+  const cid = c.id||c.remoteJid||'';
+  if (_manualUnreadPhones.has((c.phone||'').replace(/\D/g,''))) return true;
+  const lastIsFromMe = c.lastSupaMsg
+    ? (c.lastSupaMsg.from_me==='true'||c.lastSupaMsg.from_me===true)
+    : !!(c.lastMessage && c.lastMessage.key && c.lastMessage.key.fromMe);
+  if (lastIsFromMe) return false;
+  return (c.lastTs||0) > _getReadTs(cid);
+}
 
 function _noiseFilter(cid){
   if(!cid) return true;
@@ -3678,7 +3712,8 @@ async function loadConversations(isBackgroundRefresh){
       return;
     }
 
-    const unreadTotal = allConversations.filter(c=>c.unreadCount>0).length;
+    _seedReadBaselineOnce(allConversations);
+    const unreadTotal = allConversations.filter(c=>_isUnread(c)).length;
     const badge = document.getElementById('unreadTabCount');
     if(badge) badge.textContent = unreadTotal > 99 ? '99+' : unreadTotal;
     renderConversationList(allConversations);
@@ -3702,7 +3737,7 @@ function renderConversationList(convs){
 
   let filtered = [...convs];
   if(q) filtered = filtered.filter(c=>(c.name||c.phone||'').toLowerCase().includes(q));
-  if(convTabActive==='unread') filtered = filtered.filter(c=>c.unreadCount>0);
+  if(convTabActive==='unread') filtered = filtered.filter(c=>_isUnread(c));
   else if(convTabActive==='starred') filtered = filtered.filter(c=>starredChats.has(c.id||''));
   else if(convTabActive==='recents') filtered = filtered.slice(0,30);
 
@@ -3764,11 +3799,11 @@ function renderConversationList(convs){
       else dateStr=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
     }
 
-    const unreadNum = c.unreadCount||0;
+    const isUnreadNow = _isUnread(c);
     const isStarred = starredChats.has(cid);
     const isActive = currentChatId===cid;
 
-    return '<div class="conv-item'+(unreadNum>0?' unread':'')+(isActive?' active':'')+'" onclick="selectConversation(\''+cid+'\',\''+safeName+'\',\''+phone+'\',this)">'
+    return '<div class="conv-item'+(isUnreadNow?' unread':'')+(isActive?' active':'')+'" onclick="selectConversation(\''+cid+'\',\''+safeName+'\',\''+phone+'\',this)">'
       +'<div class="conv-avatar" style="background:'+color+'">'+(initials||'<i class="fas fa-phone" style="font-size:12px"></i>')+'</div>'
       +'<div class="conv-item-body">'
         +'<div class="conv-item-top">'
@@ -3778,7 +3813,7 @@ function renderConversationList(convs){
         +'<div class="conv-item-preview-row">'
           +'<div class="conv-item-preview">'+preview+'</div>'
           +'<div style="display:flex;align-items:center;gap:2px;flex-shrink:0">'
-            +(unreadNum>0?'<span class="conv-unread-badge">'+unreadNum+'</span>':'')
+            +(isUnreadNow?'<span class="conv-unread-badge">●</span>':'')
             +'<span class="conv-star-btn'+(isStarred?' starred':'')+'" onclick="event.stopPropagation();toggleStarChat(\''+cid+'\')"><i class="fas fa-star"></i></span>'
           +'</div>'
         +'</div>'
@@ -3803,13 +3838,11 @@ function markChatUnread(cid){
   if(!cid) return;
   readChats.delete(cid);
   _lsSave('h360_read',readChats);
-  const conv = allConversations.find(c=>(c.id||c.remoteJid)===cid);
-  if(conv && !(conv.unreadCount>0)) conv.unreadCount = 1;
   const phone = cid.split('@')[0];
   _manualUnreadPhones.add(phone.replace(/\D/g,''));
   _setUnreadFlag(phone, true);
   renderConversationList(allConversations);
-  const unreadTotal = allConversations.filter(c=>c.unreadCount>0).length;
+  const unreadTotal = allConversations.filter(c=>_isUnread(c)).length;
   const badge = document.getElementById('unreadTabCount');
   if(badge) badge.textContent = unreadTotal > 99 ? '99+' : unreadTotal;
   toast('Marcado como não lida');
@@ -3820,6 +3853,8 @@ function selectConversation(cid, name, phone, el){
   try{ localStorage.setItem('hub360_chat', JSON.stringify({cid,name,phone})); }catch(e){}
   readChats.add(cid);
   _lsSave('h360_read',readChats);
+  // Marca como lida no CRM a partir de agora — é isso que tira o negrito e o destaque.
+  _setReadTs(cid, Date.now());
   const digitsOnly = (phone||'').replace(/\D/g,'');
   if(_manualUnreadPhones.has(digitsOnly)){
     _manualUnreadPhones.delete(digitsOnly);
