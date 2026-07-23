@@ -4046,7 +4046,7 @@ async function loadMessages(chatId){
           const mType = typeNorm==='image'?'image':typeNorm==='video'?'video':typeNorm==='document'?'document':'audio';
           mediaPromiseId='med_'+Math.random().toString(36).slice(2);
           content='<div class="msg-media-ph" id="'+mediaPromiseId+'"><span>Carregando...</span></div>';
-          pendingMedia.push({ id:mediaPromiseId, type:mType, mediaUrl:m.media_url, fileName:m.content||'' });
+          pendingMedia.push({ id:mediaPromiseId, type:mType, mediaUrl:m.media_url, fileName:m.content||'', caption:m.content||'' });
         } else if(!m.content && isMediaType){
           // tenta achar correspondente exato ou próximo (±2s) na Evolution
           let match = evoKeyByTs[tsSec] || evoKeyByTs[tsSec+1] || evoKeyByTs[tsSec-1] || evoKeyByTs[tsSec+2] || evoKeyByTs[tsSec-2];
@@ -4146,7 +4146,7 @@ async function _loadMediaForMessage(pm){
   if(!el) return;
   // Se já temos um media_url permanente salvo, usa direto sem chamar a Evolution
   if(pm.mediaUrl){
-    _renderMediaEl(el, pm.mediaUrl, pm.type, pm.fileName||'');
+    _renderMediaEl(el, pm.mediaUrl, pm.type, pm.fileName||'', pm.caption||'');
     return;
   }
   try{
@@ -4161,7 +4161,7 @@ async function _loadMediaForMessage(pm){
     const mimetype = data?.mimetype || (pm.type==='image'?'image/jpeg':pm.type==='video'?'video/mp4':pm.type==='document'?'application/octet-stream':'audio/ogg');
     if(!b64) throw new Error('mídia vazia');
     const src = 'data:'+mimetype+';base64,'+b64;
-    _renderMediaEl(el, src, pm.type, pm.fileName||'');
+    _renderMediaEl(el, src, pm.type, pm.fileName||'', pm.caption||'');
     // Upload em background pro Supabase Storage para link permanente
     _saveMediaToStorage(b64, mimetype, pm).catch(()=>{});
   }catch(e){
@@ -4170,14 +4170,17 @@ async function _loadMediaForMessage(pm){
   }
 }
 
-function _renderMediaEl(el, src, type, fileName){
-  if(type==='image') el.outerHTML = '<img src="'+src+'" onclick="openImageModal(this.src)" style="max-width:280px;border-radius:8px;display:block;cursor:zoom-in" />';
-  else if(type==='video') el.outerHTML = '<video src="'+src+'" controls style="max-width:280px;border-radius:8px;display:block"></video>';
+function _renderMediaEl(el, src, type, fileName, caption){
+  // Legenda que veio junto com a foto/vídeo (ex: cliente manda print + escreve algo) —
+  // sem isso, o texto que o cliente digitou junto com a mídia desaparecia do CRM.
+  const captionHtml = caption ? '<div style="margin-top:6px;font-size:13px">'+caption.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')+'</div>' : '';
+  if(type==='image') el.outerHTML = '<img src="'+src+'" onclick="openImageModal(this.src)" style="max-width:280px;border-radius:8px;display:block;cursor:zoom-in" />'+captionHtml;
+  else if(type==='video') el.outerHTML = '<video src="'+src+'" controls style="max-width:280px;border-radius:8px;display:block"></video>'+captionHtml;
   else if(type==='document'){
     const fname = (fileName||'documento').replace(/"/g,'');
-    el.outerHTML = '<a href="'+src+'" download="'+fname+'" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit"><span style="font-size:20px">📄</span><span style="text-decoration:underline">'+fname+'</span></a>';
+    el.outerHTML = '<a href="'+src+'" download="'+fname+'" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit"><span style="font-size:20px">📄</span><span style="text-decoration:underline">'+fname+'</span></a>'+captionHtml;
   }
-  else el.outerHTML = '<audio src="'+src+'" controls style="max-width:240px"></audio>';
+  else el.outerHTML = '<audio src="'+src+'" controls style="max-width:240px"></audio>'+captionHtml;
 }
 
 async function _saveMediaToStorage(b64, mimetype, pm){
