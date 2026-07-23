@@ -3763,12 +3763,13 @@ function renderConversationList(convs){
     const lm = c.lastMessage;
     if(supaMsg && parseInt(supaMsg.timestamp||0) >= (lm?.messageTimestamp||0)){
       preview = supaMsg.content||'';
-      if(!preview){
-        const t = supaMsg.message_type||'';
-        if(t==='imageMessage') preview='📷 Imagem';
-        else if(t==='audioMessage'||t==='pttMessage') preview='🎵 Áudio';
-        else if(t==='videoMessage') preview='🎥 Vídeo';
-        else if(t==='documentMessage') preview='📄 Documento';
+      if(!preview || (supaMsg.message_type||'').toLowerCase().includes('reaction')){
+        const t = (supaMsg.message_type||'').toLowerCase();
+        if(t.includes('reaction')) preview='❤️ Reagiu a uma mensagem';
+        else if(t==='imagemessage') preview='📷 Imagem';
+        else if(t==='audiomessage'||t==='pttmessage') preview='🎵 Áudio';
+        else if(t==='videomessage') preview='🎥 Vídeo';
+        else if(t==='documentmessage') preview='📄 Documento';
         else preview='💬 Mensagem';
       }
       if(supaMsg.from_me==='true'||supaMsg.from_me===true) preview='✓ '+preview;
@@ -4061,6 +4062,12 @@ async function loadMessages(chatId){
           } else {
             content='<span style="opacity:.6;font-size:12px">'+icon+' (indisponível — link expirado)</span>';
           }
+        } else if((m.message_type||'').toLowerCase().includes('reaction')){
+          // Reação/curtida a uma mensagem — mostra de forma legível em vez do
+          // placeholder cru "[reactionMessage]". O emoji usado nem sempre vem salvo
+          // (depende do que a integração gravou), então cai num texto genérico quando falta.
+          const emoji = (m.content||'').trim();
+          content = '<span style="opacity:.7;font-size:12px;font-style:italic">'+(emoji?emoji+' reagiu a uma mensagem':'reagiu a uma mensagem')+'</span>';
         } else {
           content=(m.content||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')||'<span style="opacity:.5;font-size:11px">['+( m.message_type||'mensagem')+']</span>';
         }
