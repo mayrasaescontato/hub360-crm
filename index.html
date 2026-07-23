@@ -1879,6 +1879,10 @@ function initSupabaseRealtime() {
       .on('postgres_changes', {event:'INSERT',schema:'public',table:'wpp_messages'}, function(payload){
         const msg = payload.new;
         const fromMe = msg.from_me === 'true' || msg.from_me === true;
+        // Invalida o cache dessa conversa assim que uma mensagem nova chega — mesmo motivo
+        // do sendMessage(): sem isso, abrir/recarregar essa conversa nos próximos 2 minutos
+        // podia mostrar a versão antiga (sem essa mensagem), fazendo ela "sumir" da tela.
+        if(window._msgCache) delete window._msgCache[msg.remote_jid];
         if (currentChatId && currentChatId === msg.remote_jid) {
           const box = document.getElementById('chatMessages');
           if(box) {
@@ -1931,6 +1935,7 @@ function initSupabaseRealtime() {
       if(!msgs.length) return;
       const latestTs = Math.max(...msgs.map(m=>m.messageTimestamp||0));
       if(_lastMsgTs && latestTs > _lastMsgTs){
+        if(window._msgCache) delete window._msgCache[currentChatId];
         loadMessages(currentChatId);
       }
       _lastMsgTs = latestTs;
@@ -3942,7 +3947,7 @@ async function loadMessages(chatId){
   const _stillCurrent = () => currentChatId === _openedChatId;
   window._msgCache = window._msgCache || {};
   const _cached = window._msgCache[chatId];
-  if(_cached && (Date.now()-_cached.ts) < 120000){
+  if(_cached && (Date.now()-_cached.ts) < 20000){
     if(!_stillCurrent()) return;
     const box0=document.getElementById('chatMessages');
     box0.innerHTML=_cached.html;
@@ -4252,6 +4257,11 @@ async function sendMessage(){
   const time=new Date(nowMs).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   box.insertAdjacentHTML('beforeend','<div style="display:flex;justify-content:flex-end"><div class="msg-bubble from-me">'+text.replace(/</g,'&lt;').replace(/>/g,'&gt;').split('\n').join('<br>')+'<div class="msg-time">'+time+' <span style="opacity:.7">✓✓</span></div></div></div>');
   box.scrollTop=box.scrollHeight;
+  // Invalida o cache dessa conversa agora — sem isso, um recarregamento em segundo plano
+  // (polling de 20s, por exemplo) podia sobrescrever a tela com a versão salva em cache
+  // ANTES dessa mensagem existir, fazendo a mensagem que acabou de ser enviada "sumir"
+  // da tela mesmo já tendo sido entregue de verdade no WhatsApp.
+  if(window._msgCache) delete window._msgCache[currentChatId];
   try {
     const res=await fetch(EVOLUTION_URL+'/message/sendText/Sam Sushi',{
       method:'POST',
