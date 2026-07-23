@@ -1884,6 +1884,9 @@ function initSupabaseRealtime() {
         // podia mostrar a versão antiga (sem essa mensagem), fazendo ela "sumir" da tela.
         if(window._msgCache) delete window._msgCache[msg.remote_jid];
         if (currentChatId && currentChatId === msg.remote_jid) {
+          // A pessoa está com essa conversa aberta na tela agora — continua "lida",
+          // senão ela ficaria marcada como não lida mesmo estando sendo vista ao vivo.
+          _setReadTs(msg.remote_jid, Date.now());
           const box = document.getElementById('chatMessages');
           if(box) {
             const time = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
@@ -3438,22 +3441,19 @@ let readChats    = _lsGet('h360_read');
 function _getReadTs(cid){ try{ const v=localStorage.getItem('h360_readts_'+cid); return v===null?0:parseInt(v); }catch(e){ return 0; } }
 function _setReadTs(cid, ts){ try{ localStorage.setItem('h360_readts_'+cid, String(ts||Date.now())); }catch(e){} }
 function _hasReadTs(cid){ try{ return localStorage.getItem('h360_readts_'+cid)!==null; }catch(e){ return false; } }
-// Roda uma única vez (por navegador): marca como "já vistas até agora" as conversas que já
-// tinham resposta nossa como última mensagem — essas nunca contariam como não lida de
-// qualquer forma. NÃO mexe nas conversas cuja última mensagem é do cliente sem resposta:
-// essas devem aparecer como não lida desde já, porque genuinamente ainda não foram atendidas.
+// Roda uma única vez (por navegador): marca como "já vistas até agora" TODAS as conversas
+// existentes no momento em que essa versão entra no ar — isso evita que o histórico
+// inteiro vire "não lida" de uma vez só. A partir desse instante, QUALQUER mensagem nova
+// (do cliente OU do bot) deixa a conversa não lida até um humano abrir ela no CRM.
 function _seedReadBaselineOnce(convs){
   try{
-    if(localStorage.getItem('h360_readts_baseline_v1')) return;
+    if(localStorage.getItem('h360_readts_baseline_v2')) return;
     convs.forEach(c=>{
       const cid = c.id||c.remoteJid;
       if(!cid || _hasReadTs(cid)) return;
-      const lastIsFromMe = c.lastSupaMsg
-        ? (c.lastSupaMsg.from_me==='true'||c.lastSupaMsg.from_me===true)
-        : !!(c.lastMessage && c.lastMessage.key && c.lastMessage.key.fromMe);
-      if(lastIsFromMe) _setReadTs(cid, c.lastTs||Date.now());
+      _setReadTs(cid, c.lastTs||Date.now());
     });
-    localStorage.setItem('h360_readts_baseline_v1','1');
+    localStorage.setItem('h360_readts_baseline_v2','1');
   }catch(e){}
 }
 
@@ -3480,10 +3480,6 @@ async function _loadManualUnreadFromSupabase(){
 function _isUnread(c){
   const cid = c.id||c.remoteJid||'';
   if (_manualUnreadPhones.has((c.phone||'').replace(/\D/g,''))) return true;
-  const lastIsFromMe = c.lastSupaMsg
-    ? (c.lastSupaMsg.from_me==='true'||c.lastSupaMsg.from_me===true)
-    : !!(c.lastMessage && c.lastMessage.key && c.lastMessage.key.fromMe);
-  if (lastIsFromMe) return false;
   return (c.lastTs||0) > _getReadTs(cid);
 }
 
@@ -4262,6 +4258,7 @@ async function sendMessage(){
   // ANTES dessa mensagem existir, fazendo a mensagem que acabou de ser enviada "sumir"
   // da tela mesmo já tendo sido entregue de verdade no WhatsApp.
   if(window._msgCache) delete window._msgCache[currentChatId];
+  _setReadTs(currentChatId, Date.now());
   try {
     const res=await fetch(EVOLUTION_URL+'/message/sendText/Sam Sushi',{
       method:'POST',
