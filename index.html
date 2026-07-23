@@ -3425,14 +3425,6 @@ function editChatName(){
 }
 let starredChats = _lsGet('h360_starred');
 let readChats    = _lsGet('h360_read');
-// Controle de leitura próprio do CRM: guarda o timestamp da última vez que um humano abriu
-// cada conversa. Uma conversa fica "não lida" (negrito) quando a última mensagem é do
-// cliente (não do bot/equipe) E é mais recente que esse timestamp salvo. Isso é separado
-// do contador de não lidas do WhatsApp, que não conta como não lida uma mensagem que o
-// próprio número da empresa enviou (resposta do bot) — mas para o time, que só vê o CRM
-// e nunca abre o WhatsApp direto, a chegada dessa resposta do bot também precisa aparecer.
-function _getReadTs(cid){ try{ return parseInt(localStorage.getItem('h360_readts_'+cid)||'0'); }catch(e){ return 0; } }
-function _setReadTs(cid, ts){ try{ localStorage.setItem('h360_readts_'+cid, String(ts||Date.now())); }catch(e){} }
 
 async function _setUnreadFlag(phone, unread){
   const digits = (phone||'').replace(/\D/g,'');
@@ -3454,15 +3446,7 @@ async function _loadManualUnreadFromSupabase(){
   }catch(e){ console.error('Erro ao carregar status de leitura:', e); _manualUnreadPhones = new Set(); }
 }
 
-function _isUnread(c){
-  const cid = c.id||c.remoteJid||'';
-  if (_manualUnreadPhones.has((c.phone||'').replace(/\D/g,''))) return true;
-  const lastIsFromMe = c.lastSupaMsg
-    ? (c.lastSupaMsg.from_me==='true'||c.lastSupaMsg.from_me===true)
-    : !!(c.lastMessage && c.lastMessage.key && c.lastMessage.key.fromMe);
-  if (lastIsFromMe) return false;
-  return (c.lastTs||0) > _getReadTs(cid);
-}
+function _isUnread(c){ return ((c.unreadCount > 0) || _manualUnreadPhones.has((c.phone||'').replace(/\D/g,''))) && !readChats.has(c.id||c.remoteJid||''); }
 
 function _noiseFilter(cid){
   if(!cid) return true;
@@ -3694,7 +3678,7 @@ async function loadConversations(isBackgroundRefresh){
       return;
     }
 
-    const unreadTotal = allConversations.filter(c=>_isUnread(c)).length;
+    const unreadTotal = allConversations.filter(c=>c.unreadCount>0).length;
     const badge = document.getElementById('unreadTabCount');
     if(badge) badge.textContent = unreadTotal > 99 ? '99+' : unreadTotal;
     renderConversationList(allConversations);
@@ -3718,7 +3702,7 @@ function renderConversationList(convs){
 
   let filtered = [...convs];
   if(q) filtered = filtered.filter(c=>(c.name||c.phone||'').toLowerCase().includes(q));
-  if(convTabActive==='unread') filtered = filtered.filter(c=>_isUnread(c));
+  if(convTabActive==='unread') filtered = filtered.filter(c=>c.unreadCount>0);
   else if(convTabActive==='starred') filtered = filtered.filter(c=>starredChats.has(c.id||''));
   else if(convTabActive==='recents') filtered = filtered.slice(0,30);
 
@@ -3780,13 +3764,11 @@ function renderConversationList(convs){
       else dateStr=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
     }
 
-    // "Não lida" agora é decidido pelo CRM: última mensagem não é do bot/equipe (fromMe)
-    // E é mais recente que a última vez que um humano abriu essa conversa no CRM.
-    const isUnreadNow = _isUnread(c);
+    const unreadNum = c.unreadCount||0;
     const isStarred = starredChats.has(cid);
     const isActive = currentChatId===cid;
 
-    return '<div class="conv-item'+(isUnreadNow?' unread':'')+(isActive?' active':'')+'" onclick="selectConversation(\''+cid+'\',\''+safeName+'\',\''+phone+'\',this)">'
+    return '<div class="conv-item'+(unreadNum>0?' unread':'')+(isActive?' active':'')+'" onclick="selectConversation(\''+cid+'\',\''+safeName+'\',\''+phone+'\',this)">'
       +'<div class="conv-avatar" style="background:'+color+'">'+(initials||'<i class="fas fa-phone" style="font-size:12px"></i>')+'</div>'
       +'<div class="conv-item-body">'
         +'<div class="conv-item-top">'
@@ -3796,7 +3778,7 @@ function renderConversationList(convs){
         +'<div class="conv-item-preview-row">'
           +'<div class="conv-item-preview">'+preview+'</div>'
           +'<div style="display:flex;align-items:center;gap:2px;flex-shrink:0">'
-            +(isUnreadNow?'<span class="conv-unread-badge">●</span>':'')
+            +(unreadNum>0?'<span class="conv-unread-badge">'+unreadNum+'</span>':'')
             +'<span class="conv-star-btn'+(isStarred?' starred':'')+'" onclick="event.stopPropagation();toggleStarChat(\''+cid+'\')"><i class="fas fa-star"></i></span>'
           +'</div>'
         +'</div>'
@@ -3821,11 +3803,13 @@ function markChatUnread(cid){
   if(!cid) return;
   readChats.delete(cid);
   _lsSave('h360_read',readChats);
+  const conv = allConversations.find(c=>(c.id||c.remoteJid)===cid);
+  if(conv && !(conv.unreadCount>0)) conv.unreadCount = 1;
   const phone = cid.split('@')[0];
   _manualUnreadPhones.add(phone.replace(/\D/g,''));
   _setUnreadFlag(phone, true);
   renderConversationList(allConversations);
-  const unreadTotal = allConversations.filter(c=>_isUnread(c)).length;
+  const unreadTotal = allConversations.filter(c=>c.unreadCount>0).length;
   const badge = document.getElementById('unreadTabCount');
   if(badge) badge.textContent = unreadTotal > 99 ? '99+' : unreadTotal;
   toast('Marcado como não lida');
@@ -3836,8 +3820,6 @@ function selectConversation(cid, name, phone, el){
   try{ localStorage.setItem('hub360_chat', JSON.stringify({cid,name,phone})); }catch(e){}
   readChats.add(cid);
   _lsSave('h360_read',readChats);
-  // Marca como lida no CRM a partir de agora — é isso que tira o negrito e o destaque.
-  _setReadTs(cid, Date.now());
   const digitsOnly = (phone||'').replace(/\D/g,'');
   if(_manualUnreadPhones.has(digitsOnly)){
     _manualUnreadPhones.delete(digitsOnly);
