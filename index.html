@@ -1780,6 +1780,7 @@ function toast(msg, type='success') {
 
 let _lastMsgTs = 0;
 let _pollingTimer = null;
+let _oppsPollingTimer = null;
 
 // Registra o Service Worker (necessário para mostrar notificações do sistema)
 if ('serviceWorker' in navigator) {
@@ -1857,6 +1858,11 @@ function _isConversationsPageActive(){
   return !!(p && p.classList.contains('active'));
 }
 
+function _isPipelinePageActive(){
+  const p = document.getElementById('page-pipeline');
+  return !!(p && p.classList.contains('active'));
+}
+
 function initSupabaseRealtime() {
   // Recarrega conversas ao recuperar foco da aba (resolve mensagens perdidas quando estava fechado)
   // Só roda se a página de Conversas estiver de fato aberta — evita recarregar em segundo plano
@@ -1915,6 +1921,22 @@ function initSupabaseRealtime() {
       })
       .subscribe();
   } catch(e) { console.warn('Realtime error:', e); }
+
+  // Recarrega oportunidades ao voltar o foco da aba, se a página de Oportunidades estiver aberta —
+  // resolve o caso de lead novo gravado pela automação enquanto a pessoa estava em outra janela/aba.
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden && _isPipelinePageActive()){
+      try{ loadOpps(); }catch(e){}
+    }
+  });
+
+  // Polling a cada 15s: verifica novas oportunidades (leads) — só roda com a página aberta,
+  // pra não pesar o sistema em segundo plano enquanto a pessoa está em outra tela.
+  if(_oppsPollingTimer) clearInterval(_oppsPollingTimer);
+  _oppsPollingTimer = setInterval(async function(){
+    if(!_isPipelinePageActive()) return;
+    try{ loadOpps(); }catch(e){}
+  }, 15000);
 
   // Polling a cada 20s: verifica novas mensagens — só roda com a página de Conversas aberta
   if(_pollingTimer) clearInterval(_pollingTimer);
@@ -2099,6 +2121,10 @@ function showPage(name, el) {
   if (name === 'samsushi') loadSamSushiDash();
   if (name === 'alunos') loadAlunos();
   if (name === 'reports' || name === 'reports-ads' || name === 'reports-fb') loadReports();
+  // A aba de Oportunidades só carregava os dados uma vez no login e nunca mais —
+  // por isso leads novos gravados no banco por automações (Make/formulário do site)
+  // nunca apareciam sem sair e logar de novo. Agora recarrega toda vez que a aba é aberta.
+  if (name === 'pipeline') loadOpps();
 }
 
 function toggleCompanyDropdown() { document.getElementById('companyDropdown').classList.toggle('open'); }
