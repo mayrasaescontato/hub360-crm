@@ -1730,10 +1730,16 @@ async function fetchWithTimeout(url, opts={}, timeoutMs=8000) {
 }
 
 async function supaFetch(path, opts={}) {
+  // Usa o token de sessão de quem está logado (role authenticated) sempre que
+  // disponível. Sem isso, as políticas RLS restritas a 'authenticated' bloqueiam
+  // a chamada mesmo estando logado no CRM, porque a chave anon sozinha só tem
+  // o role 'anon'. Se por algum motivo não houver sessão ainda (ex: form público
+  // do site, fora do CRM logado), cai pra chave anon normalmente.
+  const authToken = (typeof state !== 'undefined' && state.token) ? state.token : SUPA_KEY;
   const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
     ...opts,
     headers: {
-      'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`,
+      'apikey': SUPA_KEY, 'Authorization': `Bearer ${authToken}`,
       'Content-Type': 'application/json', 'Prefer': 'return=representation',
       ...(opts.headers||{})
     }
@@ -1945,11 +1951,7 @@ function initSupabaseRealtime() {
     try { loadConversations(true); } catch(e){}
     if(!currentChatId) return;
     try {
-      const res = await fetchWithTimeout(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
-        method:'POST',
-        headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-        body:JSON.stringify({where:{},limit:200,page:1})
-      });
+      const res = await evoFetch('/chat/findMessages/Sam Sushi', {where:{},limit:200,page:1}, 8000);
       if(!res.ok) return;
       const data = await res.json();
       let msgs = Array.isArray(data?.messages?.records)?data.messages.records
@@ -3389,8 +3391,24 @@ async function loadSamSushiDash() {
 }
 
 // ===== CONVERSATIONS NOVADASH =====
-const EVOLUTION_URL = 'https://evolution-api-production-7eff.up.railway.app';
-const EVOLUTION_KEY = 'Hub360@Evolution2026';
+// A URL e a chave da Evolution API NÃO ficam mais aqui. Toda chamada passa
+// pelo proxy /api/evolution (Vercel), que guarda a chave real no servidor
+// e só atende quem tem uma sessão de login válida no Supabase.
+async function evoFetch(path, payload, timeoutMs) {
+  const body = { path, method: 'POST', payload: payload || {} };
+  const authToken = (typeof state !== 'undefined' && state.token) ? state.token : '';
+  const doFetch = () => fetch('/api/evolution', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+    body: JSON.stringify(body)
+  });
+  if (!timeoutMs) return doFetch();
+  return fetchWithTimeout('/api/evolution', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+    body: JSON.stringify(body)
+  }, timeoutMs);
+}
 let currentChatId = null;
 let allConversations = [];
 let _isLoadingConversations = false;
@@ -3568,11 +3586,7 @@ async function loadConversations(isBackgroundRefresh){
       const pageSize = 200;
       const maxPages = isBackgroundRefresh ? 1 : 8;
       const pagePromises = Array.from({length: maxPages}, (_, page) =>
-        fetchWithTimeout(EVOLUTION_URL+'/chat/findChats/Sam Sushi', {
-          method:'POST',
-          headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-          body: JSON.stringify({ limit: pageSize, offset: page * pageSize })
-        }, 8000)
+        evoFetch('/chat/findChats/Sam Sushi', { limit: pageSize, offset: page * pageSize }, 8000)
           .then(res => res.ok ? res.json() : [])
           .catch(() => [])
       );
@@ -3691,7 +3705,8 @@ async function loadConversations(isBackgroundRefresh){
     allConversations = Array.from(convMap.values()).map(c => {
       const customName = _getCustomName(c.phone);
       const contact = contactPhoneMap.get((c.phone||'').replace(/\D/g,'').slice(-10));
-      const name = customName || (contact ? (contact.first_name+' '+(contact.last_name||'')).trim() : (c.pushName||'+'+c.phone));
+      const contactName = contact ? ((contact.first_name||'')+' '+(contact.last_name||'')).trim() : '';
+      const name = customName || (contactName || (c.pushName||'+'+c.phone));
       return { ...c, name, hasSupabase: !!c.lastSupaMsg, _hasContact: !!contact };
     });
 
@@ -3995,11 +4010,7 @@ async function loadMessages(chatId){
           const _mediaFetchPromise = (async () => {
             let allEvoMsgs = [];
             let totalPages = 1;
-            const evoPage1 = await fetchWithTimeout(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
-              method:'POST',
-              headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-              body:JSON.stringify({where:{},limit:200,page:1})
-            });
+            const evoPage1 = await evoFetch('/chat/findMessages/Sam Sushi', {where:{},limit:200,page:1});
             if(evoPage1.ok){
               const data1=await evoPage1.json();
               totalPages = data1?.messages?.pages || 1;
@@ -4015,11 +4026,7 @@ async function loadMessages(chatId){
             for(let p=2; p<=Math.min(totalPages,8); p++) pageNums.push(p);
             if(pageNums.length){
               const pageResults = await Promise.all(pageNums.map(p=>
-                fetchWithTimeout(EVOLUTION_URL+'/chat/findMessages/Sam Sushi', {
-                  method:'POST',
-                  headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-                  body:JSON.stringify({where:{},limit:200,page:p})
-                }).then(r=>r.ok?r.json():null).catch(()=>null)
+                evoFetch('/chat/findMessages/Sam Sushi', {where:{},limit:200,page:p}).then(r=>r.ok?r.json():null).catch(()=>null)
               ));
               pageResults.forEach(dataP=>{
                 if(!dataP) return;
@@ -4109,11 +4116,7 @@ async function loadMessages(chatId){
     }
 
     // 2. Fallback: Evolution API
-    const evoRes = await fetchWithTimeout(EVOLUTION_URL+'/chat/findMessages/Sam Sushi',{
-      method:'POST',
-      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({where:{key:{remoteJid:chatId}},limit:60})
-    });
+    const evoRes = await evoFetch('/chat/findMessages/Sam Sushi', {where:{key:{remoteJid:chatId}},limit:60});
     if(!_stillCurrent()) return;
     if(evoRes.ok){
       const data=await evoRes.json();
@@ -4183,11 +4186,7 @@ async function _loadMediaForMessage(pm){
     return;
   }
   try{
-    const res = await fetch(EVOLUTION_URL+'/chat/getBase64FromMediaMessage/Sam Sushi', {
-      method:'POST',
-      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body: JSON.stringify({ message:{ key:pm.key }, convertToMp4:false })
-    });
+    const res = await evoFetch('/chat/getBase64FromMediaMessage/Sam Sushi', { message:{ key:pm.key }, convertToMp4:false });
     if(!res.ok) throw new Error('falha ao buscar mídia');
     const data = await res.json();
     const b64 = data?.base64;
@@ -4296,11 +4295,7 @@ async function sendMessage(){
   if(window._msgCache) delete window._msgCache[currentChatId];
   _setReadTs(currentChatId, Date.now());
   try {
-    const res=await fetch(EVOLUTION_URL+'/message/sendText/Sam Sushi',{
-      method:'POST',
-      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({number,text})
-    });
+    const res=await evoFetch('/message/sendText/Sam Sushi', {number,text});
     if(!res.ok) throw new Error('HTTP '+res.status);
     toast('Mensagem enviada!');
     // Salva no Supabase para a mensagem não se perder ao recarregar
@@ -4408,18 +4403,10 @@ async function stopAndSendAudio(){
   box.scrollTop=box.scrollHeight;
   try{
     // Usa sendWhatsAppAudio que aceita qualquer formato e converte pra PTT
-    const res = await fetch(EVOLUTION_URL+'/message/sendWhatsAppAudio/Sam Sushi',{
-      method:'POST',
-      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({number, audio: b64, encoding: true})
-    });
+    const res = await evoFetch('/message/sendWhatsAppAudio/Sam Sushi', {number, audio: b64, encoding: true});
     if(!res.ok){
       // Fallback: tenta sendMedia com ptt:true
-      const res2 = await fetch(EVOLUTION_URL+'/message/sendMedia/Sam Sushi',{
-        method:'POST',
-        headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-        body:JSON.stringify({number, mediatype:'audio', mimetype: mimeUsed, media:b64, fileName:'audio.ogg', caption:'', ptt: true})
-      });
+      const res2 = await evoFetch('/message/sendMedia/Sam Sushi', {number, mediatype:'audio', mimetype: mimeUsed, media:b64, fileName:'audio.ogg', caption:'', ptt: true});
       if(!res2.ok) throw new Error('HTTP '+res2.status);
     }
     toast('Áudio enviado!');
@@ -4477,11 +4464,7 @@ async function sendMediaMessage(input){
       fileName: fileName,
       caption: ''
     };
-    const res = await fetch(EVOLUTION_URL+'/message/'+endpoint+'/Sam Sushi',{
-      method:'POST',
-      headers:{'apikey':EVOLUTION_KEY,'Content-Type':'application/json'},
-      body: JSON.stringify(body)
-    });
+    const res = await evoFetch('/message/'+endpoint+'/Sam Sushi', body);
     if(!res.ok) throw new Error('HTTP '+res.status);
     toast('Mídia enviada!');
     // Salva no Supabase
