@@ -28,3 +28,5 @@ jobs:
           git add index.html
           git commit -m 'Show lead origin on Alliance opportunity cards'
           git push
+
+# trigger run
