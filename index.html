@@ -3214,7 +3214,7 @@ function renderOppCard(c) {
         <div class="opp-card-avatar" style="background:${initBg}">${c.initials}</div>
       </div>
       <div class="opp-card-row"><span class="opp-card-label">Contato:</span> <strong style="font-size:11px">${c.initials}&nbsp; ${c.contact}</strong></div>
-      <div class="opp-card-row"><span class="opp-card-label">Estágio:</span> <span style="font-size:11px">${Object.values(STAGES).flat().find(s=>s.id===c.stage)?.label||c.stage}</span></div>
+      <div class="opp-card-row"><span class="opp-card-label">${isEzMoney ? 'Estágio:' : 'Origem:'}</span> <span style="font-size:11px">${isEzMoney ? (Object.values(STAGES).flat().find(s=>s.id===c.stage)?.label||c.stage) : (c.origin || 'Não informado')}</span></div>
       <div class="opp-card-row"><span class="opp-card-label">Valor:</span> <span style="font-size:11px">US$ ${(c.value||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span></div>
       ${statusRow}
       <div class="opp-card-row"><span class="opp-card-label">Criado em:</span> <span style="font-size:11px">${c.created}</span></div>
