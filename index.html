@@ -1131,6 +1131,12 @@
             </div>
           </div>
 
+          <!-- Painel de leads WhatsApp -->
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header"><div class="card-title">Painel de Leads · WhatsApp</div><div style="font-size:11px;color:var(--gray-500)">Ordem: nomes brasileiros primeiro 🇧🇷</div></div>
+            <div class="card-body"><div id="emWppBoard" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px"><div style="padding:20px;color:var(--gray-400)">Carregando…</div></div></div>
+          </div>
+
           <!-- Language breakdown + team -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
             <div class="card">
@@ -2151,7 +2157,7 @@ function showPage(name, el) {
   }
   if (name === 'calendar') initCalendar();
   if (name === 'ezmoney') loadEzMoneyDashboard();
-  if (name !== 'contacts') state.ezOrigin = null;
+  if (name !== 'contacts') { state.ezOrigin = null; state.ezWpp = null; }
   if (name === 'conversations') loadConversations();
   if (name === 'sms') loadSmsPage();
   if (name === 'samsushi') loadSamSushiDash();
@@ -2303,6 +2309,45 @@ async function ezCount(path){
   const r = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token || SUPA_KEY}`, 'Prefer':'count=exact', 'Range':'0-0' } });
   return parseInt(r.headers.get('Content-Range')?.split('/')[1] || 0);
 }
+const EZ_WPP_COLS = [
+  { id:'total',     label:'Total de leads',                 icon:'📋', filter:'' },
+  { id:'recebeu',   label:'Receberam a mensagem',           icon:'📨', filter:'&whatsapp_status=in.(enviada,respondeu,sem_resposta,optout)' },
+  { id:'respondeu', label:'Responderam / pediram contato',  icon:'✅', filter:'&whatsapp_status=eq.respondeu' },
+  { id:'sem_resposta', label:'Receberam e não responderam', icon:'⏳', filter:'&whatsapp_status=eq.sem_resposta' },
+  { id:'optout',    label:'Pediram para não mandar mais',   icon:'🚫', filter:'&whatsapp_status=eq.optout' },
+  { id:'invalido',  label:'Número inválido / sem WhatsApp', icon:'❌', filter:'&whatsapp_status=eq.invalido' },
+];
+function ezWppLabel(st){ return ({enviada:'📨 mensagem enviada',respondeu:'✅ respondeu',sem_resposta:'⏳ sem resposta',optout:'🚫 pediu para parar',invalido:'❌ sem WhatsApp'})[st] || ''; }
+function openEzWpp(col){
+  state.ezWpp = col === 'total' ? null : col; state.ezOrigin = null; state.page = 1;
+  const item = [...document.querySelectorAll('.sb-item')].find(i => i.textContent.trim() === 'Contatos');
+  showPage('contacts', item);
+  state.ezWpp = col === 'total' ? null : col;
+}
+async function loadEzWppBoard(){
+  const board = document.getElementById('emWppBoard'); if (!board) return;
+  const sel = 'contacts_ezmoney?select=first_name,last_name,company_name,phone,lead_origin,brasileiro&order=priority.asc,lead_origin.asc,company_name.asc&limit=30';
+  const cols = await Promise.all(EZ_WPP_COLS.map(async c => {
+    const [n, rows] = await Promise.all([ezCount('contacts_ezmoney?select=id' + c.filter), supaFetch(sel + c.filter).catch(() => [])]);
+    return { ...c, n, rows: rows || [] };
+  }));
+  board.innerHTML = cols.map(c => `
+    <div style="min-width:220px;flex:1;background:var(--gray-50,#f8fafc);border:1px solid var(--gray-100);border-radius:10px;display:flex;flex-direction:column;max-height:460px">
+      <div style="padding:10px 12px;border-bottom:1px solid var(--gray-100);cursor:pointer" onclick="openEzWpp('${c.id}')">
+        <div style="font-size:12px;font-weight:700">${c.icon} ${c.label}</div>
+        <div style="font-size:20px;font-weight:800;margin-top:2px">${c.n.toLocaleString()}</div>
+      </div>
+      <div style="overflow-y:auto;padding:6px 8px;flex:1">
+        ${c.rows.length ? c.rows.map(r => {
+          const name = `${r.first_name||''} ${r.last_name||''}`.trim() || r.company_name || 'Sem nome';
+          return `<div style="background:#fff;border:1px solid var(--gray-100);border-radius:8px;padding:7px 9px;margin-bottom:6px">
+            <div style="font-size:12px;font-weight:600">${r.brasileiro === 'Provável' ? '🇧🇷 ' : ''}${name}</div>
+            <div style="font-size:11px;color:var(--gray-500)">${[r.first_name ? r.company_name : '', r.phone].filter(Boolean).join(' · ')}</div></div>`;
+        }).join('') : '<div style="text-align:center;padding:20px;color:var(--gray-400);font-size:12px">Nenhum lead ainda</div>'}
+        ${c.n > c.rows.length ? `<div style="text-align:center;padding:6px"><button class="btn btn-sm" onclick="openEzWpp('${c.id}')">Ver todos</button></div>` : ''}
+      </div>
+    </div>`).join('');
+}
 function openEzOrigin(origin){
   state.ezOrigin = origin; state.page = 1;
   const item = [...document.querySelectorAll('.sb-item')].find(i => i.textContent.trim() === 'Contatos');
@@ -2325,6 +2370,7 @@ async function loadEzMoneyDashboard(){
     set('emOrigNxg', nxg.toLocaleString()); set('emOrigMaps', maps.toLocaleString());
     set('emStatWon', won.toLocaleString()); set('emStatNegoc', negoc.toLocaleString());
     set('emStatRate', closed ? Math.round(won/closed*100)+'%' : '—');
+    loadEzWppBoard();
     const recent = await supaFetch('contacts_ezmoney?select=first_name,last_name,company_name,phone,lead_origin,status&order=created_at.desc&limit=8');
     const wrap = document.getElementById('emRecentLeads');
     if (!recent || !recent.length) { wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)">Nenhum lead importado ainda.</div>'; return; }
@@ -2470,6 +2516,7 @@ function setContactTab(tab, el) {
 function sortContacts(field) {
   if (sortField === field) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
   else { sortField = field; sortDir = 'asc'; }
+  window.ezSortTouched = true;
   loadContacts();
 }
 
@@ -2559,12 +2606,13 @@ async function loadContacts() {
 
   const contactsTable = getContactsTable();
   const isEz = contactsTable === 'contacts_ezmoney';
-  let path = `${contactsTable}?select=id,first_name,last_name,email,phone,tags,created_at${isEz ? ',company_name,lead_origin,city,state,status' : ''}`;
+  let path = `${contactsTable}?select=id,first_name,last_name,email,phone,tags,created_at${isEz ? ',company_name,lead_origin,city,state,status,brasileiro,whatsapp_status' : ''}`;
   if (q) path += `&or=(first_name.ilike.*${encodeURIComponent(q)}*,last_name.ilike.*${encodeURIComponent(q)}*,email.ilike.*${encodeURIComponent(q)}*,phone.ilike.*${encodeURIComponent(q)}*${isEz ? `,company_name.ilike.*${encodeURIComponent(q)}*` : ''})`;
   if (isEz && state.ezOrigin) path += `&lead_origin=eq.${encodeURIComponent(state.ezOrigin)}`;
+  if (isEz && state.ezWpp) path += EZ_WPP_COLS.find(c => c.id === state.ezWpp)?.filter || '';
   if (contactTab === 'noemail') path += '&email=is.null';
   if (contactTab === 'nophone') path += '&phone=is.null';
-  path += `&order=${orderCol}.${sortDir}`;
+  path += isEz && !window.ezSortTouched ? '&order=priority.asc,lead_origin.asc,company_name.asc' : `&order=${orderCol}.${sortDir}`;
 
   try {
     const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
@@ -2599,7 +2647,7 @@ async function loadContacts() {
             <div class="contact-avatar" style="background:${color}">${initials}</div>
             <div>
               <div class="contact-name">${name}</div>
-              <div class="contact-email-sub">${isEz ? [c.first_name ? c.company_name : '', c.lead_origin, [c.city,c.state].filter(Boolean).join('/')].filter(Boolean).join(' · ') : (c.email||'')}</div>
+              <div class="contact-email-sub">${isEz ? [c.first_name ? c.company_name : '', c.lead_origin, [c.city,c.state].filter(Boolean).join('/'), c.brasileiro === 'Provável' ? '🇧🇷 nome brasileiro' : '', ezWppLabel(c.whatsapp_status)].filter(Boolean).join(' · ') : (c.email||'')}</div>
             </div>
           </div>
         </td>
