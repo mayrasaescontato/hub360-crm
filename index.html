@@ -1134,32 +1134,32 @@
           <!-- Language breakdown + team -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
             <div class="card">
-              <div class="card-header"><div class="card-title">Leads por Idioma</div></div>
+              <div class="card-header"><div class="card-title">Leads por Origem</div></div>
               <div class="card-body">
                 <div style="display:flex;flex-direction:column;gap:12px">
-                  <div style="display:flex;align-items:center;gap:10px">
-                    <span style="font-size:20px">🇺🇸</span>
+                  <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="openEzOrigin('Anúncio redes sociais')">
+                    <span style="font-size:20px">📣</span>
                     <div style="flex:1">
-                      <div style="font-size:13px;font-weight:600">Americanos (EN)</div>
-                      <div style="font-size:11px;color:var(--gray-500)">Ligação ou SMS recomendado</div>
+                      <div style="font-size:13px;font-weight:600">Anúncio redes sociais</div>
+                      <div style="font-size:11px;color:var(--gray-500)">Deixaram contato no anúncio (lista do James)</div>
                     </div>
-                    <div style="font-size:16px;font-weight:800" id="emLangEN">—</div>
+                    <div style="font-size:16px;font-weight:800" id="emOrigAds">—</div>
                   </div>
-                  <div style="display:flex;align-items:center;gap:10px">
-                    <span style="font-size:20px">🇧🇷</span>
+                  <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="openEzOrigin('Base de dados NexGenLending')">
+                    <span style="font-size:20px">🗂️</span>
                     <div style="flex:1">
-                      <div style="font-size:13px;font-weight:600">Brasileiros (PT)</div>
-                      <div style="font-size:11px;color:var(--gray-500)">WhatsApp recomendado</div>
+                      <div style="font-size:13px;font-weight:600">Base de dados NexGenLending</div>
+                      <div style="font-size:11px;color:var(--gray-500)">Lista de empresas, não pediram contato</div>
                     </div>
-                    <div style="font-size:16px;font-weight:800" id="emLangPT">—</div>
+                    <div style="font-size:16px;font-weight:800" id="emOrigNxg">—</div>
                   </div>
-                  <div style="display:flex;align-items:center;gap:10px">
-                    <span style="font-size:20px">🇲🇽</span>
+                  <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="openEzOrigin('Google Maps (pesquisa)')">
+                    <span style="font-size:20px">📍</span>
                     <div style="flex:1">
-                      <div style="font-size:13px;font-weight:600">Hispânicos (ES)</div>
-                      <div style="font-size:11px;color:var(--gray-500)">WhatsApp ou SMS recomendado</div>
+                      <div style="font-size:13px;font-weight:600">Google Maps (pesquisa)</div>
+                      <div style="font-size:11px;color:var(--gray-500)">Empresas pesquisadas, não pediram contato</div>
                     </div>
-                    <div style="font-size:16px;font-weight:800" id="emLangES">—</div>
+                    <div style="font-size:16px;font-weight:800" id="emOrigMaps">—</div>
                   </div>
                 </div>
               </div>
@@ -1188,8 +1188,7 @@
             <div class="card-body" id="emRecentLeads">
               <div style="text-align:center;padding:40px;color:var(--gray-400)">
                 <i class="fas fa-dollar-sign" style="font-size:32px;margin-bottom:12px;opacity:.3;display:block"></i>
-                <div style="font-size:14px;font-weight:600;margin-bottom:4px">Aguardando lista de leads</div>
-                <div style="font-size:13px">A lista será importada quando o Tiago fornecer a base</div>
+                <div style="font-size:14px;font-weight:600;margin-bottom:4px">Carregando leads…</div>
               </div>
             </div>
           </div>
@@ -2151,6 +2150,8 @@ function showPage(name, el) {
     loadContacts();
   }
   if (name === 'calendar') initCalendar();
+  if (name === 'ezmoney') loadEzMoneyDashboard();
+  if (name !== 'contacts') state.ezOrigin = null;
   if (name === 'conversations') loadConversations();
   if (name === 'sms') loadSmsPage();
   if (name === 'samsushi') loadSamSushiDash();
@@ -2295,6 +2296,46 @@ function renderNav() {
   } else {
     nav.innerHTML = navGeneric;
   }
+}
+
+// ===== EZ MONEY DASHBOARD =====
+async function ezCount(path){
+  const r = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token || SUPA_KEY}`, 'Prefer':'count=exact', 'Range':'0-0' } });
+  return parseInt(r.headers.get('Content-Range')?.split('/')[1] || 0);
+}
+function openEzOrigin(origin){
+  state.ezOrigin = origin; state.page = 1;
+  const item = [...document.querySelectorAll('.sb-item')].find(i => i.textContent.trim() === 'Contatos');
+  showPage('contacts', item);
+}
+async function loadEzMoneyDashboard(){
+  try {
+    const enc = encodeURIComponent;
+    const [total, ads, nxg, maps, won, negoc, closed] = await Promise.all([
+      ezCount('contacts_ezmoney?select=id'),
+      ezCount(`contacts_ezmoney?select=id&lead_origin=eq.${enc('Anúncio redes sociais')}`),
+      ezCount(`contacts_ezmoney?select=id&lead_origin=eq.${enc('Base de dados NexGenLending')}`),
+      ezCount(`contacts_ezmoney?select=id&lead_origin=eq.${enc('Google Maps (pesquisa)')}`),
+      ezCount('opportunities?select=id&company=eq.ezmoney&stage=eq.em_won'),
+      ezCount('opportunities?select=id&company=eq.ezmoney&stage=in.(em_qualified,em_docs,em_analysis,em_proposal,em_negoc)'),
+      ezCount('opportunities?select=id&company=eq.ezmoney&stage=in.(em_won,em_lost)')
+    ]);
+    const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent = v; };
+    set('emStatTotal', total.toLocaleString()); set('emOrigAds', ads.toLocaleString());
+    set('emOrigNxg', nxg.toLocaleString()); set('emOrigMaps', maps.toLocaleString());
+    set('emStatWon', won.toLocaleString()); set('emStatNegoc', negoc.toLocaleString());
+    set('emStatRate', closed ? Math.round(won/closed*100)+'%' : '—');
+    const recent = await supaFetch('contacts_ezmoney?select=first_name,last_name,company_name,phone,lead_origin,status&order=created_at.desc&limit=8');
+    const wrap = document.getElementById('emRecentLeads');
+    if (!recent || !recent.length) { wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)">Nenhum lead importado ainda.</div>'; return; }
+    wrap.innerHTML = recent.map(c => {
+      const name = `${c.first_name||''} ${c.last_name||''}`.trim() || c.company_name || 'Sem nome';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-100)">
+        <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${name}</div>
+        <div style="font-size:11px;color:var(--gray-500)">${[c.first_name ? c.company_name : '', c.phone, c.lead_origin].filter(Boolean).join(' · ')}</div></div>
+        <span class="badge badge-blue">${c.status||'Novo'}</span></div>`;
+    }).join('');
+  } catch(e) { toast('Erro ao carregar painel da EZ Money: ' + e.message, 'error'); }
 }
 
 // ===== DASHBOARD =====
@@ -2502,7 +2543,7 @@ function exportToCSV(contacts) {
 function toggleSortContacts() { toast('Clique no cabeçalho da coluna para ordenar'); }
 function toggleFilterContacts() { toast('Filtros avançados em breve'); }
 
-function getContactsTable(){ return state.currentCompany === 'samsushi' ? 'contacts_sam_sushi' : 'contacts'; }
+function getContactsTable(){ return state.currentCompany === 'samsushi' ? 'contacts_sam_sushi' : state.currentCompany === 'ezmoney' ? 'contacts_ezmoney' : 'contacts'; }
 async function loadContacts() {
   const tbody = document.getElementById('contactsBody');
   tbody.innerHTML = '<tr><td colspan="7"><div class="loading"><div class="spinner"></div></div></td></tr>';
@@ -2517,15 +2558,17 @@ async function loadContacts() {
   const orderCol = sortMap[sortField] || sortField;
 
   const contactsTable = getContactsTable();
-  let path = `${contactsTable}?select=id,first_name,last_name,email,phone,tags,created_at`;
-  if (q) path += `&or=(first_name.ilike.*${encodeURIComponent(q)}*,last_name.ilike.*${encodeURIComponent(q)}*,email.ilike.*${encodeURIComponent(q)}*,phone.ilike.*${encodeURIComponent(q)}*)`;
+  const isEz = contactsTable === 'contacts_ezmoney';
+  let path = `${contactsTable}?select=id,first_name,last_name,email,phone,tags,created_at${isEz ? ',company_name,lead_origin,city,state,status' : ''}`;
+  if (q) path += `&or=(first_name.ilike.*${encodeURIComponent(q)}*,last_name.ilike.*${encodeURIComponent(q)}*,email.ilike.*${encodeURIComponent(q)}*,phone.ilike.*${encodeURIComponent(q)}*${isEz ? `,company_name.ilike.*${encodeURIComponent(q)}*` : ''})`;
+  if (isEz && state.ezOrigin) path += `&lead_origin=eq.${encodeURIComponent(state.ezOrigin)}`;
   if (contactTab === 'noemail') path += '&email=is.null';
   if (contactTab === 'nophone') path += '&phone=is.null';
   path += `&order=${orderCol}.${sortDir}`;
 
   try {
     const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
-      headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${SUPA_KEY}`, 'Prefer':'count=exact', 'Range':`${from}-${to}` }
+      headers:{ 'apikey':SUPA_KEY, 'Authorization':`Bearer ${state.token || SUPA_KEY}`, 'Prefer':'count=exact', 'Range':`${from}-${to}` }
     });
     const total = parseInt(res.headers.get('Content-Range')?.split('/')[1] || 0);
     const contacts = await res.json();
@@ -2542,7 +2585,7 @@ async function loadContacts() {
 
     const tagColors = ['badge-green','badge-blue','badge-purple','badge-yellow','badge-orange'];
     tbody.innerHTML = contacts.map((c,idx) => {
-      const name = `${c.first_name||''} ${c.last_name||''}`.trim() || 'Sem nome';
+      const name = `${c.first_name||''} ${c.last_name||''}`.trim() || c.company_name || 'Sem nome';
       const initials = [(c.first_name||'')[0],(c.last_name||'')[0]].filter(Boolean).join('').toUpperCase() || '?';
       const color = getAvatarColor(name);
       const tagList = c.tags ? c.tags.split(',').map((t,i) => `<span class="badge ${tagColors[i%tagColors.length]}" style="margin-right:3px">${t.trim()}</span>`).join('') : '<span style="color:var(--gray-300);font-size:12px">—</span>';
@@ -2556,7 +2599,7 @@ async function loadContacts() {
             <div class="contact-avatar" style="background:${color}">${initials}</div>
             <div>
               <div class="contact-name">${name}</div>
-              <div class="contact-email-sub">${c.email||''}</div>
+              <div class="contact-email-sub">${isEz ? [c.first_name ? c.company_name : '', c.lead_origin, [c.city,c.state].filter(Boolean).join('/')].filter(Boolean).join(' · ') : (c.email||'')}</div>
             </div>
           </div>
         </td>
