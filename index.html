@@ -1945,6 +1945,8 @@ function initSupabaseRealtime() {
     client.channel('wpp_messages')
       .on('postgres_changes', {event:'INSERT',schema:'public',table:'wpp_messages'}, function(payload){
         const msg = payload.new;
+        // Mensagem de outra empresa (outra instância) não entra na tela do Sam Sushi
+        if (msg.instance && wppOtherInstances(SAM_INSTANCE).includes(msg.instance)) return;
         const fromMe = msg.from_me === 'true' || msg.from_me === true;
         // Invalida o cache dessa conversa assim que uma mensagem nova chega — mesmo motivo
         // do sendMessage(): sem isso, abrir/recarregar essa conversa nos próximos 2 minutos
@@ -3678,6 +3680,16 @@ async function loadSamSushiDash() {
 // A URL e a chave da Evolution API NÃO ficam mais aqui. Toda chamada passa
 // pelo proxy /api/evolution (Vercel), que guarda a chave real no servidor
 // e só atende quem tem uma sessão de login válida no Supabase.
+// ===== WhatsApp por empresa =====
+// Cada empresa tem a própria instância. As mensagens da tabela wpp_messages são separadas pela coluna "instance".
+// A tela de Conversas do Sam Sushi mostra só as mensagens do Sam Sushi (e as antigas sem instância, que são todas dele).
+const WPP_INSTANCES = { samsushi: 'Sam Sushi', ezmoney: 'EZ Money' };
+const SAM_INSTANCE = WPP_INSTANCES.samsushi;
+function wppOtherInstances(mine){ return Object.values(WPP_INSTANCES).filter(i => i !== mine); }
+function wppInstanceFilter(mine){
+  const others = wppOtherInstances(mine).map(i => '"' + i + '"').join(',');
+  return '&or=' + encodeURIComponent(`(instance.is.null,instance.not.in.(${others}))`);
+}
 async function evoFetch(path, payload, timeoutMs) {
   const body = { path, method: 'POST', payload: payload || {} };
   const authToken = (typeof state !== 'undefined' && state.token) ? state.token : '';
@@ -3886,7 +3898,7 @@ async function loadConversations(isBackgroundRefresh){
         // Atualizações de fundo só precisam das mensagens mais recentes (delta),
         // não da tabela inteira — reduz de 5000 para 800 linhas por ciclo de 20s.
         const limit = isBackgroundRefresh ? 800 : 5000;
-        return await supaFetch(`wpp_messages?select=remote_jid,content,from_me,timestamp,message_type&order=timestamp.desc&limit=${limit}`);
+        return await supaFetch(`wpp_messages?select=remote_jid,content,from_me,timestamp,message_type&order=timestamp.desc&limit=${limit}${wppInstanceFilter(SAM_INSTANCE)}`);
       } catch(e){ return []; }
     })();
 
@@ -4283,7 +4295,7 @@ async function loadMessages(chatId){
   box.innerHTML='<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
   try {
     // 1. Tenta Supabase primeiro
-    const supaMsgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(chatId)+'&order=timestamp.asc&limit=500');
+    const supaMsgs = await supaFetch('wpp_messages?remote_jid=eq.'+encodeURIComponent(chatId)+'&order=timestamp.asc&limit=500'+wppInstanceFilter(SAM_INSTANCE));
     if(!_stillCurrent()) return;
     if(supaMsgs && supaMsgs.length){
       // Se houver mensagens de mídia sem conteúdo, busca os keys reais na Evolution para decodificar depois
@@ -4589,6 +4601,7 @@ async function sendMessage(){
       await supaFetch('wpp_messages',{
         method:'POST',
         body:JSON.stringify({
+          instance: SAM_INSTANCE,
           remote_jid: currentChatId,
           content: text,
           from_me: 'true',
@@ -4698,7 +4711,7 @@ async function stopAndSendAudio(){
     toast('Áudio enviado!');
     try{
       await supaFetch('wpp_messages',{method:'POST',body:JSON.stringify({
-        remote_jid:currentChatId, content:'', from_me:'true',
+        instance: SAM_INSTANCE, remote_jid:currentChatId, content:'', from_me:'true',
         timestamp:String(Math.floor(Date.now()/1000)), message_type:'audioMessage'
       })});
     }catch(e){}
@@ -4758,6 +4771,7 @@ async function sendMediaMessage(input){
       await supaFetch('wpp_messages',{
         method:'POST',
         body:JSON.stringify({
+          instance: SAM_INSTANCE,
           remote_jid: currentChatId,
           content: fileName,
           from_me: 'true',
