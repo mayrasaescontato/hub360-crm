@@ -2253,7 +2253,7 @@ function renderNav() {
     <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
     <div class="sb-section">Vendas</div>
     <div class="sb-item" onclick="showPage('ezleads',this)"><i class="fab fa-whatsapp"></i> Painel de Leads</div>
-    <div class="sb-item" onclick="showPage('pipeline',this);changePipeline('ezmoney_sales')"><i class="fas fa-funnel-dollar"></i> Funil de Vendas</div>
+    <div class="sb-item" onclick="showPage('pipeline',this);changePipeline('ezmoney_sales')"><i class="fas fa-funnel-dollar"></i> Funil de Prospecção</div>
     <div class="sb-item" onclick="showPage('pipeline',this);changePipeline('ezmoney_postsale')"><i class="fas fa-heart"></i> Pós-Venda</div>
     <div class="sb-item" onclick="showPage('tasks',this)"><i class="fas fa-tasks"></i> Tarefas</div>
     <div class="sb-section">Comunicação</div>
@@ -3174,7 +3174,7 @@ function renderKanban() {
   if (titleEl) {
     const titles = {
       leads: 'Alliance BJJ — Leads',
-      ezmoney_sales: 'Ez Money USA — Funil de Vendas',
+      ezmoney_sales: 'Ez Money USA — Funil de Prospecção',
       ezmoney_postsale: 'Ez Money USA — Pós-Venda'
     };
     titleEl.textContent = titles[pipeline] || pipeline;
@@ -3473,7 +3473,7 @@ function openPipelineManager() {
   const pipeline = document.getElementById('pipelineSelect')?.value || 'leads';
   const titles = {
     leads: 'Alliance BJJ — Gerenciar Colunas',
-    ezmoney_sales: 'Ez Money — Funil de Vendas — Colunas',
+    ezmoney_sales: 'Ez Money — Funil de Prospecção — Colunas',
     ezmoney_postsale: 'Ez Money — Pós-Venda — Colunas'
   };
   document.getElementById('pmTitle').textContent = titles[pipeline] || 'Gerenciar Colunas';
