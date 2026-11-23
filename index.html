@@ -1104,7 +1104,7 @@
         <!-- EZ MONEY DASHBOARD -->
         <div class="page" id="page-ezleads">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div><div style="font-size:16px;font-weight:800">Ez Money USA · Painel de Leads (WhatsApp)</div>
+            <div><div style="font-size:16px;font-weight:800">Ez Money USA · Funil de Prospecção</div>
             <div style="font-size:12px;color:var(--gray-500)">Ordem: nomes brasileiros primeiro 🇧🇷 · clique no título da coluna para ver a lista completa</div></div>
             <button class="btn" onclick="loadEzWppBoard()"><i class="fas fa-sync"></i> Atualizar</button>
           </div>
@@ -2146,7 +2146,7 @@ function showPage(name, el) {
     settings:'Configurações', calendar:'Calendários', email:'Email Marketing',
     sms:'SMS', automations:'Automações', payments:'Pagamentos', tasks:'Tarefas',
     'reports-ads':'Google Ads', 'reports-fb':'Facebook Ads',
-    ezmoney:'Ez Money USA — Painel', ezleads:'Painel de Leads',
+    ezmoney:'Ez Money USA — Painel', ezleads:'Funil de Prospecção',
     samsushi:'Sam Sushi Art Music — Painel',
     alunos:'Cadastro de Alunos', qrcode:'QR Code Ônibus'
   };
@@ -2252,8 +2252,7 @@ function renderNav() {
     <div class="sb-item" onclick="showPage('calendar',this)"><i class="fas fa-calendar-alt"></i> Calendários</div>
     <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
     <div class="sb-section">Vendas</div>
-    <div class="sb-item" onclick="showPage('ezleads',this)"><i class="fab fa-whatsapp"></i> Painel de Leads</div>
-    <div class="sb-item" onclick="showPage('pipeline',this);changePipeline('ezmoney_sales')"><i class="fas fa-funnel-dollar"></i> Funil de Prospecção</div>
+    <div class="sb-item" onclick="showPage('ezleads',this)"><i class="fas fa-funnel-dollar"></i> Funil de Prospecção</div>
     <div class="sb-item" onclick="showPage('pipeline',this);changePipeline('ezmoney_postsale')"><i class="fas fa-heart"></i> Pós-Venda</div>
     <div class="sb-item" onclick="showPage('tasks',this)"><i class="fas fa-tasks"></i> Tarefas</div>
     <div class="sb-section">Comunicação</div>
