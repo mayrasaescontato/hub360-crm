@@ -3915,11 +3915,12 @@ async function loadConversations(isBackgroundRefresh){
           try{
             const digits = c.phone.replace(/\D/g,'');
             const phoneFmt = '+'+digits;
-            const already = await supaFetch(`${getContactsTable()}?phone=eq.${encodeURIComponent(phoneFmt)}&select=id`);
+            // Sempre na tabela do Sam Sushi: o loop continua rodando mesmo se a pessoa trocar de empresa no meio
+            const already = await supaFetch(`contacts_sam_sushi?phone=eq.${encodeURIComponent(phoneFmt)}&select=id`);
             if(already && already.length) continue;
             const rawName = (c.pushName||'').trim();
             const isJustNumber = !rawName || rawName.replace(/\D/g,'')===digits;
-            await supaFetch(getContactsTable(),{
+            await supaFetch('contacts_sam_sushi',{
               method:'POST',
               body:JSON.stringify({
                 first_name: isJustNumber ? '' : rawName,
