@@ -1103,12 +1103,27 @@
 
         <!-- EZ MONEY DASHBOARD -->
         <div class="page" id="page-ezleads">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div><div style="font-size:16px;font-weight:800">Ez Money USA · Funil de Prospecção</div>
-            <div style="font-size:12px;color:var(--gray-500)">Ordem: nomes brasileiros primeiro 🇧🇷 · clique no título da coluna para ver a lista completa</div></div>
-            <button class="btn" onclick="loadEzWppBoard()"><i class="fas fa-sync"></i> Atualizar</button>
+          <div class="pipeline-page">
+            <div class="pipeline-topbar">
+              <div style="font-size:14px;font-weight:700;color:var(--gray-900)">Ez Money USA — Funil de Prospecção</div>
+              <span class="pipeline-count" id="ezLeadsCountLabel">0 leads</span>
+              <div style="flex:1"></div>
+              <button class="btn btn-outline" onclick="loadEzWppBoard()"><i class="fas fa-sync"></i> Atualizar</button>
+              <button class="btn btn-primary" onclick="openNewContact()"><i class="fas fa-plus"></i> Novo lead</button>
+            </div>
+            <div class="pipeline-tabs">
+              <div class="pipeline-tab active"><i class="fab fa-whatsapp"></i> Prospecção WhatsApp</div>
+              <div style="flex:1"></div>
+              <div style="font-size:12px;color:var(--gray-500);padding-bottom:6px">Ordem: nomes brasileiros primeiro 🇧🇷</div>
+            </div>
+            <div class="pipeline-filters">
+              <input class="filter-search" type="text" placeholder="Pesquisar por nome, empresa ou telefone" oninput="clearTimeout(window._ezSearchT);window._ezSearchT=setTimeout(()=>{state.ezSearch=this.value.trim();loadEzWppBoard();},400)">
+              <div style="flex:1"></div>
+            </div>
+            <div class="kanban-wrap">
+              <div class="kanban" id="emWppBoard"></div>
+            </div>
           </div>
-          <div id="emWppBoard" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;align-items:flex-start"><div style="padding:20px;color:var(--gray-400)">Carregando…</div></div>
         </div>
         <div class="page" id="page-ezmoney">
           <!-- Stats -->
@@ -2313,12 +2328,12 @@ async function ezCount(path){
   return parseInt(r.headers.get('Content-Range')?.split('/')[1] || 0);
 }
 const EZ_WPP_COLS = [
-  { id:'total',     label:'Total de leads',                 icon:'📋', filter:'' },
-  { id:'recebeu',   label:'Receberam a mensagem',           icon:'📨', filter:'&whatsapp_status=in.(enviada,respondeu,sem_resposta,optout)' },
-  { id:'respondeu', label:'Responderam / pediram contato',  icon:'✅', filter:'&whatsapp_status=eq.respondeu' },
-  { id:'sem_resposta', label:'Receberam e não responderam', icon:'⏳', filter:'&whatsapp_status=eq.sem_resposta' },
-  { id:'optout',    label:'Pediram para não mandar mais',   icon:'🚫', filter:'&whatsapp_status=eq.optout' },
-  { id:'invalido',  label:'Número inválido / sem WhatsApp', icon:'❌', filter:'&whatsapp_status=eq.invalido' },
+  { id:'total',     label:'Lista de leads',                 icon:'📋', filter:'&whatsapp_status=is.null', status:null },
+  { id:'recebeu',   label:'Receberam a mensagem',           icon:'📨', filter:'&whatsapp_status=eq.enviada', status:'enviada' },
+  { id:'respondeu', label:'Responderam / pediram contato',  icon:'✅', filter:'&whatsapp_status=eq.respondeu', status:'respondeu' },
+  { id:'sem_resposta', label:'Receberam e não responderam', icon:'⏳', filter:'&whatsapp_status=eq.sem_resposta', status:'sem_resposta' },
+  { id:'optout',    label:'Pediram para não mandar mais',   icon:'🚫', filter:'&whatsapp_status=eq.optout', status:'optout' },
+  { id:'invalido',  label:'Número inválido / sem WhatsApp', icon:'❌', filter:'&whatsapp_status=eq.invalido', status:'invalido' },
 ];
 function ezWppLabel(st){ return ({enviada:'📨 mensagem enviada',respondeu:'✅ respondeu',sem_resposta:'⏳ sem resposta',optout:'🚫 pediu para parar',invalido:'❌ sem WhatsApp'})[st] || ''; }
 function openEzWpp(col){
@@ -2327,29 +2342,102 @@ function openEzWpp(col){
   showPage('contacts', item);
   state.ezWpp = col === 'total' ? null : col;
 }
+const EZ_PAGE = 30;
+function ezLeadSearchFilter(){
+  const q = (state.ezSearch||'').replace(/[(),*]/g,' ').trim();
+  if (!q) return '';
+  const e = encodeURIComponent(q);
+  return `&or=(first_name.ilike.*${e}*,last_name.ilike.*${e}*,company_name.ilike.*${e}*,phone.ilike.*${e}*)`;
+}
+window.ezLeadCache = {};
+function renderEzLeadCard(r){
+  window.ezLeadCache[r.id] = r;
+  const name = `${r.first_name||''} ${r.last_name||''}`.trim() || r.company_name || 'Sem nome';
+  const initials = name.split(/\s+/).map(w=>w[0]).filter(Boolean).slice(0,2).join('').toUpperCase() || '?';
+  const flag = r.brasileiro === 'Provável' ? '<span style="font-size:14px;margin-left:4px" title="Nome brasileiro">🇧🇷</span>' : '';
+  const st = ezWppLabel(r.whatsapp_status) || 'ainda não enviada';
+  const created = r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  const digits = (r.phone||'').replace(/\D/g,'');
+  return `
+    <div class="opp-card" draggable="true" data-id="${r.id}" ondragstart="ezDragStart(event,'${r.id}')" ondragend="ezDragEnd(event)" onclick="ezEditLead('${r.id}')">
+      <div class="opp-card-top">
+        <div><div class="opp-card-name">${name}${flag}</div></div>
+        <div class="opp-card-avatar" style="background:var(--green)">${initials}</div>
+      </div>
+      <div class="opp-card-row"><span class="opp-card-label">Contato:</span> <strong style="font-size:11px">${initials}&nbsp; ${name}</strong></div>
+      ${r.first_name && r.company_name ? `<div class="opp-card-row"><span class="opp-card-label">Empresa:</span> <span style="font-size:11px">${r.company_name}</span></div>` : ''}
+      <div class="opp-card-row"><span class="opp-card-label">Telefone:</span> <span style="font-size:11px">${r.phone||'—'}</span></div>
+      <div class="opp-card-row"><span class="opp-card-label">Origem:</span> <span style="font-size:11px">${r.lead_origin||'Não informado'}</span></div>
+      <div class="opp-card-row"><span class="opp-card-label">WhatsApp:</span> <span style="border:1px solid var(--gray-200);border-radius:4px;padding:1px 8px;font-size:11px;font-weight:600;color:var(--gray-700)">${st}</span></div>
+      <div class="opp-card-row"><span class="opp-card-label">Criado em:</span> <span style="font-size:11px">${created}</span></div>
+      <div class="opp-card-actions">
+        ${digits ? `<a class="opp-action-btn" href="https://wa.me/${digits}" target="_blank" rel="noopener" title="Abrir conversa no WhatsApp" onclick="event.stopPropagation()"><i class="fab fa-whatsapp"></i></a>` : ''}
+        <div class="opp-action-btn" title="Editar lead" onclick="event.stopPropagation();ezEditLead('${r.id}')"><i class="fas fa-pen"></i></div>
+        <div class="opp-action-btn" title="Excluir lead" onclick="event.stopPropagation();ezDeleteLead('${r.id}')"><i class="fas fa-trash"></i></div>
+      </div>
+    </div>`;
+}
+let ezDraggedId = null;
+function ezDragStart(ev, id){ ezDraggedId = id; ev.dataTransfer.effectAllowed = 'move'; ev.target.classList.add('dragging'); }
+function ezDragEnd(ev){ ev.target.classList.remove('dragging'); }
+async function ezDrop(ev, colId){
+  ev.preventDefault(); ev.currentTarget.classList.remove('drag-over');
+  const id = ezDraggedId; ezDraggedId = null;
+  const col = EZ_WPP_COLS.find(c => c.id === colId);
+  const lead = window.ezLeadCache[id];
+  if (!id || !col || !lead || (lead.whatsapp_status||null) === col.status) return;
+  try {
+    await supaFetch(`contacts_ezmoney?id=eq.${id}`, { method:'PATCH', body: JSON.stringify({ whatsapp_status: col.status, updated_at: new Date().toISOString() }) });
+    toast(`Movido para "${col.label}"`);
+    loadEzWppBoard();
+  } catch(e) { toast('Erro ao mover lead: ' + e.message, 'error'); }
+}
+function ezEditLead(id){
+  const r = window.ezLeadCache[id]; if (!r) return;
+  editContact({ ...r, first_name: r.first_name || r.company_name || '' });
+}
+async function ezDeleteLead(id){
+  const r = window.ezLeadCache[id];
+  const name = r ? (`${r.first_name||''} ${r.last_name||''}`.trim() || r.company_name || r.phone) : 'este lead';
+  if (!confirm(`Excluir "${name}" da lista da EZ Money? Essa ação não pode ser desfeita.`)) return;
+  try { await supaFetch(`contacts_ezmoney?id=eq.${id}`, { method:'DELETE' }); toast('Lead excluído'); loadEzWppBoard(); }
+  catch(e) { toast('Erro ao excluir: ' + e.message, 'error'); }
+}
+async function fetchEzCol(c, offset){
+  const sel = `contacts_ezmoney?select=id,first_name,last_name,company_name,phone,email,tags,notes,lead_origin,brasileiro,whatsapp_status,created_at&order=priority.asc,lead_origin.asc,company_name.asc&offset=${offset}&limit=${EZ_PAGE}`;
+  return (await supaFetch(sel + c.filter + ezLeadSearchFilter()).catch(() => [])) || [];
+}
+async function loadEzMoreCol(id){
+  const c = EZ_WPP_COLS.find(x => x.id === id); const body = document.getElementById('ezcol-'+id); if (!c || !body) return;
+  const offset = parseInt(body.dataset.loaded||'0');
+  const rows = await fetchEzCol(c, offset);
+  body.querySelector('.ez-more')?.remove();
+  body.insertAdjacentHTML('beforeend', rows.map(renderEzLeadCard).join(''));
+  body.dataset.loaded = offset + rows.length;
+  if (offset + rows.length < parseInt(body.dataset.total||'0')) body.insertAdjacentHTML('beforeend', `<div class="ez-more" style="text-align:center;padding:8px"><button class="btn btn-outline" style="font-size:12px;padding:5px 10px" onclick="loadEzMoreCol('${id}')">Carregar mais</button></div>`);
+}
 async function loadEzWppBoard(){
   const board = document.getElementById('emWppBoard'); if (!board) return;
-  const sel = 'contacts_ezmoney?select=first_name,last_name,company_name,phone,lead_origin,brasileiro&order=priority.asc,lead_origin.asc,company_name.asc&limit=50';
+  board.innerHTML = '<div style="padding:20px;color:var(--gray-400)">Carregando…</div>';
   const cols = await Promise.all(EZ_WPP_COLS.map(async c => {
-    const [n, rows] = await Promise.all([ezCount('contacts_ezmoney?select=id' + c.filter), supaFetch(sel + c.filter).catch(() => [])]);
-    return { ...c, n, rows: rows || [] };
+    const [n, rows] = await Promise.all([ezCount('contacts_ezmoney?select=id' + c.filter + ezLeadSearchFilter()), fetchEzCol(c, 0)]);
+    return { ...c, n, rows };
   }));
+  const all = await ezCount('contacts_ezmoney?select=id' + ezLeadSearchFilter());
+  const lbl = document.getElementById('ezLeadsCountLabel'); if (lbl) lbl.textContent = `${all.toLocaleString('pt-BR')} leads no total`;
   board.innerHTML = cols.map(c => `
-    <div style="min-width:220px;flex:1;background:var(--gray-50,#f8fafc);border:1px solid var(--gray-100);border-radius:10px;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
-      <div style="padding:10px 12px;border-bottom:1px solid var(--gray-100);cursor:pointer" onclick="openEzWpp('${c.id}')">
-        <div style="font-size:12px;font-weight:700">${c.icon} ${c.label}</div>
-        <div style="font-size:20px;font-weight:800;margin-top:2px">${c.n.toLocaleString()}</div>
-      </div>
-      <div style="overflow-y:auto;padding:6px 8px;flex:1">
-        ${c.rows.length ? c.rows.map(r => {
-          const name = `${r.first_name||''} ${r.last_name||''}`.trim() || r.company_name || 'Sem nome';
-          return `<div style="background:#fff;border:1px solid var(--gray-100);border-radius:8px;padding:7px 9px;margin-bottom:6px">
-            <div style="font-size:12px;font-weight:600">${r.brasileiro === 'Provável' ? '🇧🇷 ' : ''}${name}</div>
-            <div style="font-size:11px;color:var(--gray-500)">${[r.first_name ? r.company_name : '', r.phone].filter(Boolean).join(' · ')}</div></div>`;
-        }).join('') : '<div style="text-align:center;padding:20px;color:var(--gray-400);font-size:12px">Nenhum lead ainda</div>'}
-        ${c.n > c.rows.length ? `<div style="text-align:center;padding:6px"><button class="btn btn-sm" onclick="openEzWpp('${c.id}')">Ver todos</button></div>` : ''}
-      </div>
-    </div>`).join('');
+      <div class="kanban-col">
+        <div class="kanban-col-header">
+          <div>
+            <div class="kanban-col-title">${c.label} ${c.icon}</div>
+            <div class="kanban-col-meta">${c.n.toLocaleString('pt-BR')} Lead${c.n!==1?'s':''}</div>
+          </div>
+          <i class="fas fa-chevron-left" style="color:var(--gray-300);font-size:11px"></i>
+        </div>
+        <div class="kanban-col-body" id="ezcol-${c.id}" ondragover="handleColDragOver(event)" ondragleave="handleColDragLeave(event)" ondrop="ezDrop(event,'${c.id}')" data-loaded="${c.rows.length}" data-total="${c.n}">${
+          c.rows.length ? c.rows.map(renderEzLeadCard).join('') : '<div style="font-size:11px;color:var(--gray-400);text-align:center;padding:16px 0">Sem leads</div>'
+        }${c.n > c.rows.length ? `<div class="ez-more" style="text-align:center;padding:8px"><button class="btn btn-outline" style="font-size:12px;padding:5px 10px" onclick="loadEzMoreCol('${c.id}')">Carregar mais</button></div>` : ''}</div>
+      </div>`).join('');
 }
 function openEzOrigin(origin){
   state.ezOrigin = origin; state.page = 1;
@@ -2711,8 +2799,8 @@ async function saveContact() {
   if (!data.first_name) { toast('Nome é obrigatório','error'); return; }
   try {
     if (id) { await supaFetch(`${getContactsTable()}?id=eq.${id}`,{method:'PATCH',body:JSON.stringify(data)}); toast('Contato atualizado!'); }
-    else { await supaFetch(getContactsTable(),{method:'POST',body:JSON.stringify(data)}); toast('Contato criado!'); }
-    closeContactModal(); loadContacts(); if(state.currentCompany!=='samsushi') loadDashboard();
+    else { if (state.currentCompany === 'ezmoney') { data.lead_origin = 'Cadastro manual'; data.status = 'Novo'; } await supaFetch(getContactsTable(),{method:'POST',body:JSON.stringify(data)}); toast('Contato criado!'); }
+    closeContactModal(); loadContacts(); if(state.currentCompany!=='samsushi') loadDashboard(); if(document.getElementById('page-ezleads')?.classList.contains('active')) loadEzWppBoard();
   } catch(e) { toast('Erro ao salvar: '+e.message,'error'); }
 }
 async function deleteContact(id) {
