@@ -1102,6 +1102,14 @@
         </div>
 
         <!-- EZ MONEY DASHBOARD -->
+        <div class="page" id="page-ezleads">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div><div style="font-size:16px;font-weight:800">Ez Money USA · Painel de Leads (WhatsApp)</div>
+            <div style="font-size:12px;color:var(--gray-500)">Ordem: nomes brasileiros primeiro 🇧🇷 · clique no título da coluna para ver a lista completa</div></div>
+            <button class="btn" onclick="loadEzWppBoard()"><i class="fas fa-sync"></i> Atualizar</button>
+          </div>
+          <div id="emWppBoard" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;align-items:flex-start"><div style="padding:20px;color:var(--gray-400)">Carregando…</div></div>
+        </div>
         <div class="page" id="page-ezmoney">
           <!-- Stats -->
           <div class="stats-grid" style="margin-bottom:16px">
@@ -1129,12 +1137,6 @@
               <div class="stat-value" id="emStatRate">—</div>
               <div class="stat-sub">Leads fechados</div>
             </div>
-          </div>
-
-          <!-- Painel de leads WhatsApp -->
-          <div class="card" style="margin-bottom:16px">
-            <div class="card-header"><div class="card-title">Painel de Leads · WhatsApp</div><div style="font-size:11px;color:var(--gray-500)">Ordem: nomes brasileiros primeiro 🇧🇷</div></div>
-            <div class="card-body"><div id="emWppBoard" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px"><div style="padding:20px;color:var(--gray-400)">Carregando…</div></div></div>
           </div>
 
           <!-- Language breakdown + team -->
@@ -2144,7 +2146,7 @@ function showPage(name, el) {
     settings:'Configurações', calendar:'Calendários', email:'Email Marketing',
     sms:'SMS', automations:'Automações', payments:'Pagamentos', tasks:'Tarefas',
     'reports-ads':'Google Ads', 'reports-fb':'Facebook Ads',
-    ezmoney:'Ez Money USA — Painel',
+    ezmoney:'Ez Money USA — Painel', ezleads:'Painel de Leads',
     samsushi:'Sam Sushi Art Music — Painel',
     alunos:'Cadastro de Alunos', qrcode:'QR Code Ônibus'
   };
@@ -2157,6 +2159,7 @@ function showPage(name, el) {
   }
   if (name === 'calendar') initCalendar();
   if (name === 'ezmoney') loadEzMoneyDashboard();
+  if (name === 'ezleads') loadEzWppBoard();
   if (name !== 'contacts') { state.ezOrigin = null; state.ezWpp = null; }
   if (name === 'conversations') loadConversations();
   if (name === 'sms') loadSmsPage();
@@ -2249,6 +2252,7 @@ function renderNav() {
     <div class="sb-item" onclick="showPage('calendar',this)"><i class="fas fa-calendar-alt"></i> Calendários</div>
     <div class="sb-item" onclick="showPage('contacts',this)"><i class="fas fa-users"></i> Contatos</div>
     <div class="sb-section">Vendas</div>
+    <div class="sb-item" onclick="showPage('ezleads',this)"><i class="fab fa-whatsapp"></i> Painel de Leads</div>
     <div class="sb-item" onclick="showPage('pipeline',this);changePipeline('ezmoney_sales')"><i class="fas fa-funnel-dollar"></i> Funil de Vendas</div>
     <div class="sb-item" onclick="showPage('pipeline',this);changePipeline('ezmoney_postsale')"><i class="fas fa-heart"></i> Pós-Venda</div>
     <div class="sb-item" onclick="showPage('tasks',this)"><i class="fas fa-tasks"></i> Tarefas</div>
@@ -2326,13 +2330,13 @@ function openEzWpp(col){
 }
 async function loadEzWppBoard(){
   const board = document.getElementById('emWppBoard'); if (!board) return;
-  const sel = 'contacts_ezmoney?select=first_name,last_name,company_name,phone,lead_origin,brasileiro&order=priority.asc,lead_origin.asc,company_name.asc&limit=30';
+  const sel = 'contacts_ezmoney?select=first_name,last_name,company_name,phone,lead_origin,brasileiro&order=priority.asc,lead_origin.asc,company_name.asc&limit=50';
   const cols = await Promise.all(EZ_WPP_COLS.map(async c => {
     const [n, rows] = await Promise.all([ezCount('contacts_ezmoney?select=id' + c.filter), supaFetch(sel + c.filter).catch(() => [])]);
     return { ...c, n, rows: rows || [] };
   }));
   board.innerHTML = cols.map(c => `
-    <div style="min-width:220px;flex:1;background:var(--gray-50,#f8fafc);border:1px solid var(--gray-100);border-radius:10px;display:flex;flex-direction:column;max-height:460px">
+    <div style="min-width:220px;flex:1;background:var(--gray-50,#f8fafc);border:1px solid var(--gray-100);border-radius:10px;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
       <div style="padding:10px 12px;border-bottom:1px solid var(--gray-100);cursor:pointer" onclick="openEzWpp('${c.id}')">
         <div style="font-size:12px;font-weight:700">${c.icon} ${c.label}</div>
         <div style="font-size:20px;font-weight:800;margin-top:2px">${c.n.toLocaleString()}</div>
@@ -2370,7 +2374,6 @@ async function loadEzMoneyDashboard(){
     set('emOrigNxg', nxg.toLocaleString()); set('emOrigMaps', maps.toLocaleString());
     set('emStatWon', won.toLocaleString()); set('emStatNegoc', negoc.toLocaleString());
     set('emStatRate', closed ? Math.round(won/closed*100)+'%' : '—');
-    loadEzWppBoard();
     const recent = await supaFetch('contacts_ezmoney?select=first_name,last_name,company_name,phone,lead_origin,status&order=created_at.desc&limit=8');
     const wrap = document.getElementById('emRecentLeads');
     if (!recent || !recent.length) { wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--gray-400)">Nenhum lead importado ainda.</div>'; return; }
