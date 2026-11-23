@@ -3702,6 +3702,7 @@ async function loadConversations(isBackgroundRefresh){
     document.getElementById('chatHeaderName').textContent = '—';
     document.getElementById('chatHeaderPhone').textContent = '';
     document.getElementById('convContactDetails').innerHTML = '';
+    const msgs = document.getElementById('chatMessages'); if (msgs) msgs.innerHTML = '';
     return;
   }
   document.getElementById('convInstanceLabel').textContent = 'Sam Sushi';
